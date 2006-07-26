@@ -1,0 +1,4 @@
+MANIFEST.extra
+mkdist
+mkdoc
+html/
