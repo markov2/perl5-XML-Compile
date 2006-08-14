@@ -11,7 +11,7 @@ use TestTools;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 82;
+use Test::More tests => 73;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -19,8 +19,6 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
         xmlns:me="$TestNS">
 
 <element name="test1" type="int" />
-
-<element name="test2" type="int" fixed="not-changeable" />
 
 <element name="test3" type="me:st" />
 <simpleType name="st">
@@ -49,6 +47,16 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
     <restriction base="int" />
   </simpleType>
 </element>
+
+<element name="test7">
+  <complexType>
+    <sequence>
+      <element name="ct_1" type="int" />
+      <element name="ct_2" type="int" default="42" />
+    </sequence>
+  </complexType>
+</element>
+
 </schema>
 __SCHEMA__
 
@@ -76,21 +84,6 @@ __XML__
 #
 # the simpleType, less simple type
 #
-
-run_test($schema, test2 => <<__XML__, 'not-changeable');
-<test2>not-changeable</test2>
-__XML__
-
-{  @run_opts = (invalid => 'USE');
-
-   run_test($schema, test2 => <<__XML__, 'not-changeable', <<__EXPECT__);
-<xyz />
-__XML__
-<test2>not-changeable</test2>
-__EXPECT__
-
-  @run_opts = ();
-}
 
 run_test($schema, test3 => <<__XML__, 78);
 <test3>78</test3>
@@ -120,3 +113,13 @@ run_test($schema, test5 => <<__XML__, {ct_1 => 15, ct_2 => 44});
 __XML__
 
 # for test6 see above
+
+#
+# Test default
+#
+
+run_test($schema, test7 => <<__XML__, {ct_1 => 41, ct_2 => 42}, <<__XML__, {ct_1 => 41});
+<test7><ct_1>41</ct_1></test7>
+__XML__
+<test7><ct_1>41</ct_1></test7>
+__XML__

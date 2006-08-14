@@ -12,6 +12,8 @@ use XML::LibXML;
 use XML::Compile::Schema::Specs;
 use XML::Compile::Schema::BuiltInStructs qw/builtin_structs/;
 use XML::Compile::Schema::Translate      qw/compile_tree/;
+use XML::Compile::Schema::Instance;
+use XML::Compile::Schema::NameSpaces;
 
 =chapter NAME
 
@@ -24,8 +26,6 @@ XML::Compile::Schema - Compile a schema
  my $tree   = $parser->parse...(...);
 
  my $schema = XML::Compile::Schema->new($tree);
- my $index  = $schema->types(namespace => 'EXPANDED');
- foreach (keys %$index) {...}
 
  my $schema = XML::Compile::Schema->new($xml_string);
  my $read   = $schema->compile(READER => 'mytype');
@@ -54,7 +54,6 @@ follow the specs closely.
 Two implementations use the translator, and more can be added later.  Both
 get created with the M<compile()> method.
 
-
 =over 4
 
 =item XML Reader
@@ -79,145 +78,55 @@ XML nodes may get a place later.
 
 sub init($)
 {   my ($self, $args) = @_;
+    $self->{namespaces} = XML::Compile::Schema::NameSpaces->new;
     $self->SUPER::init($args);
+
+    if(my $top = $self->top)
+    {   $self->addSchemas($top);
+    }
+
     $self;
 }
 
-=section Compilers
+=section Accessors
 
-=method types OPTIONS
-
-Returns all defined types in the schema.  In list context, you only
-get the names of the defined types.  In scalar context, a hash is
-returned with detailed information about each type.
-
-=option  namespace 'EXPANDED'|'PREFIXED'|'LOCAL'
-=default namespace 'EXPANDED'
-
-How to index the type-names.  Only C<EXPANDED> is safe, because the
-other suffer from name-space conflicts... but produce a more readible
-output.
-
+=method namespaces
+Returns the M<XML::Compile::Schema::Namespaces> object which is used
+to collect schemas.
 =cut
 
-sub types(@)
-{   my ($self, %args) = @_;
-    my $indexformat = $args{namespace} || 'EXPANDED';
+sub namespaces() { shift->{namespaces} }
 
-    my $types = $self->{XCS_types}
-            ||= $self->_discover_types(\%args);
+=method addSchemas NODE
+Collect all the schemas defined below the NODE.
+=cut
 
-    if($indexformat eq 'EXPANDED')
-    {  return wantarray ? keys %$types : $types;
-    }
-    elsif($indexformat eq 'LOCAL')
-    {  return map {$_->{name}} values %$types if wantarray;
-       my %local = map { ($_->{name} => $_) } values %$types;
-       return \%local;
-    }
-    elsif($indexformat eq 'PREFIXED')
-    {   my %pref
-         = map { ( ($_->{prefix} ? "$_->{prefix}:$_->{name}" : $_->{name})
-                    => $_) } values %$types;
-       return wantarray ? keys %pref : \%pref;
-    }
+sub addSchemas($$)
+{   my ($self, $top) = @_;
 
-    croak "namespace: EXPANDED, PREFIXED, or LOCAL";
-}
-
-sub _find_attr($$)
-{   my ($node, $tag) = @_;
-    first {$_->localname eq $tag} $node->attributes;
-}
-
-sub _discover_types($$)
-{   my ($self, $args) = @_;
-
-    my $top = $self->top;
-    $top = $top->documentElement
+    $top    = $top->documentElement
        if $top->isa('XML::LibXML::Document');
 
-    my (%types, $tns);
+    my $nss = $self->namespaces;
 
     $self->walkTree
     ( $top,
-      sub { my $schema = shift;
-            return 1 unless $schema->isa('XML::LibXML::Element')
-                         && $schema->localname eq 'schema';
+      sub { my $node = shift;
+            return 1 unless $node->isa('XML::LibXML::Element')
+                         && $node->localname eq 'schema';
 
-            my $ns   = $schema->namespaceURI;
-            return 1
-                unless XML::Compile::Schema::Specs->predefinedSchema($ns);
+            my $schema = XML::Compile::Schema::Instance->new($node)
+                or next;
 
-            my $tns_attr = _find_attr($schema, 'targetNamespace');
-            defined $tns_attr
-                or croak "missing targetNamespace in schema";
-
-            $tns = $tns_attr->value;
-
-            foreach my $node ($schema->childNodes)
-            {   next unless $node->isa('XML::LibXML::Element');
-                next unless $node->namespaceURI eq $ns;
-                next if $node->localname eq 'notation';
-
-                my $name_attr = _find_attr($node, 'name');
-                next unless defined $name_attr;
-
-                my $name_val  = $name_attr->value;
-                my ($prefix, $local)
-                 = index($name_val, ':') >= 0
-                 ? split(/\:/,$name_val,2)
-                 : (undef, $name_val);
-
-                my $uri
-                 = defined $prefix ? $node->lookupNamespaceURI($prefix) : $tns;
-                my $label = "$uri#$local";
-
-                $types{$label}
-                 = { full => $label, type => $node->localname
-                   , ns => $uri, name => $local, prefix => $prefix
-                   , node => $node
-                   };
-              }
-
-              return 0;   # do not decend in schema
+#warn $schema->targetNamespace;
+#$schema->printIndex(\*STDERR);
+            $nss->add($schema);
+            return 0;
           }
     );
-
-    \%types;
 }
 
-=method typesPerNamespace
-Returns a hash of hashes, on the first level the name-space, on the
-second the local names.
-
-=cut
-
-sub typesPerNamespace()
-{   my $types = shift->types(namespace => 'EXPANDED');
-    my %ns;
-    foreach (values %$types)
-    {   $ns{$_->{ns}}{$_->{name}} = $_;
-    }
-
-    \%ns;
-}
-
-=method printTypes
-For debugging: table of found types, sorted by name-space
-
-=cut
-
-sub printTypes()
-{   my $types = shift->typesPerNamespace or return;
-    foreach my $ns (sort keys %$types)
-    {   print "Namespace: $ns\n";
-        foreach my $name (sort keys %{$types->{$ns}})
-        {   my $type = $types->{$ns}{$name};
-            printf "  %14s %s\n", $type->{type}, $name;
-        }
-    }
-}
+=section Compilers
 
 =method compile ('READER'|'WRITER'), TYPE, OPTIONS
 
@@ -268,6 +177,18 @@ set for a simpleType.
 Prepended to each error report, to indicate the location of the
 error in the XML-Scheme tree.
 
+=option  elements_qualified BOOLEAN
+=default elements_qualified <undef>
+When defined, this will overrule the C<elementFormDefault> flags in
+all schema's.  When not qualified, the xml will not produce or
+process prefixes on the elements.
+
+=option  attributes_qualified BOOLEAN
+=default attributes_qualified <undef>
+When defined, this will overrule the C<attributeFormDefault> flags in
+all schema's.  When not qualified, the xml will not produce nor
+process prefixes on attributes.
+
 =option  output_namespaces HASH
 =default output_namespaces {}
 Can be used to predefine an output namespace (when 'WRITER') for instance
@@ -288,10 +209,6 @@ XML components into one, and add the namespaces later.
 Use the same prefixes in C<output_namespaces> as with some other compiled
 piece, but reset the counts to zero first.
 
-=option  ignore_namespaces BOOLEAN
-=default ignore_namespaces <false>
-Do not use name-space prefixes on the WRITER output.
-
 =option  sloppy_integers BOOLEAN
 =default sloppy_integers <false>
 The C<decimal> and C<integer> types must support at least 18 digits,
@@ -305,7 +222,8 @@ Be aware that C<Math::BigInt> and C<Math::BigFloat> objects are nearly
 but not fully transparent mimicing the behavior of Perl's ints and
 floats.  See their respective manual-pages.  Especially when you wish
 for some performance, you should optimize access to these objects to
-avoid expensive copying.
+avoid expensive copying which is exactly the spot where the difference
+are.
 
 =example create an XML reader
  my $msgin  = $rules->compile(READER => 'myns#mytype');
@@ -342,24 +260,23 @@ sub compile($$@)
             if $@;
     }
 
-    exists $args{include_namespaces}
-       or $args{include_namespaces} = !$args{ignore_namespaces};
-
-    $args{output_namespaces} ||= {};
+    $args{include_namespaces} ||= 1;
+    $args{output_namespaces}  ||= {};
 
     do { $_->{used} = 0 for values %{$args{output_namespaces}} }
        if $args{namespace_reset};
 
-    my $top   = $self->type($type)
+    my $nss   = $self->namespaces;
+    my $top   = $nss->findType($type) || $nss->findElement($type)
        or croak "ERROR: type $type is not defined";
 
     $args{path} ||= $top->{full};
 
     compile_tree
      ( $top->{full}, %args
-     , run   => builtin_structs($direction) 
-     , types => scalar($self->types)
-     , err   => $self->invalidsErrorHandler($args{invalid})
+     , run => builtin_structs($direction) 
+     , err => $self->invalidsErrorHandler($args{invalid})
+     , nss => $self->namespaces
      );
 }
 
@@ -384,27 +301,6 @@ sub template($@)
      );
 
    die "ERROR not implemented";
-}
-
-=section Helpers
-
-=method type EXPANDED|LOCAL
-Returns the type definition in this scheme, either specified as EXPANDED
-type name or as LOCAL type name.  Returns C<undef> then not available.
-The LOCAL name is usually safe, but not always and therefore can better
-be avoided.
-
-=examples
- my $def = $schema->type('http://www.w3.org/2001/XMLSchema#integer');
- my $def = $schema->type('integer');
-
-=cut
-
-sub type($)
-{   my ($self, $label) = @_;
-
-       $self->types(namespace => 'EXPANDED')->{$label}
-    || $self->types(namespace => 'LOCAL'   )->{$label};
 }
 
 =method invalidsErrorHandler 'IGNORE','USE'.'WARN','DIE',CODE
@@ -440,6 +336,28 @@ sub invalidsErrorHandler($)
     ? sub {die  "$_[2] (".(defined $_[1] ? $_[1] : 'undef').") for $_[0]\n"}
     : die "ERROR: error handler expects CODE, 'IGNORE',"
         . "'USE','WARN', or 'DIE', not $key";
+}
+
+=method types
+List all types, defined by all schemas sorted alphabetically.
+=cut
+
+sub types()
+{   my $nss = shift->namespaces;
+    sort map {$_->types}
+          map {$nss->schemas($_)}
+             $nss->namespaces;
+}
+
+=method elements
+List all elements, defined by all schemas sorted alphabetically.
+=cut
+
+sub elements()
+{   my $nss = shift->namespaces;
+    sort map {$_->elements}
+          map {$nss->schemas($_)}
+             $nss->namespaces;
 }
 
 1;

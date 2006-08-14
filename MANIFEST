@@ -23,6 +23,8 @@ lib/XML/Compile/Schema.pm
 lib/XML/Compile/Schema/BuiltInFacets.pm
 lib/XML/Compile/Schema/BuiltInStructs.pm
 lib/XML/Compile/Schema/BuiltInTypes.pm
+lib/XML/Compile/Schema/Instance.pm
+lib/XML/Compile/Schema/NameSpaces.pm
 lib/XML/Compile/Schema/Specs.pm
 lib/XML/Compile/Schema/Translate.pm
 t/01use.t
@@ -39,7 +41,9 @@ t/43facet.t
 t/44pats.t
 t/45list.t
 t/46union.t
-t/47big.t
+t/47fixed.t
+t/48default.t
+t/49big.t
 t/50ns.t
 t/TestTools.pm
 version

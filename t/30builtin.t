@@ -15,16 +15,20 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
         xmlns="$SchemaNS"
         xmlns:me="$TestNS">
+
 <element name="test1" type="int" />
+
 <simpleType  name="test2">
   <restriction base="int" />
 </simpleType>
+
 <complexType name="test3">
   <sequence>
     <element name="test3_1" type="int" />
     <element name="test3_2" type="int" />
   </sequence>
 </complexType>
+
 </schema>
 __SCHEMA__
 
@@ -35,7 +39,7 @@ ok(defined $schema);
 #
 
 my $read_t1   = $schema->compile
- ( READER => "$TestNS#test1"
+ ( READER => "{$TestNS}test1"
  , check_values => 1
  );
 
@@ -53,7 +57,7 @@ cmp_ok($t1, '==', 42);
 #
 
 my $read_t2   = $schema->compile
- ( READER => "$TestNS#test2"
+ ( READER => "{$TestNS}test2"
  , check_values => 1
  );
 
@@ -69,7 +73,7 @@ __XML__
 #
 
 my $read_t3   = $schema->compile
- ( READER => "$TestNS#test3"
+ ( READER       => "{$TestNS}test3"
  , check_values => 1
  );
 

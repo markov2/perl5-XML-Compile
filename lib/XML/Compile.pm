@@ -19,12 +19,12 @@ XML::Compile - Compilation based XML processing
 
 Many applications which process XML do that based on a nice specification,
 expressed in an XML Schema.  XML::Compile reads and writes XML
-data with the help of schema's.  On the Perl side, it uses a tree of
+data with the help of such schema's.  On the Perl side, it uses a tree of
 nested hashes with the same structure.
 
 Where other Perl modules, like M<SOAP::WSDL> help you using these schema's
 with a lot of XPath searches, this module takes a different approach:
-in stead of a run-time processing of the specification, it will first
+in stead of run-time processing of the specification, it will first
 compile the expected structure into real Perl, and then use that to
 process the data.
 
@@ -38,6 +38,8 @@ and C<union> are correctly supported.
 =chapter METHODS
 
 =section Constructors
+These constructors are base class methods, and therefore not directly
+accessed.
 
 =method new TOP, OPTIONS
 
@@ -53,6 +55,9 @@ the XML::LibXML objects.
 
 sub new(@)
 {   my ($class, $top) = (shift, shift);
+    croak "ERROR: you should instantiate a sub-class, $class is base only"
+        if $class eq __PACKAGE__;
+
     (bless {}, $class)->init( {top => $top, @_} );
 }
 

@@ -8,7 +8,7 @@ use TestTools;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 48;
+use Test::More tests => 49;
 
 my $NS2 = "http://test2/ns";
 
@@ -59,15 +59,21 @@ __SCHEMA__
 
 ok(defined $schema);
 
-is(join("\n", sort $schema->types)."\n", <<__TYPES__);
-http://test-types#ct1
-http://test-types#test1
-http://test-types#test2
-http://test2/ns#test3
-http://test2/ns#test4
+is(join("\n", join "\n", $schema->types)."\n", <<__TYPES__);
+{http://test-types}ct1
 __TYPES__
 
-@run_opts = (include_namespaces => 1);
+is(join("\n", join "\n", $schema->elements)."\n", <<__ELEMS__);
+{http://test-types}test1
+{http://test-types}test2
+{http://test2/ns}test3
+{http://test2/ns}test4
+__ELEMS__
+
+@run_opts =
+ ( elements_qualified   => 1
+ , attributes_qualified => 1
+ );
 
 #
 # simple name-space on schema
@@ -83,14 +89,14 @@ run_test($schema, "test2" => <<__XML__, {c1_a => 11});
 <test2 xmlns="$TestNS"><c1_a>11</c1_a></test2>
 __XML__
 
-run_test($schema, "$NS2#test3" => <<__XML__, {c1_a => 12, a1_a => 13});
+run_test($schema, "{$NS2}test3" => <<__XML__, {c1_a => 12, a1_a => 13});
 <test3 xmlns="$NS2" xmlns:x0="$TestNS" x0:a1_a="13">
    <x0:c1_a>12</x0:c1_a>
 </test3>
 __XML__
 
 my %t4 = (c1_a => 14, a1_a => 15, c4_a => 16, a4_a => 17);
-run_test($schema, "$NS2#test4" => <<__XML__, \%t4);
+run_test($schema, "{$NS2}test4" => <<__XML__, \%t4);
 <test4 xmlns="$NS2"
        a1_a="15"
        a4_a="17">
@@ -101,9 +107,11 @@ __XML__
 
 # now with name-spaces off
 
-push @run_opts, (ignore_namespaces => 1);
+@run_opts =
+ ( ignore_namespaces => 1
+ );
 
-run_test($schema, "$NS2#test3" => <<__XML__, {c1_a => 18});
+run_test($schema, "{$NS2}test3" => <<__XML__, {c1_a => 18});
 <test3>
    <c1_a>18</c1_a>
 </test3>

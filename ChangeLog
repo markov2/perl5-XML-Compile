@@ -4,6 +4,36 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.02: Mon Aug 14 13:42:02 CEST 2006
+
+	- Perl internal integer dependent size of INT_MIN and INT_MAX
+	  to avoid use of BigInt.  Idea by [Merijn H Brand]
+
+	- Added type assertions to translator, to check known attributes
+	  to follow the spec.
+
+	- All constructing routines are called with ($path, $args, ...)
+	  where before, the $args option had different locations in the
+	  parameter lists.
+
+	- Moved element fixed tests to t/47fixed.t, reimplemented it to
+	  make it work with BigInt.
+
+	- Implemented element default and t/48default.t
+
+	- Non-sloppy integers implemented in BigInts, tests t/49big.t
+
+	- Element ref() should not specify own name.
+
+	- XML::Compile::Schema::Instance collects info about one single
+	  schema.
+
+	- XML::Compile::Schema::Namespaces collects schema instances.
+
+	- Under fly adding of schemas with ::Schema::addSchema
+
+	- and many more...
+
 version 0.01: Wed Jul 26 12:19:10 CEST 2006
 
 	- initial version

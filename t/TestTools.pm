@@ -23,7 +23,7 @@ sub run_test($$$$;$$)
 {   my ($schema, $test, $xml, $hash, $expect, $h2) = @_;
 
     # Read testing
-    my $abs = $test =~ m/\#/ ? $test : "$TestNS#$test";
+    my $abs = $test =~ m/\{/ ? $test : "{$TestNS}$test";
 
     my $read_t = $schema->compile
      ( READER             => $abs

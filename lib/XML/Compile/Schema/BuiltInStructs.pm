@@ -58,17 +58,17 @@ sub builtin_structs($)
 # The returned writer subroutines will always be called
 #       $writer->($doc, $value)
 
-$reader{translate_tag} =
-  sub { my $name = $_[1];
+$reader{tag_unqualified} =
+$reader{tag_qualified} =
+  sub { my $name = $_[2];
         $name =~ s/.*?\://;   # strip prefix, that's all
         $name;
       };
 
-$writer{translate_tag} =
-  sub { my ($node, $name, $args) = @_;
+$writer{tag_qualified} =
+  sub { my ($args, $node, $name) = @_;
         my ($pref, $label)
                 = index($name, ':') >=0 ? split(/\:/, $name) : ('',$name);
-        return $label if $args->{ignore_namespaces};
 
         my $ns  = length($pref)? $node->lookupNamespaceURI($pref) :$args->{tns};
 
@@ -91,6 +91,12 @@ $writer{translate_tag} =
         my $prefix = $out->{prefix};
         length($prefix) ? "$prefix:$name" : $name;
     };
+
+$writer{tag_unqualified} =
+  sub { my ($args, $node, $name) = @_;
+        $name =~ s/.*\://;
+        $name;
+      };
 
 # all readers are called: $run->($node);
 # all writers are called: $run->($data);
@@ -132,26 +138,8 @@ $writer{wrapper_ns} =
 ## Element
 #
 
-$reader{element_fixed} =
- sub { my ($path, $fixed, $args) = @_;
-       my $err = $args->{err};
-       sub { $_[0]->textContent eq $fixed
-             or $err->($path,$_[0]->textContent, "value fixed to '$fixed'");
-             $fixed;
-           }
-     };
-
-$writer{element_fixed} =
- sub { my ($path, $fixed, $args) = @_;
-       my $err  = $args->{err};
-       sub { $err->($path, $_[1], "value fixed to '$fixed'")
-                if defined $_[1] && $_[1] ne $fixed;
-             $_[0]->createTextNode($fixed);
-           }
-     };
-
 $reader{element_repeated} =
- sub { my ($path, $ns, $childname, $do, $args, $min, $max) = @_;
+ sub { my ($path, $args, $ns, $childname, $do, $min, $max) = @_;
        my $err  = $args->{err};
        sub { my @nodes = $_[0]->getChildrenByTagName($childname);
              $err->($path,scalar @nodes,"too few values (need $min)")
@@ -164,7 +152,7 @@ $reader{element_repeated} =
      };
 
 $writer{element_repeated} =
- sub { my ($path, $ns, $childname, $do, $args, $min, $max) = @_;
+ sub { my ($path, $args, $ns, $childname, $do, $min, $max) = @_;
        my $err  = $args->{err};
        sub { my ($doc, $values) = @_;
              my @values = ref $values eq 'ARRAY' ? @$values
@@ -178,14 +166,14 @@ $writer{element_repeated} =
      };
 
 $reader{element_array} =
- sub { my ($path, $ns, $childname, $do, $args) = @_;
+ sub { my ($path, $args, $ns, $childname, $do) = @_;
        sub { my @r = map { $do->($_) } $_[0]->getChildrenByTagName($childname);
              @r ? ($childname => \@r) : ();
            }
      };
 
 $writer{element_array} =
- sub { my ($path, $ns, $childname, $do, $args) = @_;
+ sub { my ($path, $args, $ns, $childname, $do) = @_;
        sub { my ($doc, $values) = @_;
              map { $do->($doc, $_) }
                  ref $values eq 'ARRAY' ? @$values
@@ -194,7 +182,7 @@ $writer{element_array} =
      };
 
 $reader{element_obligatory} =
- sub { my ($path, $ns, $childname, $do, $args) = @_;
+ sub { my ($path, $args, $ns, $childname, $do) = @_;
        my $err  = $args->{err};
        sub {
 # This should work with namespaces (but doesn't yet)
@@ -211,7 +199,7 @@ $reader{element_obligatory} =
      };
 
 $writer{element_obligatory} =
- sub { my ($path, $ns, $childname, $do, $args) = @_;
+ sub { my ($path, $args, $ns, $childname, $do) = @_;
        my $err  = $args->{err};
        sub { my ($doc, $value) = @_;
              return $do->($doc, $value) if defined $value;
@@ -220,8 +208,51 @@ $writer{element_obligatory} =
            }
      };
 
+$reader{element_default} =
+ sub { my ($path, $args, $ns, $childname, $do, $min, $max, $default) = @_;
+       my $err  = $args->{err};
+       my $def  = $do->($default);
+
+       sub { my @nodes = $_[0]->getChildrenByTagName($childname);
+             my $node = shift @nodes;
+             $node = $err->($path, 'found '.@nodes, "only one value expected")
+                if @nodes;
+             ( $childname => (defined $node ? $do->($node) : $def) );
+           }
+     };
+
+$reader{element_fixed} =
+ sub { my ($path, $args, $ns, $childname, $do, $min, $max, $fixed) = @_;
+       my $err = $args->{err};
+       my $def  = $do->($fixed);
+
+       sub { my @nodes = $_[0]->getChildrenByTagName($childname);
+             my $node = shift @nodes;
+             $node = $err->($path, 'found '.@nodes, "only one value expected")
+                 if @nodes;
+             my $value = defined $node ? $do->($node) : undef;
+             $err->($path, $value,"value fixed to '".$fixed->value."'")
+                 if !defined $value || $value ne $def;
+             ($childname => $def);
+           }
+     };
+
+$writer{element_fixed} =
+ sub { my ($path, $args, $ns, $childname, $do, $min, $max, $fixed) = @_;
+       my $err  = $args->{err};
+       $fixed   = $fixed->value;
+
+       sub { my ($doc, $value) = @_;
+             my $ret = defined $value ? $do->($doc, $value) : undef;
+             return $ret if defined $ret && $ret->textContent eq $fixed;
+
+             $err->($path, $value, "value fixed to '$fixed'");
+             $do->($doc, $fixed);
+           }
+     };
+
 $reader{element_nillable} =
- sub { my ($path, $ns, $childname, $do, $args) = @_;
+ sub { my ($path, $args, $ns, $childname, $do) = @_;
        my $err  = $args->{err};
        sub { my @nodes = $_[0]->getChildrenByTagName($childname);
              my $node
@@ -236,7 +267,7 @@ $reader{element_nillable} =
      };
 
 $writer{element_nillable} =
- sub { my ($path, $ns, $childname, $do, $args) = @_;
+ sub { my ($path, $args, $ns, $childname, $do) = @_;
        my $err  = $args->{err};
        sub { my ($doc, $value) = @_;
              return $do->($doc, $value) if defined $value;
@@ -247,7 +278,7 @@ $writer{element_nillable} =
      };
 
 $reader{element_optional} =
- sub { my ($path, $ns, $childname, $do, $args) = @_;
+ sub { my ($path, $args, $ns, $childname, $do) = @_;
        my $err  = $args->{err};
        sub { my @nodes = $_[0]->getElementsByLocalName($childname)
                 or return ();
@@ -258,16 +289,17 @@ $reader{element_optional} =
            }
      };
 
+$writer{element_default} =
 $writer{element_optional} =
- sub { my ($path, $ns, $childname, $do, $args) = @_;
+ sub { my ($path, $args, $ns, $childname, $do) = @_;
        sub { defined $_[1] ? $do->(@_) : (); };
      };
 
 $reader{create_element} =
-   sub {$_[2]};
+   sub {$_[3]};
 
 $writer{create_element} =
-   sub { my ($path, $tag, $do, $args) = @_;
+   sub { my ($path, $args, $tag, $do) = @_;
          sub { my @values = $do->(@_) or return ();
                my $node = $_[0]->createElement($tag);
                $node->addChild
@@ -278,29 +310,14 @@ $writer{create_element} =
              }
        };
 
-$reader{rename_element} =
-   sub {$_[1]};
-
-$writer{rename_element} =
-   sub { my ($tag, $do) = @_;
-         sub { my $node = $do->(@_) or return ();
-               $node->setNodeName($tag);
-               $node;
-             }
-       };
-
-# handle built-in types
-# call->($path, $type, $code, $args)
-# implementations can be sped-up: no check, no parse, no format
-
 $reader{builtin_checked} =
- sub { my ($path, $type) = @_;
-       my $check = $_[2]->{check};
+ sub { my ($path, $args, $type, $def) = @_;
+       my $check = $def->{check};
        defined $check
           or return $reader{builtin_unchecked}->(@_);
 
-       my $parse = $_[2]->{parse};
-       my $err   = $_[3]->{err};
+       my $parse = $def->{parse};
+       my $err   = $args->{err};
 
          defined $parse
        ? sub { my $value = ref $_[0] ? $_[0]->textContent : $_[0];
@@ -318,13 +335,13 @@ $reader{builtin_checked} =
       };
 
 $writer{builtin_checked} =
- sub { my ($path, $type) = @_;
-       my $check  = $_[2]->{check};
+ sub { my ($path, $args, $type, $def) = @_;
+       my $check  = $def->{check};
        defined $check
           or return $writer{builtin_unchecked}->(@_);
        
-       my $format = $_[2]->{format};
-       my $err    = $_[3]->{err};
+       my $format = $def->{format};
+       my $err    = $args->{err};
 
          defined $format
        ? sub { defined $_[1] or return undef;
@@ -333,16 +350,14 @@ $writer{builtin_checked} =
                $value = $err->($path, $_[1], "illegal value for $type");
                defined $value ? $format->($value) : undef;
              }
-       : sub {
-               return $_[1] if !defined $_[1] || $check->($_[1]);
+       : sub { return $_[1] if !defined $_[1] || $check->($_[1]);
                my $value = $err->($path, $_[1], "illegal value for $type");
                defined $value ? $format->($value) : undef;
              };
      };
 
 $reader{builtin_unchecked} =
- sub { my (undef, undef, $code, undef) = @_;
-       my $parse = $code->{parse};
+ sub { my $parse = $_[3]->{parse};
 
          defined $parse
        ? sub { my $v = $_[0]->textContent; defined $v ? $parse->($v) : undef }
@@ -350,7 +365,7 @@ $reader{builtin_unchecked} =
      };
 
 $writer{builtin_unchecked} =
- sub { my $format = $_[2]->{format};
+ sub { my $format = $_[3]->{format};
          defined $format
        ? sub { defined $_[1] ? $format->($_[1]) : undef }
        : sub { $_[1] }
@@ -359,7 +374,7 @@ $writer{builtin_unchecked} =
 # simpleType
 
 $reader{list} =
- sub { my ($path, $do, $args) = @_;
+ sub { my ($path, $args, $do) = @_;
        sub { defined $_[0] or return undef;
              my @v = grep {defined} map {$do->($_)}
                  split " ", $_[0]->textContent;
@@ -368,10 +383,10 @@ $reader{list} =
      };
 
 $writer{list} =
- sub { my ($path, $do, $args) = @_;
-       sub { defined $_[1] && @{$_[1]} or return undef;
-             my @r = grep {defined} map {defined $_ ? $do->($_[0], $_) : ()}
-                 @{$_[1]};
+ sub { my ($path, $args, $do) = @_;
+       sub { defined $_[1] or return undef;
+             my @el = ref $_[1] eq 'ARRAY' ? (grep {defined} @{$_[1]}) : $_[1];
+             my @r = grep {defined} map {$do->($_[0], $_)} @el;
              @r ? join(' ', @r) : undef;
            };
      };
@@ -397,7 +412,7 @@ $writer{union} =
 # complexType
 
 $reader{complexType} =
- sub { shift; shift;
+ sub { splice @_, 0, 3;
        my @do;
        while(@_) {shift; push @do, shift};
 
@@ -407,7 +422,7 @@ $reader{complexType} =
      };
 
 $writer{complexType} =
- sub { my ($path, $args, @do) = @_;
+ sub { my ($path, $args, $node, @do) = @_;
        my $err = $args->{err};
        sub { my ($doc, $data) = @_;
              unless(UNIVERSAL::isa($data, 'HASH'))
@@ -431,7 +446,7 @@ $writer{complexType} =
 # Attributes
 
 $reader{attribute_required} =
- sub { my ($path, $tag, $do, $args) = @_;
+ sub { my ($path, $args, $tag, $do) = @_;
        my $err  = $args->{err};
        sub { my $node = $_[0]->getAttributeNode($tag)
                      || $err->($path, undef, "attribute required");
@@ -442,7 +457,7 @@ $reader{attribute_required} =
      };
 
 $writer{attribute_required} =
- sub { my ($path, $tag, $do, $args) = @_;
+ sub { my ($path, $args, $tag, $do) = @_;
        my $err = $args->{err};
 
        sub { my $value = $do->(@_);
@@ -455,7 +470,7 @@ $writer{attribute_required} =
      };
 
 $reader{attribute_optional} =
- sub { my ($path, $tag, $do, $args) = @_;
+ sub { my ($path, $args, $tag, $do) = @_;
        my $err  = $args->{err};
        sub { my $node = $_[0]->getAttributeNode($tag)
                 or return ();
@@ -465,7 +480,7 @@ $reader{attribute_optional} =
      };
 
 $writer{attribute_optional} =
- sub { my ($path, $tag, $do, $args) = @_;
+ sub { my ($path, $args, $tag, $do) = @_;
        sub { my $value = $do->(@_) or return ();
              $_[0]->createAttribute($tag, $value);
            }

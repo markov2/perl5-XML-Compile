@@ -11,11 +11,10 @@ use XML::Compile::Schema;
 use Test::More tests => 21;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
+<document>
 <schema targetNamespace="$TestNS"
         xmlns="$SchemaNS"
         xmlns:me="$TestNS">
-
-<!-- element ref -->
 
 <element name="test1" type="me:c1" />
 <complexType name="c1">
@@ -27,7 +26,6 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
   </complexContent>
   <attribute name="a1_a" type="int" />
 </complexType>
-<element name="ref1" ref="me:test1" />
 
 <group name="g2">
   <sequence>
@@ -44,8 +42,15 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
     </sequence>
   </complexType>
 </element>
-
 </schema>
+
+<schema targetNamespace="$TestNS-bis"
+        xmlns="$SchemaNS"
+        xmlns:me="$TestNS">
+<element ref="me:test1" />
+</schema>
+
+</document>
 __SCHEMA__
 
 ok(defined $schema);
@@ -57,8 +62,8 @@ ok(defined $schema);
 ok(1, "** Testing element ref ");
 
 my %r1_a = (a1_a => 10, e1_a => 11, e1_b => 12);
-run_test($schema, ref1 => <<__XML__, \%r1_a);
-<ref1 a1_a="10"><e1_a>11</e1_a><e1_b>12</e1_b></ref1>
+run_test($schema, "{$TestNS-bis}test1" => <<__XML__, \%r1_a);
+<test1 a1_a="10"><e1_a>11</e1_a><e1_b>12</e1_b></test1>
 __XML__
 
 #
