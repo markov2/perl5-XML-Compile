@@ -449,7 +449,7 @@ $reader{attribute_required} =
  sub { my ($path, $args, $tag, $do) = @_;
        my $err  = $args->{err};
        sub { my $node = $_[0]->getAttributeNode($tag)
-                     || $err->($path, undef, "attribute required");
+                     || $err->($path, undef, "attribute $tag required");
              defined $node or return ();
              my $value = $do->($node);
              defined $value ? ($tag => $value) : ();
@@ -469,6 +469,27 @@ $writer{attribute_required} =
            }
      };
 
+$reader{attribute_prohibited} =
+ sub { my ($path, $args, $tag, $do) = @_;
+       my $err  = $args->{err};
+       sub { my $node = $_[0]->getAttributeNode($tag);
+             defined $node or return ();
+             $err->($path, $node->textContent, "attribute $tag prohibited");
+             ();
+           }
+     };
+
+$writer{attribute_prohibited} =
+ sub { my ($path, $args, $tag, $do) = @_;
+       my $err = $args->{err};
+
+       sub { my $value = $do->(@_);
+             $err->($path, $value, "attribute $tag prohibited")
+                if defined $value;
+             ();
+           }
+     };
+
 $reader{attribute_optional} =
  sub { my ($path, $args, $tag, $do) = @_;
        my $err  = $args->{err};
@@ -479,10 +500,50 @@ $reader{attribute_optional} =
            }
      };
 
+$writer{attribute_default} =
 $writer{attribute_optional} =
  sub { my ($path, $args, $tag, $do) = @_;
-       sub { my $value = $do->(@_) or return ();
-             $_[0]->createAttribute($tag, $value);
+       sub { my $value = $do->(@_);
+             defined $value ? $_[0]->createAttribute($tag, $value) : ();
+           }
+     };
+
+$reader{attribute_default} =
+ sub { my ($path, $args, $tag, $do, $default) = @_;
+       my $err  = $args->{err};
+       my $def  = $do->($default);
+
+       sub { my $node = $_[0]->getAttributeNode($tag);
+             ($tag => defined $node ? $do->($node) : $def);
+           }
+     };
+
+$reader{attribute_fixed} =
+ sub { my ($path, $args, $tag, $do, $fixed) = @_;
+       my $err = $args->{err};
+       my $def  = $do->($fixed);
+
+       sub { my $node  = $_[0]->getAttributeNode($tag);
+             my $value = defined $node ? $do->($node) : undef;
+             $err->($path, $value, "attr value fixed to '".$fixed->value."'")
+                 if !defined $value || $value ne $def;
+             ($tag => $def);
+           }
+     };
+
+$writer{attribute_fixed} =
+ sub { my ($path, $args, $tag, $do, $fixed) = @_;
+       my $err  = $args->{err};
+       $fixed   = $fixed->value;
+
+       sub { my ($doc, $value) = @_;
+             my $ret = defined $value ? $do->($doc, $value) : undef;
+             return $doc->createAttribute($tag, $ret)
+                 if defined $ret && $ret eq $fixed;
+
+             $err->($path, $value, "attr value fixed to '$fixed'");
+             $ret = $do->($doc, $fixed);
+             defined $ret ? $doc->createAttribute($tag, $ret) : ();
            }
      };
 

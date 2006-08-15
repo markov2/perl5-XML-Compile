@@ -27,10 +27,11 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 
 <element name="test2">
   <complexType>
-    <sequence>
+    <complexContent>
       <element name="t2a" type="string" default="foo" />
       <element name="t2b" type="string" />
-    </sequence>
+    </complexContent>
+    <attribute name="t2c" type="int"    default="42" />
   </complexType>
 </element>
 
@@ -66,7 +67,7 @@ ok(!@errors);
 ### Strings
 ##
 
-my %t21 = (t2a => 'foo', t2b => 'bar');
+my %t21 = (t2a => 'foo', t2b => 'bar', t2c => '42');
 my %t22 = (t2b => 'bar');  # do not complete default in XML output
 run_test($schema, "test2" => <<__XML__, \%t21, <<__XML__, \%t22);
 <test2><t2b>bar</t2b></test2>

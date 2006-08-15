@@ -9,7 +9,7 @@ use TestTools;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 29;
+use Test::More tests => 61;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -21,6 +21,16 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 </simpleType>
 
 <element name="test1" type="me:t1" />
+
+<simpleType name="t2">
+  <list>
+    <simpleType>
+      <restriction base="int" />
+    </simpleType>
+  </list>
+</simpleType>
+
+<element name="test2" type="me:t2" />
 
 </schema>
 __SCHEMA__
@@ -38,11 +48,26 @@ ok(!@errors);
 run_test($schema, "test1" => <<__XML__, [2, 3]);
 <test1>2 3</test1>
 __XML__
+ok(!@errors);
 
 run_test($schema, "test1" => <<__XML__, [4, 5, 6]);
 <test1> 4
   5\t  6 </test1>
 __XML__
+ok(!@errors);
 
-#is(shift @errors, 'does not match pattern (?-xism:a.c) (abbc)');
-#ok(!@errors);
+run_test($schema, "test2" => <<__XML__, [1]);
+<test2>1</test2>
+__XML__
+ok(!@errors);
+
+run_test($schema, "test2" => <<__XML__, [2, 3]);
+<test2>2 3</test2>
+__XML__
+ok(!@errors);
+
+run_test($schema, "test2" => <<__XML__, [4, 5, 6]);
+<test2> 4
+  5\t  6 </test2>
+__XML__
+ok(!@errors);

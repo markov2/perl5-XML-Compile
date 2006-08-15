@@ -4,6 +4,16 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.03: Tue Aug 15 09:13:06 CEST 2006
+
+	- Doc about what to pass as type to compile() was not updated.
+
+	- Added attribute default, fixed and use=forbidden.
+
+	- Added simpleType within list.
+
+	- Added memberTypes with union.
+
 version 0.02: Mon Aug 14 13:42:02 CEST 2006
 
 	- Perl internal integer dependent size of INT_MIN and INT_MAX
@@ -31,6 +41,8 @@ version 0.02: Mon Aug 14 13:42:02 CEST 2006
 	- XML::Compile::Schema::Namespaces collects schema instances.
 
 	- Under fly adding of schemas with ::Schema::addSchema
+
+	- understands qualified and unqualified processing
 
 	- and many more...
 

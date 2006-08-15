@@ -49,8 +49,6 @@ W3C schema's are implemented.  A few nuts are still to crack:
  import
  include
  anyAttribute
- attribute use="prohibited" 
- attribute form
  group minOccurs maxOccurs
  final and abstract
  substitutionGroup
@@ -165,9 +163,6 @@ which can force one of both on all schema's together, using
 C<elements_qualified> and C<attributes_qualified>.  May people and
 applications do not understand name-spaces sufficiently, and these
 options may make your day!
-
-An exception will be made for the C<xmlns> and C<xml> prefixed attributes,
-which are used on many places and need to be qualified always.
 
 =section Name-spaces
 
@@ -357,11 +352,19 @@ sub _simpleType($$$)
 sub _simple_list($$$)
 {   my ($path, $args, $node) = @_;
 
-    my $type = $node->getAttribute('itemType')
-        or die "ERROR: list requires attribute itemType in $path\n";
-
-    my $typename = _rel2abs($node, $type);
-    my $per_item = _final_type($path, $args, $typename);
+    my $ns   = $node->namespaceURI;
+    my $per_item;
+    if(my $type = $node->getAttribute('itemType'))
+    {   my $typename = _rel2abs($node, $type);
+        $per_item    = _final_type($path, $args, $typename);
+    }
+    elsif(my @nodes = $node->getChildrenByTagNameNS($ns,'simpleType'))
+    {   die "ERROR: only one simpleType within list" if @nodes > 1;
+        $per_item    = _simpleType($path, $args, $nodes[0]);
+    }
+    else
+    {   die "ERROR: list requires itemType attribute or simpleType in $path\n";
+    }
 
     $args->{run}{list}->($path, $args, $per_item);
 }
@@ -380,6 +383,13 @@ sub _simple_union($$$)
     my $err = $args->{err};
     local $args->{err} = sub {undef}; #sub {warn "UNION no match @_\n"; undef};
     local $args->{check_values} = 1;
+
+    if(my $members = $node->getAttribute('memberTypes'))
+    {   foreach my $type (split " ", $members)
+        {   my $typename = _rel2abs($node, $type);
+            push @types, _final_type($path, $args, $typename);
+        }
+    }
 
     foreach my $child ($node->childNodes)
     {   next unless $child->isa('XML::LibXML::Element');
@@ -657,12 +667,19 @@ sub _attribute($$$)
     }
 
     my $use     = $node->getAttribute('use') || 'optional';
-    my $generate
-     = $use eq 'required' ? 'attribute_required'
-     : $use eq 'optional' ? 'attribute_optional'
-     : die "attribute should be required or optional (not $use) in $path.\n";
+    my $default = $node->getAttributeNode('default');
+    my $fixed   = $node->getAttributeNode('fixed');
 
-    $name => $args->{run}{$generate}->($path, $args, $tag, $do);
+    my $generate
+     = defined $default    ? 'attribute_default'
+     : defined $fixed      ? 'attribute_fixed'
+     : $use eq 'required'  ? 'attribute_required'
+     : $use eq 'optional'  ? 'attribute_optional'
+     : $use eq 'prohibited' ? 'attribute_prohibited'
+     : croak "ERROR: attribute use is required, optional or prohibited (not '$use') in $path.\n";
+
+    my $value = defined $default ? $default : $fixed;
+    $name => $args->{run}{$generate}->($path, $args, $tag, $do, $value);
 }
 
 sub _group_particle($$$)

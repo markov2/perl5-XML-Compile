@@ -8,7 +8,7 @@ use TestTools;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 49;
+use Test::More tests => 61;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -43,7 +43,8 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 </complexType>
 <attributeGroup name="a2">
   <attribute name="a2_c" type="int" use="required" />
-  <attribute name="a2_d" type="int" />
+  <attribute name="a2_d" type="int" use="optional" />
+  <attribute name="a2_e" type="int" use="prohibited" />
 </attributeGroup>
 
 </schema>
@@ -91,7 +92,7 @@ __XML__
 </test1>
 __XML__
 
-   ok($error, "missing required attribute");
+   like($error, qr/ required$/);
 
    @run_opts = ();
 }
@@ -107,3 +108,23 @@ my %t2_b = (a2_a => 32, a2_b => 33, a2_c => 34, a2_d => 35);
 run_test($schema, test2 => <<__XML__, \%t2_b);
 <test2 a2_a="32" a2_c="34" a2_d="35" a2_b="33"/>
 __XML__
+
+{   my @errors;
+    @run_opts =
+     ( invalid => sub {no warnings;push @errors, "$_[2] ($_[1])"; 24}
+     );
+
+   my %t2_a = (a2_c => 29);
+   my %t2_b = (a2_c => 29, a2_e => 666);
+   run_test($schema, test2 => <<__XML__, \%t2_a, <<__XML__, \%t2_b);
+<test2 a2_c="29" a2_e="666" />
+__XML__
+<test2 a2_c="29"/>
+__XML__
+
+   is(shift @errors, "attribute a2_e prohibited (666)");
+   is(shift @errors, "attribute a2_e prohibited (666)");
+   ok(!@errors);
+
+   @run_opts = ();
+}

@@ -42,13 +42,14 @@ This module collects knowledge about a schema.  The most important
 method is M<compile()> which can create XML file readers and writers
 based on the schema information and some selected type.
 
-The compiler is implemented in M<XML::Compile::Schema::Translate>.
-See that manual page about the specific behavior.
+WARNING: The compiler is implemented in M<XML::Compile::Schema::Translate>,
+which is NOT FINISHED.  See that manual page about the specific behavior
+and its (current) limitations!
 
-Be warned that the B<schema is not validated>!  In some cases the produced
-parser will produce compile-time and run-time errors, but typically only
+WARNING: the provided B<schema is not validated>!  In some cases,
+compile-time and run-time errors will be reported, but typically only
 in cases that the parser has no idea what to do with such a mistake.
-On the other hand, the B<input data is validated>: the output should
+On the other hand, the processed B<data is validated>: the output should
 follow the specs closely.
 
 Two implementations use the translator, and more can be added later.  Both
@@ -128,12 +129,16 @@ sub addSchemas($$)
 
 =section Compilers
 
-=method compile ('READER'|'WRITER'), TYPE, OPTIONS
+=method compile ('READER'|'WRITER'), NAME, OPTIONS
 
 Translate the specified TYPE into a CODE reference which is able to
-translate between XML-text and a HASH.  The TYPE is either an EXPANDED
-or a LOCAL type name, and indicates the starting-point for processing
-in the scheme.
+translate between XML-text and a HASH.
+
+The NAME is the starting-point for processing in the data-structure.
+It can either be a global element, or a global type.  The NAME
+must be specified in C<{url}name> format, there the url is the
+name-space.  An alternative is the C<url#id> which refers to 
+an element or type with the specific C<id> attribute value.
 
 When a READER is created, a CODE reference is returned which needs
 to be called with parsed XML (an L<XML::LibXML::Node>) or an XML text.
