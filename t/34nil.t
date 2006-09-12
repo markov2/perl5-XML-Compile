@@ -16,11 +16,13 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
         xmlns:me="$TestNS">
 
 <element name="test1">
-  <sequence>
-    <element name="e1" type="int" />
-    <element name="e2" type="int" nillable="true" />
-    <element name="e3" type="int" />
-  </sequence>
+  <complexType>
+    <sequence>
+      <element name="e1" type="int" />
+      <element name="e2" type="int" nillable="true" />
+      <element name="e3" type="int" />
+    </sequence>
+  </complexType>
 </element>
 
 </schema>

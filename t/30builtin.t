@@ -18,10 +18,12 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 
 <element name="test1" type="int" />
 
+<element name="test2" type="me:test2" />
 <simpleType  name="test2">
   <restriction base="int" />
 </simpleType>
 
+<element name="test3" type="me:test3" />
 <complexType name="test3">
   <sequence>
     <element name="test3_1" type="int" />

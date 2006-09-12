@@ -8,7 +8,7 @@ use TestTools;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 160;
+use Test::More tests => 133;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -25,12 +25,6 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
   </complexType>
 </element>
 
-<element name="test2">
-  <sequence>
-    <element name="t2_a" type="int" />
-  </sequence>
-</element>
-
 <element name="test3" type="me:t3" />
 <complexType name="t3">
   <sequence>
@@ -39,13 +33,6 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 </complexType>
 
 <!-- sequence with two elements -->
-
-<element name="test4">
-  <sequence>
-    <element name="t4_a" type="int" />
-    <element name="t4_b" type="int" />
-  </sequence>
-</element>
 
 <element name="test5">
   <complexType>
@@ -79,12 +66,6 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
        <element name="t8_a" type="int" />
     </choice>
   </complexType>
-</element>
-
-<element name="test9">
-  <choice>
-    <element name="t9_a" type="int" />
-  </choice>
 </element>
 
 <!-- choice with more elements -->
@@ -127,19 +108,11 @@ run_test($schema, test1 => <<__XML__, {t1_a => 41});
 <test1><t1_a>41</t1_a></test1>
 __XML__
 
-run_test($schema, test2 => <<__XML__, {t2_a => 42});
-<test2><t2_a>42</t2_a></test2>
-__XML__
-
 run_test($schema, test3 => <<__XML__, {t3_a => 43});
 <test3><t3_a>43</t3_a></test3>
 __XML__
 
 ok(1, "** Testing sequence with 2 elements");
-
-run_test($schema, test4 => <<__XML__, {t4_a => 45, t4_b => 46});
-<test4><t4_a>45</t4_a><t4_b>46</t4_b></test4>
-__XML__
 
 run_test($schema, test5 => <<__XML__, {t5_a => 47, t5_b => 48});
 <test5><t5_a>47</t5_a><t5_b>48</t5_b></test5>
@@ -173,10 +146,6 @@ __XML__
 
 run_test($schema, test8 => <<__XML__, {t8_a => 11});
 <test8><t8_a>11</t8_a></test8>
-__XML__
-
-run_test($schema, test9 => <<__XML__, {t9_a => 12});
-<test9><t9_a>12</t9_a></test9>
 __XML__
 
 ok(1, "** Testing choice with multiple elements");

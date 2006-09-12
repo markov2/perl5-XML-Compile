@@ -45,10 +45,12 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
   <complexType>
     <complexContent>
       <extension base="that:ct1">
-        <element name="c4_a" type="int" />
+        <sequence>
+          <element name="c4_a" type="int" />
+        </sequence>
+        <attribute name="a4_a" type="int" />
       </extension>
     </complexContent>
-    <attribute name="a4_a" type="int" />
   </complexType>
 </element>
 

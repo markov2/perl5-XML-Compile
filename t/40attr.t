@@ -19,28 +19,25 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 
 <element name="test1" type="me:t1" />
 <complexType name="t1">
-  <complexContent>
-    <sequence>
-      <element name="t1_a" type="int" />
-      <element name="t1_b" type="int" />
-    </sequence>
-  </complexContent>
+  <sequence>
+    <element name="t1_a" type="int" />
+    <element name="t1_b" type="int" />
+  </sequence>
   <attribute name="a1_a" type="int" />
   <attribute name="a1_b" type="int" use="required" />
 </complexType>
 
 <element name="test2" type="me:t2" />
 <complexType name="t2">
-  <complexContent>
-    <sequence>
-      <element name="t2_a" type="int" minOccurs="0" />
-      <element name="t2_b" type="int" minOccurs="0" />
-    </sequence>
-  </complexContent>
+  <sequence>
+    <element name="t2_a" type="int" minOccurs="0" />
+    <element name="t2_b" type="int" minOccurs="0" />
+  </sequence>
   <attribute name="a2_a" type="int" />
   <attributeGroup ref="me:a2" />
   <attribute name="a2_b" type="int" />
 </complexType>
+
 <attributeGroup name="a2">
   <attribute name="a2_c" type="int" use="required" />
   <attribute name="a2_d" type="int" use="optional" />

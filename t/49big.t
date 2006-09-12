@@ -55,7 +55,9 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 
 <element name="test4">
   <complexType>
-    <element name="t4" type="integer" fixed="79" />
+    <sequence>
+      <element name="t4" type="integer" fixed="79" />
+    </sequence>
   </complexType>
 </element>
 

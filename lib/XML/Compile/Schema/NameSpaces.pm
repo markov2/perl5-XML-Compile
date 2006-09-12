@@ -40,11 +40,11 @@ sub init($)
 
 =section Accessors
 
-=method namespaces
+=method list
 Returns the list of names defined until now.
 =cut
 
-sub namespaces() { keys %{shift->{tns}} }
+sub list() { keys %{shift->{tns}} }
 
 =method namespace URI
 Returns a list of M<XML::Compile::Schema::Instance> objects which have
@@ -78,8 +78,7 @@ sub schemas($)
     my @schemas = $self->namespace($ns);
     @schemas and return @schemas;
 
-    # now look for import... and load and compile it
-    croak "ERROR: namespace $ns not known";
+    ();
 }
 
 =method findElement ADDRESS|(URI,NAME)

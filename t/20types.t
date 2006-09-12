@@ -23,15 +23,15 @@ isa_ok($doc, 'XML::LibXML::Document');
 my $schema  = XML::Compile::Schema->new($doc);
 ok(defined $schema);
 
-my $global  = $schema->namespaces;
-isa_ok($global, 'XML::Compile::Schema::NameSpaces');
+my $namespaces  = $schema->namespaces;
+isa_ok($namespaces, 'XML::Compile::Schema::NameSpaces');
 
-my @ns      = $global->namespaces;
+my @ns      = $namespaces->list;
 cmp_ok(scalar(@ns), '==', 1, 'one target namespace');
 my $ns = shift @ns;
 is($ns, $SchemaNS);
 
-my @schemas = $global->namespace($ns);
+my @schemas = $namespaces->namespace($ns);
 ok(scalar(@schemas), 'found ns');
 
 @schemas

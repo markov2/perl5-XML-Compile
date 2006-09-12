@@ -29,9 +29,9 @@ Different schema specifications specify different available types,
 but there is a lot over overlap.  The M<XML::Compile::Schema::Specs>
 module defines the availability, but here the types are implemented.
 
-The implementation certainly does not try to be minimal (using the
-restriction rules as set in the schema specification), because that
-would be too slow.
+This implementation certainly does not try to be minimal in size: using
+the restriction rules and inheritance structure defined in the schema
+specification would be too slow.
 
 =chapter FUNCTIONS
 
@@ -70,7 +70,7 @@ to represent the passed values.
 $builtin_types{anySimpleType} =
 $builtin_types{anyType}       = { };
 
-=section Single
+=section Ungrouped types
 
 =function boolean
 Contains C<true>, C<false>, C<1> (is true), or C<0> (is false).  Unchecked,
@@ -85,6 +85,7 @@ $builtin_types{boolean} =
  };
 
 =section Big Integers
+
 Schema's define integer types which are derived from the C<decimal>
 type.  These values can grow enormously large, and therefore can only be
 handled correctly using M<Math::BigInt>.  When the translator is

@@ -4,6 +4,31 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.06:
+
+	- The internals of the translator (and the produced code) are
+	  fully rewritted to support complexType/simpleContent in a
+	  clean way.
+
+	- better support for list.
+
+	- major improvements in the documentation.
+
+version 0.05: Sun Aug 27 12:00:00 CEST 2006
+
+	- Release as OODoc processed package :(
+
+version 0.04: Sun Aug 27 11:49:54 CEST 2006
+
+	- Rewrote the particle handling to better process nesting and
+	  min/maxOccurs.
+
+	- Many rewrites to implement complexType/simpleType processing.
+
+	- Extended list describing missing features (and resolved quite
+	  a few of them).  Parser is much stricter now, closer to the
+	  specs.
+
 version 0.03: Tue Aug 15 09:13:06 CEST 2006
 
 	- Doc about what to pass as type to compile() was not updated.

@@ -27,10 +27,10 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 
 <element name="test2">
   <complexType>
-    <complexContent>
+    <sequence>
       <element name="t2a" type="string" default="foo" />
       <element name="t2b" type="string" />
-    </complexContent>
+    </sequence>
     <attribute name="t2c" type="int"    default="42" />
   </complexType>
 </element>

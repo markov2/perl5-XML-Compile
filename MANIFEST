@@ -1,5 +1,6 @@
 ChangeLog
 MANIFEST
+META.yml                                 Module meta-data (added by MakeMaker)
 Makefile.PL
 html/manual/doclist.html
 html/manual/grouped.html
@@ -45,6 +46,8 @@ t/47fixed.t
 t/48default.t
 t/49big.t
 t/50ns.t
+t/51ctsext.t
+t/52ctsres.t
 t/TestTools.pm
 version
 xsd/1998-namespace.xsd

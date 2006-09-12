@@ -18,12 +18,10 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 
 <element name="test1" type="me:c1" />
 <complexType name="c1">
-  <complexContent>
-    <sequence>
-       <element name="e1_a" type="int" />
-       <element name="e1_b" type="int" />
-    </sequence>
-  </complexContent>
+  <sequence>
+     <element name="e1_a" type="int" />
+     <element name="e1_b" type="int" />
+  </sequence>
   <attribute name="a1_a" type="int" />
 </complexType>
 
@@ -33,6 +31,7 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
      <element name="g2_b" type="int" />
   </sequence>
 </group>
+
 <element name="test2">
   <complexType>
     <sequence>

@@ -8,6 +8,8 @@ use XML::LibXML;
 use Test::More;
 use Test::Deep   qw/cmp_deeply/;
 
+$ENV{SCHEMA_DIRECTORIES} = 'xsd';
+
 our @EXPORT = qw/
  $TestNS
  $SchemaNS

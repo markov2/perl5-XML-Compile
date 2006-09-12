@@ -117,8 +117,8 @@ my %schema_2000 =
  );
 
 my %schema_2001 =
- ( uri_xsd => 'http://www.w3.org/2001/XMLSchema'
- , uri_xsi => 'http://www.w3.org/2001/XMLSchema-instance'
+ ( uri_xsd  => 'http://www.w3.org/2001/XMLSchema'
+ , uri_xsi  => 'http://www.w3.org/2001/XMLSchema-instance'
 
  , builtin_public => \%builtin_public_2001
  );
@@ -154,6 +154,7 @@ signed 32bit integers suffice... which is good for performance, but not
 standard compliant.
 
 =cut
+
 
 sub builtInType($;$@)
 {   my ($class, $ns) = (shift, shift);

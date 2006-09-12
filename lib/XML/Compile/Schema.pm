@@ -7,7 +7,8 @@ use base 'XML::Compile';
 
 use Carp;
 use List::Util   qw/first/;
-use XML::LibXML;
+use XML::LibXML  ();
+use File::Spec   ();
 
 use XML::Compile::Schema::Specs;
 use XML::Compile::Schema::BuiltInStructs qw/builtin_structs/;
@@ -15,61 +16,210 @@ use XML::Compile::Schema::Translate      qw/compile_tree/;
 use XML::Compile::Schema::Instance;
 use XML::Compile::Schema::NameSpaces;
 
+my %schemaLocation =
+ ( 'http://www.w3.org/2001/XMLSchema' => '2001-XMLSchema.xsd'
+ );
+
 =chapter NAME
 
 XML::Compile::Schema - Compile a schema
 
 =chapter SYNOPSIS
 
- # preparation
+ # compile tree yourself
  my $parser = XML::LibXML->new;
  my $tree   = $parser->parse...(...);
-
  my $schema = XML::Compile::Schema->new($tree);
 
+ # get schema from string
  my $schema = XML::Compile::Schema->new($xml_string);
+
+ # adding schemas
+ $schema->addSchemas($tree);
+ $schema->importSchema('http://www.w3.org/2001/XMLSchema');
+ $schema->importSchema('2001-XMLSchema.xsd');
+
+ # create and use a reader
  my $read   = $schema->compile(READER => 'mytype');
  my $hash   = $read->($xml);
  
+ # create and use a writer
  my $doc    = XML::LibXML::Document->new('1.0', 'UTF-8');
  my $write  = $schema->compile(WRITER => 'mytype');
  my $xml    = $write->($doc, $hash);
+
+ # show result
  print $xml->toString;
 
 =chapter DESCRIPTION
 
-This module collects knowledge about a schema.  The most important
-method is M<compile()> which can create XML file readers and writers
-based on the schema information and some selected type.
-
-WARNING: The compiler is implemented in M<XML::Compile::Schema::Translate>,
-which is NOT FINISHED.  See that manual page about the specific behavior
-and its (current) limitations!
-
-WARNING: the provided B<schema is not validated>!  In some cases,
-compile-time and run-time errors will be reported, but typically only
-in cases that the parser has no idea what to do with such a mistake.
-On the other hand, the processed B<data is validated>: the output should
-follow the specs closely.
+This module collects knowledge about one or more schemas.  The most
+important method is M<compile()> which can create XML file readers and
+writers based on the schema information and some selected type.
 
 Two implementations use the translator, and more can be added later.  Both
-get created with the M<compile()> method.
+get created with the C<compile> method.
 
 =over 4
 
 =item XML Reader
 
-The XML reader produces a hash from a M<XML::LibXML::Node> tree, or an
-XML string.  The values are checked and will be ignored if the value is
-not according to the specs.
+The XML reader produces a HASH from a M<XML::LibXML::Node> tree or an
+XML string.  Those represent the input data.  The values are checked.
+An error produced when a value or the data-structure is not according
+to the specs.
 
 =item XML Writer
 
-The writer produces schema compliant XML, based on a hash.  To get the
+The writer produces schema compliant XML, based on a HASH.  To get the
 data encoding correct, you are required to pass a document in which the
 XML nodes may get a place later.
 
 =back
+
+=section Addressing components
+
+Normally, external users can only address elements within a schema,
+and types are hidden to be used by other schema's only.  For this
+reason, it is permitted to create an element and a type with the
+same name.
+
+The compiler requires a starting-point.  This can either be an
+element name or an element's id.  The format of the element name
+is C<{url}name>, for instance
+
+ {http://library}book
+
+refers to the built-in C<int> data-type.  You may also start with
+
+ http://www.w3.org/2001/XMLSchema#float
+
+as long as this ID refers to an element.
+
+=section Representing data-structures
+
+The schemas defines kinds of data types.  There are various ways to define
+them (with restrictions and extensions), but for the resulting data
+structure is that knowledge not important.
+
+=over 4
+
+=item simpleType
+
+A single value.  A lot of single value data-types are built-in (see
+M<XML::Compile::Schema::BuiltInTypes>).  In XML, it looks like this:
+
+ <test1>42</test1>
+
+In the HASH structure, the data will be represented as
+
+ test1 => 42
+
+Simple types may have range limiting restrictions (facets), which will
+be checked by default.  Types may also have some white-space behavior,
+for instance blanks are stripped from integers: before, after, but also
+inside the number representing string.
+
+=item complexType/simpleContent
+
+In this case, the single value container may have attributes.  In XML,
+this looks like this:
+
+ <test2 question="everything">42</test2>
+
+The number of attributes can be endless, and the value is only one.  This
+value has no name, and therefore gets a predefined name C<_>.  As a HASH,
+this looks like
+
+ test2 => { _ => 42, question => 'everything' }
+
+=item complexType and complexType/complexContent
+
+These containers not only have attributes, but also multiple values
+as content.  The XML could look like:
+
+ <test3 question="everything" by="mouse">
+   <answer>42</answer>
+   <when>5 billion BC</when>
+ </test3>
+
+Represented as HASH, this looks like
+
+ test3 => { question => 'everything', by => 'mouse'
+          , answer => 42, when => '5 billion BC' }
+
+=back
+
+=section Processing elements
+
+A second factor which determines the data-structure is the element
+occurence.  Usually, elements have to appear once and exactly once
+on a certain location in the XML data structure.  This order is
+automatically produced by this module. But elements may appear multiple
+times.
+
+=over 4
+
+=item usual case
+
+The default behavior for an element (in a sequence container) is to
+appear exactly once.  When missing, this is an error.
+
+=item maxOccurs larger than 1
+
+In this case, the element can appear multiple times.  The elements
+will be kept in an ARRAY within the HASH. So
+
+ <test4><a>12</a><a>13</a><b>14</b></test4>
+
+will become
+
+ test4 => { a => [12, 13], b => 14 };
+
+Even when there is only one element found, it will be returned as
+ARRAY (of one element).  Therefore, you can write
+
+ my $data = $reader->($xml);
+ foreach my $a ( @{$data->{a}} ) {...}
+
+Non-schema based XML processors will not return a single value within
+an ARRAY, which makes the code more complicated.
+
+An error will be produced when the number of elements found is
+less than minOccurs or more than maxOccurs.
+
+=item use="optional" or minOccurs="0"
+
+The element may be skipped.  When found, it is a single value.
+
+=item use="forbidden"
+
+When the element is found, an error is produced.
+
+=item default="value"
+
+When the XML does not contain the element, the default value is
+used... but only if this element's container exists.  This has
+no effect on the writer.
+
+=item fixed="value"
+
+Produce an error when the value is not present or different (after
+the white-space rules where applied).
+
+=back
+
+=section List type
+
+List simpleType objects are also represented as ARRAY, like elements
+with a minOccurs or maxOccurs unequal 1.  An example with a list of
+ints:
+
+  <test5>3 8 12</test5>
+
+as Perl structure:
+
+  test5 => [3, 8, 12]
 
 =chapter METHODS
 
@@ -92,7 +242,7 @@ sub init($)
 =section Accessors
 
 =method namespaces
-Returns the M<XML::Compile::Schema::Namespaces> object which is used
+Returns the M<XML::Compile::Schema::NameSpaces> object which is used
 to collect schemas.
 =cut
 
@@ -127,14 +277,34 @@ sub addSchemas($$)
     );
 }
 
+=method importSchema FILENAME|NAMESPACE
+Import (parse) the XML found in the specified file.  Some NAMESPACES
+are linked to predefined filenames, especially the schema defining files.
+The FILENAME can be relative, see M<findSchemaFile()>.
+=cut
+
+sub importSchema($)
+{   my ($self, $thing) = @_;
+
+    my $filename = $schemaLocation{$thing} || $thing;
+
+    my $path = $self->findSchemaFile($filename)
+        or croak "ERROR: cannot find $filename for $thing";
+
+    my $tree = $self->parseFile($path)
+        or croak "ERROR: cannot parse XML from $path";
+
+    $self->addSchema($tree);
+}
+
 =section Compilers
 
-=method compile ('READER'|'WRITER'), NAME, OPTIONS
+=method compile ('READER'|'WRITER'), ELEMENT, OPTIONS
 
-Translate the specified TYPE into a CODE reference which is able to
+Translate the specified ELEMENT into a CODE reference which is able to
 translate between XML-text and a HASH.
 
-The NAME is the starting-point for processing in the data-structure.
+The ELEMENT is the starting-point for processing in the data-structure.
 It can either be a global element, or a global type.  The NAME
 must be specified in C<{url}name> format, there the url is the
 name-space.  An alternative is the C<url#id> which refers to 
@@ -165,6 +335,8 @@ data from external sources.
 =default check_occurs <true>
 Whether code will be produced to complain about elements which
 should or should not appear, and is between bounds or not.
+Elements which may have more than 1 occurence will still always
+be represented by an ARRAY.
 
 =option  invalid 'IGNORE','WARN','DIE',CODE
 =default invalid DIE
@@ -351,7 +523,7 @@ sub types()
 {   my $nss = shift->namespaces;
     sort map {$_->types}
           map {$nss->schemas($_)}
-             $nss->namespaces;
+             $nss->list;
 }
 
 =method elements
@@ -362,7 +534,7 @@ sub elements()
 {   my $nss = shift->namespaces;
     sort map {$_->elements}
           map {$nss->schemas($_)}
-             $nss->namespaces;
+             $nss->list;
 }
 
 1;
