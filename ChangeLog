@@ -4,7 +4,7 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
-version 0.06:
+version 0.06: Thu Sep 14 10:10:31 CEST 2006
 
 	- The internals of the translator (and the produced code) are
 	  fully rewritted to support complexType/simpleContent in a
