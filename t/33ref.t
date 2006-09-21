@@ -10,8 +10,11 @@ use XML::Compile::Schema;
 
 use Test::More tests => 21;
 
-my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
-<document>
+my $TestNS2 = "http://second-ns";
+
+my $schema  = XML::Compile::Schema->new( <<__SCHEMA__ );
+<schemas>
+
 <schema targetNamespace="$TestNS"
         xmlns="$SchemaNS"
         xmlns:me="$TestNS">
@@ -43,13 +46,21 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 </element>
 </schema>
 
-<schema targetNamespace="$TestNS-bis"
+<schema targetNamespace="$TestNS2"
         xmlns="$SchemaNS"
-        xmlns:me="$TestNS">
-<element ref="me:test1" />
+        xmlns:first="$TestNS">
+
+<element name="test3">
+  <complexType>
+    <sequence>
+      <element ref="first:test1" />
+    </sequence>
+  </complexType>
+</element>
+
 </schema>
 
-</document>
+</schemas>
 __SCHEMA__
 
 ok(defined $schema);
@@ -61,8 +72,8 @@ ok(defined $schema);
 ok(1, "** Testing element ref ");
 
 my %r1_a = (a1_a => 10, e1_a => 11, e1_b => 12);
-run_test($schema, "{$TestNS-bis}test1" => <<__XML__, \%r1_a);
-<test1 a1_a="10"><e1_a>11</e1_a><e1_b>12</e1_b></test1>
+run_test($schema, "{$TestNS2}test3" => <<__XML__, {test1 => \%r1_a});
+<test3><test1 a1_a="10"><e1_a>11</e1_a><e1_b>12</e1_b></test1></test3>
 __XML__
 
 #

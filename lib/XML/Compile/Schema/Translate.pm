@@ -47,62 +47,13 @@ W3C schema's are implemented.  A few nuts are still to crack:
  facets on dates
  limited understanding of patterns
  include
+ auto-import
  anyAttribute
- substitutionGroup, final, and abstract
+ final
  unique, keyref, selector, field, include, notation
- inherited attributes for simpleContent extend
+ explicit ordering within choice and all
 
 Of course, these are all fixed in next release ;-)
-
-=section Rules of translation
-
-The following rules are used during translation, applicable to
-both the reader as the writer:
-
-=over 4
-
-=item Encoding
-
-this module uses XML::LibXML which does the character encoding for
-us: you do not have to escape characters like E<lt> yourself.
-
-=item Nesting
-
-Elements can be complex, and themselve contain elements which
-are complex.  In the Perl representation of the data, this will
-be shown as nested hashes with the same structure as the XML.
-
-=item Arrays
-
-Any element which has a maxOccurs larger than 1 will be returned
-as an array (or undef).  This will avoid the situation where the
-user code only handles a single element instance where the schema
-defines that multiple values can be returned.  The same is true
-for list types.
-
-=item Schema validation
-
-Be warned that the schema itself is NOT VALIDATED; you can easily
-construct schema's which do work with this module, but are not
-valid according to W3C.  Only in some cases, the translater will
-refuse to accept mistakes: mainly because it cannot produce valid
-code.
-
-=item Value checking
-
-The code will do its best to produce a correct translation. For
-instance, an accidental C<1.9999> will be converted into C<2>
-when the schema says that the field is an C<int>.
-
-=item Wildcards
-
-The C<any> and C<anyAttribute> elements frustrate our attempt for
-simplification.  Where we normally know which name-space we are
-dealing with, these wildcard elements can use any name-space.  Therefore,
-in the HASH, these elements will use keys like C<{url}name>, in stead
-of simply the name... both in the reader and the writer.
-
-=back
 
 =section Performance optimization
 
@@ -237,24 +188,16 @@ sub compile_tree($@)
     ref $element
        and croak 'ERROR: expecting an element name as point to start';
  
-#warn "$element";
-    my $nss    = $args{nss};
-    my $top    = $nss->findID($element)
-              || $nss->findElement($element)
-       or croak "ERROR: cannot find element $element";
+    my $path  = $element;
+    if(my $def = $args{nss}->findID($element))
+    {   my $node  = $def->{node};
+        my $local = $node->localName;
+        $local eq 'element'
+            or croak "ERROR: $element is not an element";
+        $element  = $def->{full};
+    }
 
-    my $node   = $top->{node};
-    my $path   = $element;
-
-    my $local  = $node->localName;
-    $local eq 'element'
-       or croak "ERROR: $element is not an element";
-
-    local $args{elems_qual} = exists $args{elements_qualified}
-     ? $args{elements_qualified} : $top->{efd} eq 'qualified';
-    local $args{tns}        = $top->{ns};
-
-    my $make   = _element($path, \%args, $top->{node});
+    my $make   = _element_by_name($path, \%args, $element);
     my $produce= $args{run}{wrapper}->($make);
 
       $args{include_namespaces}
@@ -281,6 +224,25 @@ sub in_schema_schema($)
 {   my ($uri, $type) = $_[0] =~ m/^\{(.*?)\}(.*)$/
        or croak "ERROR: not a type $_[0]";
     XML::Compile::Schema::Specs->predefinedSchema($uri);
+}
+
+sub _element_by_name($$$)
+{   my ($path, $args, $element) = @_;
+    my $nss    = $args->{nss};
+#warn "$element";
+    my $top    = $nss->findElement($element)
+       or croak "ERROR: cannot find element $element";
+
+    my $node   = $top->{node};
+    my $local  = $node->localName;
+    $local eq 'element'
+       or croak "ERROR: $element is not an element";
+
+    local $args->{elems_qual} = exists $args->{elements_qualified}
+     ? $args->{elements_qualified} : $top->{efd} eq 'qualified';
+    local $args->{tns}        = $top->{ns};
+
+    _element_by_node($path, $args, $top->{node});
 }
 
 sub _type_by_name($$$)
@@ -341,7 +303,7 @@ sub _type_by_top($$$)
     : croak "ERROR: expecting simpleType or complexType, not '$local' in $path\n";
 }
 
-sub _ref_type($$$$)
+sub _ref($$$$)
 {   my ($path, $args, $typename, $kind) = @_;
 
     my $nss    = $args->{nss};
@@ -353,8 +315,8 @@ sub _ref_type($$$$)
     if($local ne $kind)
     {   croak "ERROR: $path $typename should refer to a $kind, not a $local";
     }
-  
-    $node;
+
+    $top;
 }
 
 sub _simpleType($$$$)
@@ -528,26 +490,35 @@ sub _simple_restriction($$$$)
    {st => $do, attrs => \@attrs};
 }
 
-sub _element($$$);
-sub _element($$$)
+sub _substitutionGroupElements($$$)
+{   my ($path, $args, $node) = @_;
+
+    # type is ignored: only used as documentation
+
+    my $name     = $node->getAttribute('name')
+       or croak "ERROR: substitutionGroup element needs name in $path";
+    _assert_type($path, name => NCName => $name);
+
+    $path       .= "/sg($name)";
+
+    my $tns     = $args->{tns};
+    my $absname = "{$tns}$name";
+    my @subgrps = $args->{nss}->findSgMembers($absname);
+    @subgrps
+       or croak "ERROR: no substitutionGroups found for $absname in $path\n";
+
+    map { $_->{node} } @subgrps;
+}
+
+sub _element_by_node($$$);
+sub _element_by_node($$$)
 {   my ($path, $args, $node) = @_;
 #warn "element: $path\n";
 
-    my $do;
     my @childs   = _childs($node);
-    if(my $ref = $node->getAttribute('ref'))
-    {   @childs
-           and croak "ERROR: no childs expected within element ref in $path\n";
-
-        my $typename = _rel2abs($node, $ref);
-        my $dest     = _ref_type($path, $args, $typename, 'element')
-           or return ();
-        $path       .= "/ref($ref)";
-        return _element($path, $args, $dest);
-    }
 
     my $name     = $node->getAttribute('name')
-       or croak "ERROR: element $path without name";
+        or croak "ERROR: element $path without name";
     _assert_type($path, name => NCName => $name);
     $path       .= "/el($name)";
 
@@ -561,14 +532,15 @@ sub _element($$$)
     my $trans    = $qual ? 'tag_qualified' : 'tag_unqualified';
     my $tag      = $args->{run}{$trans}->($args, $node, $name);
 
-    if(my $type = $node->getAttribute('type'))
+    my $type;
+    if(my $isa = $node->getAttribute('type'))
     {   @childs and warn "ERROR: no childs expected with type in $path\n";
-        my $typename = _rel2abs($node, $type);
-        $do = _type_by_name($path, $args, $typename);
+        my $typename = _rel2abs($node, $isa);
+        $type = _type_by_name($path, $args, $typename);
     }
     elsif(!@childs)
     {   my $typename = _rel2abs($node, 'anyType');
-        $do = _type_by_name($path, $args, $typename);
+        $type = _type_by_name($path, $args, $typename);
     }
     else
     {   @childs > 1
@@ -577,15 +549,15 @@ sub _element($$$)
         # nameless types
         my $child = $childs[0];
         my $local = $child->localname;
-        $do = $local eq 'simpleType'  ? _simpleType($path, $args, $child, 0)
-            : $local eq 'complexType' ? _complexType($path, $args, $child)
-            : $local =~ m/^(sequence|choice|all|group)$/
-            ?                           _complexType($path, $args, $child)
-            : die "ERROR: unexpected element child $local at $path\n";
+        $type = $local eq 'simpleType'  ? _simpleType($path, $args, $child, 0)
+              : $local eq 'complexType' ? _complexType($path, $args, $child)
+              : $local =~ m/^(sequence|choice|all|group)$/
+              ?                           _complexType($path, $args, $child)
+              : die "ERROR: unexpected element child $local at $path\n";
     }
 
-    my $attrs = $do->{attrs};
-    if(my $elems = $do->{elems})
+    my $attrs = $type->{attrs};
+    if(my $elems = $type->{elems})
     {   my @do = @$elems;
         push @do, @$attrs if $attrs;
 
@@ -595,11 +567,11 @@ sub _element($$$)
 
     if(defined $attrs)
     {   return $args->{run}{create_tagged_element}
-                    ->($path, $args, $tag, $do->{st}, $attrs);
+                    ->($path, $args, $tag, $type->{st}, $attrs);
     }
 
     $args->{run}{create_simple_element}
-         ->($path, $args, $tag, $do->{st});
+         ->($path, $args, $tag, $type->{st});
 }
 
 sub _particles($$$$$)
@@ -633,8 +605,8 @@ sub _particle($$$$$)
         my $typename = _rel2abs($node, $ref);
 #warn $typename;
 
-        my $dest   = _ref_type("$path/gr", $args, $typename, 'group');
-        return _particles($path, $args, $dest, $min, $max);
+        my $dest   = _ref("$path/gr", $args, $typename, 'group');
+        return _particles($path, $args, $dest->{node}, $min, $max);
     }
 
     return ()
@@ -643,9 +615,23 @@ sub _particle($$$$$)
     defined $min or $min = $min_default;
     defined $max or $max = $max_default;
 
-    my $do = _element($path, $args, $node);
+    if(my $ref =  $node->getAttribute('ref'))
+    {   my $refname = _rel2abs($node, $ref);
+        my $def     = _ref($path, $args, $refname, 'element');
+        $node       = $def->{node};
+
+        my $abstract = $node->getAttribute('abstract') || 'false';
+        return map {_particle($path, $args, $_, 0, 1)}
+                   _substitutionGroupElements($path, $args, $node)
+            if $abstract eq 'true';
+    }
+
     my $name = $node->getAttribute('name');
+    defined $name
+        or croak "ERROR: missing name for element in $path\n";
 #warn "    is element $name";
+
+    my $do   = _element_by_node($path, $args, $node);
 
     my $nillable = 0;
     if(my $nil = $node->getAttribute('nillable'))
@@ -727,17 +713,18 @@ sub _attribute_group($$$);
 sub _attribute_group($$$)
 {   my ($path, $args, $node) = @_;
 
-    my $ref = $node->getAttribute('ref')
+    my $ref  = $node->getAttribute('ref')
        or croak "ERROR: attributeGroup $path without ref";
 
-    $path     .= "/ag";
+    $path   .= "/ag";
     my $typename = _rel2abs($node, $ref);
 #warn $typename;
 
-    my @attrs;
-    my $dest   = _ref_type($path, $args, $typename, 'attributeGroup');
-    defined $dest or return ();
+    my $def  = _ref($path, $args, $typename, 'attributeGroup');
+    defined $def or return ();
 
+    my @attrs;
+    my $dest = $def->{node};
     foreach my $child (_childs($dest))
     {   my $local = $child->localname;
         if($local eq 'attribute')
@@ -810,7 +797,7 @@ sub _attribute_list($$@)
         {   push @attrs, _attribute_group($path, $args, $attr);
         }
         else
-        {   croak "ERROR: expected is attribute(Group) not $local";
+        {   croak "ERROR: expected is attribute(Group) not $local in $path.  (forgot sequence?)\n";
         }
     }
 

@@ -41,7 +41,7 @@ sub init($)
 =section Accessors
 
 =method list
-Returns the list of names defined until now.
+Returns the list of name-space names defined until now.
 =cut
 
 sub list() { keys %{shift->{tns}} }
@@ -70,15 +70,22 @@ sub add($)
 }
 
 =method schemas URI
-We need the name-space; when it is lacking then import must help.
+We need the name-space; when it is lacking then import must help, but that
+must be called explictly.
 =cut
 
 sub schemas($)
 {   my ($self, $ns) = @_;
-    my @schemas = $self->namespace($ns);
-    @schemas and return @schemas;
+    $self->namespace($ns);
+}
 
-    ();
+=method allSchemas
+Returns a list of all known schema instances.
+=cut
+
+sub allSchemas()
+{   my $self = shift;
+    map {$self->schemas($_)} $self->list;
 }
 
 =method findElement ADDRESS|(URI,NAME)
@@ -119,6 +126,24 @@ sub findType($;$)
     }
 
     undef;
+}
+
+
+=method findSgMembers ADDRESS|(URI,NAME)
+Lookup the substitutionGroup alternatives for a specific element,
+which is an ADDRESS of form C< {uri}name > or as seperate URI and NAME.
+Returned is a list of parse nodes (HASHes)
+=cut
+
+sub findSgMembers($;$)
+{   my ($self, $ns, $name) = @_;
+    my $label  = $ns;
+    if(defined $name) { $label = "{$ns}$name" }
+    elsif($label =~ m/^\s*\{(.*)\}(.*)/) { ($ns, $name) = ($1, $2) }
+    else { return undef  } 
+
+    map {$_->substitutionGroupMembers($label)}
+        $self->allSchemas;
 }
 
 =method findID ADDRESS|(URI,ID)

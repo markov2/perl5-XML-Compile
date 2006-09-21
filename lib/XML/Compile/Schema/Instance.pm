@@ -90,6 +90,23 @@ Returns one global element definition.
 
 sub element($) { $_[0]->{elements}{$_[1]} }
 
+=method substitutionGroups
+Returns a list of all named substitutionGroups.
+=cut
+
+sub substitutionGroups() { keys %{shift->{sgs}} }
+
+=method substitutionGroupMembers ELEMENT
+The expanded ELEMENT name is used to collect a set of alternatives which
+are in this substitutionGroup (super-class like alternatives). 
+=cut
+
+sub substitutionGroupMembers($)
+{   my $sgs = shift->{sgs}      or return ();
+    my $sg  = $sgs->{ (shift) } or return ();
+    @$sg;
+}
+
 =section Index
 =cut
 
@@ -139,20 +156,31 @@ sub _collectTypes($)
         my $id    = $schema->getAttribute('id');
 
         my ($prefix, $name)
-         = index($tag, ':') >= 0
-         ? split(/\:/,$tag,2)
-         : ('', $tag);
+         = index($tag, ':') >= 0 ? split(/\:/,$tag,2) : ('', $tag);
 
         # prefix existence enforced by xml parser
-        my $ns = length $prefix ? $node->lookupNamespaceURI($prefix) : $tns;
-
+        my $ns    = length $prefix ? $node->lookupNamespaceURI($prefix) : $tns;
         my $label = "{$ns}$name";
+
+        my $sg;
+        if(my $subst = $node->getAttribute('substitutionGroup'))
+        {    my ($sgpref, $sgname)
+              = index($subst, ':') >= 0 ? split(/\:/,$subst,2) : ('', $subst);
+             my $sgns = length $sgpref ? $node->lookupNamespaceURI($sgpref) : $tns;
+             defined $sgns
+                or croak "ERROR: no namespace for "
+                       . (length $sgpref ? "'$sgpref'" : 'target')
+                       . " in substitutionGroup of $tag\n";
+             $sg = "{$sgns}$sgname";
+        }
+
         my $class = $as_element{$local} ? 'elements' : 'types';
+
         my $info  = $self->{$class}{$label}
           = { type => $local, id => $id,   node => $node, full => "{$ns}$name"
             , ns   => $ns,  name => $name, prefix => $prefix
             , afd  => $afd, efd  => $efd,  schema => $self
-            , ref  => $ref
+            , ref  => $ref, sg   => $sg
             };
         weaken($self->{schema});
 
@@ -160,6 +188,9 @@ sub _collectTypes($)
         # for now...
         $self->{ids}{"$ns#$id"} = $info
            if defined $id;
+
+        push @{$self->{sgs}{$sg}}, $info
+           if defined $sg;
     }
 
     $self;

@@ -48,7 +48,13 @@ t/49big.t
 t/50ns.t
 t/51ctsext.t
 t/52ctsres.t
+t/53subst.t
 t/TestTools.pm
 version
 xsd/1998-namespace.xsd
+xsd/1999-XMLSchema-part2.xsd
+xsd/1999-XMLSchema.xsd
+xsd/2000-XMLSchema.xsd
+xsd/2001-XMLSchema.dtd
 xsd/2001-XMLSchema.xsd
+xsd/2001-datatypes.dtd

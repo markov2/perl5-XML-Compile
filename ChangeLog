@@ -4,6 +4,21 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.07: Thu Sep 21 15:06:05 CEST 2006
+
+	- implemented substitution-groups
+
+	- implementation of ref-element was bogus.
+
+	- improved documentation (more about Schemas)
+
+	- $schema->addSchemas from text
+
+	- $schema->importSchema() with support of search-path.  Schema's not
+	  automatically installed (yet)
+
+	- added other schema's to the distribution.
+
 version 0.06: Thu Sep 14 10:10:31 CEST 2006
 
 	- The internals of the translator (and the produced code) are
