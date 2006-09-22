@@ -155,7 +155,6 @@ standard compliant.
 
 =cut
 
-
 sub builtInType($;$@)
 {   my ($class, $ns) = (shift, shift);
     my $name = @_ % 1 ? shift : undef;

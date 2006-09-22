@@ -12,7 +12,7 @@ use File::Spec   ();
 
 use XML::Compile::Schema::Specs;
 use XML::Compile::Schema::BuiltInStructs qw/builtin_structs/;
-use XML::Compile::Schema::Translate      qw/compile_tree/;
+use XML::Compile::Schema::Translate      ();
 use XML::Compile::Schema::Instance;
 use XML::Compile::Schema::NameSpaces;
 
@@ -516,7 +516,7 @@ are.
 =cut
 
 sub compile($$@)
-{   my ($self, $direction, $type, %args) = @_;
+{   my ($self, $action, $type, %args) = @_;
 
     exists $args{check_values}
        or $args{check_values} = 1;
@@ -547,11 +547,20 @@ sub compile($$@)
 
     $args{path} ||= $top->{full};
 
-    compile_tree
+    my $bricks = 'XML::Compile::Schema::' .
+     ( $action eq 'READER' ? 'XmlReader'
+     : $action eq 'WRITER' ? 'XmlWriter'
+     : croak "ERROR: create only READER or WRITER, not '$action'."
+     );
+
+    eval "require $bricks";
+    die $@ if $@;
+
+    XML::Compile::Schema::Translate->compileTree
      ( $top->{full}, %args
-     , run => builtin_structs($direction) 
-     , err => $self->invalidsErrorHandler($args{invalid})
-     , nss => $self->namespaces
+     , bricks => $bricks
+     , err    => $self->invalidsErrorHandler($args{invalid})
+     , nss    => $self->namespaces
      );
 }
 

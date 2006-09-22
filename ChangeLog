@@ -4,6 +4,19 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.08: Fri Sep 22 15:52:49 CEST 2006
+
+	- Turned XML::Compile::Schema::Translate into a singleton object,
+	  and reshaped functions into methods.  The arguments hash intern
+	  in object.  Together much cleaner.
+
+	- Replaced use of "croak" for errors during translation into a
+	  call to the error() method, with nicer and more consequent
+	  error text layout.
+
+	- Split XML::Compile::Schema::BuiltinStructs into lazy loading
+	  XML::Compile::Schema::XmlReader and ::XmlWriter.
+
 version 0.07: Thu Sep 21 15:06:05 CEST 2006
 
 	- implemented substitution-groups

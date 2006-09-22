@@ -3,9 +3,6 @@ use warnings;
 use strict;
 
 package XML::Compile::Schema::Translate;
-use base 'Exporter';
-
-our @EXPORT = 'compile_tree';
 
 use Carp;
 
@@ -13,21 +10,20 @@ use XML::Compile::Schema::Specs;
 use XML::Compile::Schema::BuiltInFacets;
 use XML::Compile::Schema::BuiltInTypes   qw/%builtin_types/;
 
-sub _rel2abs($$);
-
 =chapter NAME
 
 XML::Compile::Schema::Translate - create an XML data parser
 
 =chapter SYNOPSIS
 
- # for internal use only!
+ # for internal use only
+ my $code = XML::Compile::Schema::Translate->compileTree(...);
 
 =chapter DESCRIPTION
 
 This module converts a schema type definition into a code
 reference which can be used to interpret a schema.  The sole public
-function in this package is M<compile_tree()>, and is called by
+function in this package is M<compileTree()>, and is called by
 M<XML::Compile::Schema::compile()>, which does a lot of set-ups.
 Please do not try to use this package directly!
 
@@ -167,9 +163,9 @@ the counts on all defined name-spaces.
 
 =back
 
-=chapter FUNCTIONS
+=chapter METHODS
 
-=c_method compile_tree ELEMENT, OPTIONS
+=c_method compileTree ELEMENT, OPTIONS
 Do not call this function yourself, but use
 M<XML::Compile::Schema::compile()> (or wrappers around that).
 
@@ -180,39 +176,60 @@ a table of types.
 
 =requires nss L<XML::Compile::Schema::NameSpaces>
 
+=requires bricks CLASS
+
+=requires err CODE
+
 =cut
 
-sub compile_tree($@)
-{   my ($element, %args) = @_;
+sub compileTree($@)
+{   my ($class, $element, %args) = @_;
+
+    my $path   = $element;
+    my $self   = bless \%args, $class;
 
     ref $element
-       and croak 'ERROR: expecting an element name as point to start';
- 
-    my $path  = $element;
-    if(my $def = $args{nss}->findID($element))
+        and $self->error($path, "expecting an element name as point to start");
+
+    $self->{bricks}
+        or $self->error($path, "no bricks");
+
+    $self->{nss}
+        or $self->error($path, "no namespaces");
+
+    $self->{err}
+        or $self->error($path, "no error handler");
+
+    if(my $def = $self->namespaces->findID($element))
     {   my $node  = $def->{node};
         my $local = $node->localName;
         $local eq 'element'
-            or croak "ERROR: $element is not an element";
+            or $self->error($path, "$element is not an element");
         $element  = $def->{full};
     }
 
-    my $make   = _element_by_name($path, \%args, $element);
-    my $produce= $args{run}{wrapper}->($make);
+    my $make   = $self->element_by_name($path, $element);
+    my $produce= $self->make(wrapper => $make);
 
-      $args{include_namespaces}
-    ? $args{run}{wrapper_ns}->($produce, $args{output_namespaces})
+      $self->{include_namespaces}
+    ? $self->make(wrapper_ns => $path, $produce, $self->{output_namespaces})
     : $produce;
 }
 
-sub _assert_type($$$$)
-{   my ($path, $field, $type, $value) = @_;
-    return if $builtin_types{$type}{check}->($value);
-    die "ERROR: Field $field contains `$value' which is not a valid $type.\n";
+sub error($$@)
+{   my ($self, $path) = (shift, shift);
+    die 'ERROR: '.join('', @_)."\n  in $path\n";
 }
 
-sub _childs($)   # returns only elements in same name-space
-{   my $node = shift;
+sub assert_type($$$$)
+{   my ($self, $path, $field, $type, $value) = @_;
+    return if $builtin_types{$type}{check}->($value);
+    $self->error($path, "Field $field contains '$value' which is not a valid $type.");
+}
+
+sub childs($)   # returns only elements in same name-space
+{   my $self = shift;
+    my $node = shift;
     my $ns   = $node->namespaceURI;
     grep {   $_->isa('XML::LibXML::Element')
           && $_->namespaceURI eq $ns
@@ -220,49 +237,48 @@ sub _childs($)   # returns only elements in same name-space
          } $node->childNodes;
 }
 
-sub in_schema_schema($)
-{   my ($uri, $type) = $_[0] =~ m/^\{(.*?)\}(.*)$/
-       or croak "ERROR: not a type $_[0]";
-    XML::Compile::Schema::Specs->predefinedSchema($uri);
+sub namespaces() { $_[0]->{nss} }
+
+sub make($@)
+{   my ($self, $component, $path, @args) = @_;
+    no strict 'refs';
+    "$self->{bricks}::$component"->($path, $self, @args);
 }
 
-sub _element_by_name($$$)
-{   my ($path, $args, $element) = @_;
-    my $nss    = $args->{nss};
+sub element_by_name($$)
+{   my ($self, $path, $element) = @_;
+    my $nss    = $self->namespaces;
 #warn "$element";
     my $top    = $nss->findElement($element)
-       or croak "ERROR: cannot find element $element";
+       or $self->error($path, "cannot find element $element");
 
     my $node   = $top->{node};
     my $local  = $node->localName;
     $local eq 'element'
-       or croak "ERROR: $element is not an element";
+       or $self->error($path, "$element is not an element");
 
-    local $args->{elems_qual} = exists $args->{elements_qualified}
-     ? $args->{elements_qualified} : $top->{efd} eq 'qualified';
-    local $args->{tns}        = $top->{ns};
+    local $self->{elems_qual} = exists $self->{elements_qualified}
+     ? $self->{elements_qualified} : $top->{efd} eq 'qualified';
+    local $self->{tns}        = $top->{ns};
 
-    _element_by_node($path, $args, $top->{node});
+    $self->element_by_node($path, $top->{node});
 }
 
-sub _type_by_name($$$)
-{   my ($path, $args, $typename) = @_;
-
-    my $nss    = $args->{nss};
+sub type_by_name($$)
+{   my ($self, $path, $typename) = @_;
 
     #
     # First try to catch build-ins
     #
 
     my $code = XML::Compile::Schema::Specs->builtInType
-       ($typename, sloppy_integers => $args->{sloppy_integers});
+       ($typename, sloppy_integers => $self->{sloppy_integers});
 
     if($code)
     {
 #warn "TYPE FINAL: $typename\n";
-        my $type = $args->{run}
-         ->{$args->{check_values} ? 'builtin_checked' : 'builtin_unchecked'}
-         ->($path, $args, $typename, $code);
+        my $c = $self->{check_values}? 'builtin_checked':'builtin_unchecked';
+        my $type = $self->make($c => $path, $typename, $code);
 
         return {st => $type};
     }
@@ -271,14 +287,14 @@ sub _type_by_name($$$)
     # Then try own schema's
     #
 
-    my $top    = $nss->findType($typename)
-       or croak "ERROR: cannot find type $typename for $path\n";
+    my $top    = $self->namespaces->findType($typename)
+       or $self->error($path, "cannot find type $typename");
 
-    _type_by_top($path, $args, $top);
+    $self->type_by_top($path, $top);
 }
 
-sub _type_by_top($$$)
-{   my ($path, $args, $top) = @_;
+sub type_by_top($$)
+{   my ($self, $path, $top) = @_;
     my $node = $top->{node};
 
     #
@@ -286,94 +302,94 @@ sub _type_by_top($$$)
     #
 
     my $elems_qual
-     = exists $args->{elements_qualified} ? $args->{elements_qualified}
+     = exists $self->{elements_qualified} ? $self->{elements_qualified}
      : $top->{efd} eq 'qualified';
 
     my $attrs_qual
-     = exists $args->{attributes_qualified} ? $args->{attributes_qualified}
+     = exists $self->{attributes_qualified} ? $self->{attributes_qualified}
      : $top->{afd} eq 'qualified';
 
-    local $args->{elems_qual} = $elems_qual;
-    local $args->{attrs_qual} = $attrs_qual;
-    local $args->{tns}        = $top->{ns};
+    local $self->{elems_qual} = $elems_qual;
+    local $self->{attrs_qual} = $attrs_qual;
+    local $self->{tns}        = $top->{ns};
     my $local = $node->localName;
 
-      $local eq 'simpleType'  ? _simpleType ($path, $args, $node)
-    : $local eq 'complexType' ? _complexType($path, $args, $node)
-    : croak "ERROR: expecting simpleType or complexType, not '$local' in $path\n";
+      $local eq 'simpleType'  ? $self->simpleType ($path, $node)
+    : $local eq 'complexType' ? $self->complexType($path, $node)
+    : $self->error($path, "expecting simpleType or complexType, not '$local'");
 }
 
-sub _ref($$$$)
-{   my ($path, $args, $typename, $kind) = @_;
+sub reference($$$)
+{   my ($self, $path, $typename, $kind) = @_;
 
-    my $nss    = $args->{nss};
+    my $nss    = $self->namespaces;
     my $top    = $nss->findElement($typename)
-       or croak "ERROR: cannot find ref-type $typename for $path\n";
+       or $self->error($path, "cannot find ref-type $typename for");
 
     my $node   = $top->{node};
     my $local  = $node->localname;
-    if($local ne $kind)
-    {   croak "ERROR: $path $typename should refer to a $kind, not a $local";
-    }
+    $local eq $kind
+       or $self->error($path, "$typename should refer to a $kind, not $local");
 
     $top;
 }
 
-sub _simpleType($$$$)
-{   my ($path, $args, $node, $in_list) = @_;
+sub simpleType($$$)
+{   my ($self, $path, $node, $in_list) = @_;
 
-    my @childs = _childs($node);
+    my @childs = $self->childs($node);
     @childs==1
-       or croak "ERROR: simpleType must have only one child in $path";
+       or $self->error($path, "simpleType must have only one child");
 
     my $child = shift @childs;
     my $local = $child->localName;
 
     my $type
     = $local eq 'restriction'
-                        ? _simple_restriction($path, $args, $child, $in_list)
-    : $local eq 'list'  ? _simple_list($path, $args, $child)
-    : $local eq 'union' ? _simple_union($path, $args, $child)
-    : croak "ERROR: simpleType contains $local, must be restriction, list, or union in $path\n";
+                        ? $self->simple_restriction($path, $child, $in_list)
+    : $local eq 'list'  ? $self->simple_list($path, $child)
+    : $local eq 'union' ? $self->simple_union($path, $child)
+    : $self->error($path
+        , "simpleType contains $local, must be restriction, list, or union\n");
 
     delete $type->{attrs};
 
     $type;
 }
 
-sub _simple_list($$$)
-{   my ($path, $args, $node) = @_;
+sub simple_list($$)
+{   my ($self, $path, $node) = @_;
 
     my $per_item;
     if(my $type = $node->getAttribute('itemType'))
-    {   my $typename = _rel2abs($node, $type);
-        $per_item    = _type_by_name($path, $args, $typename);
+    {   my $typename = $self->rel2abs($path, $node, $type);
+        $per_item    = $self->type_by_name($path, $typename);
     }
     else
-    {   my @childs   = _childs($node);
+    {   my @childs   = $self->childs($node);
         @childs==1
-           or croak "ERROR: expected one simpleType child or itemType attribute in $path";
+           or $self->error($path, "expected one simpleType child or itemType attribute");
 
         my $child    = shift @childs;
         my $local    = $child->localName;
         $local eq 'simpleType'
-           or croak "ERROR: simple list container can only have simpleType";
+           or $self->error($path, "simple list container can only have simpleType");
 
-        $per_item    = _simpleType($path, $args, $child, 1);
+        $per_item    = $self->simpleType($path, $child, 1);
     }
 
     my $st = $per_item->{st}
-        or croak "ERROR: list must be of simple type in $path";
+        or $self->error($path, "list must be of simple type");
 
-    my $do = $args->{run}{list}->($path, $args, $st);
+    my $do = $self->make(list => $path, $st);
 
     $per_item->{st} = $do;
     $per_item->{is_list} = 1;
     $per_item;
 }
 
-sub _simple_union($$$)
-{   my ($path, $args, $node) = @_;
+sub simple_union($$)
+{   my ($self, $path, $node) = @_;
 
     my @types;
 
@@ -382,55 +398,55 @@ sub _simple_union($$$)
     # string, which is faster but not 100% safe, where int 2 may be
     # formatted as float 1.999
 
-    my $err = $args->{err};
-    local $args->{err} = sub {undef}; #sub {warn "UNION no match @_\n"; undef};
-    local $args->{check_values} = 1;
+    my $err = $self->{err};
+    local $self->{err} = sub {undef}; #sub {warn "UNION no match @_\n"; undef};
+    local $self->{check_values} = 1;
 
     if(my $members = $node->getAttribute('memberTypes'))
-    {   foreach my $type (split " ", $members)
-        {   my $typename = _rel2abs($node, $type);
-            my $type = _type_by_name($path, $args, $typename);
+    {   foreach my $union (split " ", $members)
+        {   my $typename = $self->rel2abs($path, $node, $union);
+            my $type = $self->type_by_name($path, $typename);
             my $st   = $type->{st}
-               or croak "ERROR: union only of simpleTypes in $path";
+               or $self->error($path, "union only of simpleTypes");
 
             push @types, $st;
         }
     }
 
-    foreach my $child (_childs($node))
+    foreach my $child ( $self->childs($node))
     {   my $local = $child->localName;
 
         $local eq 'simpleType'
-           or croak "ERROR: only simpleType's within union in $path\n";
+           or $self->error($path, "only simpleType's within union");
 
-        my $type = _simpleType($path, $args, $child, 0);
-        push @types, $type->{st};
+        my $ctype = $self->simpleType($path, $child, 0);
+        push @types, $ctype->{st};
     }
 
-    my $do = $args->{run}{union}->($path, $args, $err, @types);
+    my $do = $self->make(union => $path, $err, @types);
     { st => $do, is_union => 1 };
 }
 
-sub _simple_restriction($$$$)
-{   my ($path, $args, $node, $in_list) = @_;
+sub simple_restriction($$$)
+{   my ($self, $path, $node, $in_list) = @_;
     my $base;
 
     if(my $basename = $node->getAttribute('base'))
-    {   my $typename = _rel2abs($node, $basename);
-        $base        = _type_by_name($path, $args, $typename);
+    {   my $typename = $self->rel2abs($path, $node, $basename);
+        $base        = $self->type_by_name($path, $typename);
         defined $base->{st}
-           or croak "ERROR: base $basename for simple-restriction is not simpleType in $path";
+           or $self->error($path, "base $basename for simple-restriction is not simpleType");
     }
 
     # Collect the facets
 
     my (%facets, @attr_nodes);
   FACET:
-    foreach my $child (_childs($node))
+    foreach my $child ( $self->childs($node))
     {   my $facet = $child->localName;
 
         if($facet eq 'simpleType')
-        {   $base = _type_by_name("$path/st", $args, $facet);
+        {   $base = $self->type_by_name("$path/st", $facet);
             next FACET;
         }
 
@@ -440,24 +456,25 @@ sub _simple_restriction($$$$)
         }
 
         my $value = $child->getAttribute('value');
-        defined $value or die "ERROR: no value for facet $facet in $path\n";
+        defined $value
+           or $self->error($path, "no value for facet $facet");
 
            if($facet eq 'enumeration') { push @{$facets{enumeration}}, $value }
         elsif($facet eq 'pattern')     { push @{$facets{pattern}}, $value }
         elsif(exists $facets{$facet})
-        {   croak "ERROR: facet $facet defined twice in $path\n" }
+        {   $self->error($path, "facet $facet defined twice") }
         else
         {   $facets{$facet} = $value }
     }
 
     defined $base
-       or croak "ERROR: simple-restriction requires either base or simpleType in $path\n";
+       or $self->error($path, "simple-restriction requires either base or simpleType");
 
-    my @attrs = _attribute_list($path, $args, @attr_nodes);
+    my @attrs = $self->attribute_list($path, @attr_nodes);
 
     my $st = $base->{st};
     return { st => $st, attrs => \@attrs }
-        if $args->{ignore_facets} || !keys %facets;
+        if $self->{ignore_facets} || !keys %facets;
 
     #
     # new facets overrule all of the base-class
@@ -472,88 +489,90 @@ sub _simple_restriction($$$$)
     # First the strictly ordered facets, before an eventual split
     # of the list, then the other facets
     my @early;
-    foreach my $facet ( qw/whiteSpace pattern/ )
-    {   my $value = delete $facets{$facet};
-        push @early, builtin_facet($path, $args, $facet, $value)
-           if defined $value;
+    foreach my $ordered ( qw/whiteSpace pattern/ )
+    {   my $limit = delete $facets{$ordered};
+        push @early, builtin_facet($path, $self, $ordered, $limit)
+           if defined $limit;
     }
 
     my @late;
-    foreach my $facet (keys %facets)
-    {   push @late, builtin_facet($path, $args, $facet, $facets{$facet});
+    foreach my $unordered (keys %facets)
+    {   push @late, builtin_facet($path, $self, $unordered, $facets{$unordered});
     }
 
     my $do = $in_list
-           ? $args->{run}{facets_list}->($path, $args, $st, \@early, \@late)
-           : $args->{run}{facets}->($path, $args, $st, @early, @late);
+           ? $self->make(facets_list => $path, $st, \@early, \@late)
+           : $self->make(facets => $path, $st, @early, @late);
 
    {st => $do, attrs => \@attrs};
 }
 
-sub _substitutionGroupElements($$$)
-{   my ($path, $args, $node) = @_;
+sub substitutionGroupElements($$)
+{   my ($self, $path, $node) = @_;
 
     # type is ignored: only used as documentation
 
     my $name     = $node->getAttribute('name')
-       or croak "ERROR: substitutionGroup element needs name in $path";
-    _assert_type($path, name => NCName => $name);
+       or $self->error($path, "substitutionGroup element needs name");
+    $self->assert_type($path, name => NCName => $name);
 
     $path       .= "/sg($name)";
 
-    my $tns     = $args->{tns};
+    my $tns     = $self->{tns};
     my $absname = "{$tns}$name";
-    my @subgrps = $args->{nss}->findSgMembers($absname);
+    my @subgrps = $self->namespaces->findSgMembers($absname);
     @subgrps
-       or croak "ERROR: no substitutionGroups found for $absname in $path\n";
+       or $self->error($path, "no substitutionGroups found for $absname");
 
     map { $_->{node} } @subgrps;
 }
 
-sub _element_by_node($$$);
-sub _element_by_node($$$)
-{   my ($path, $args, $node) = @_;
+sub element_by_node($$);
+sub element_by_node($$)
+{   my ($self, $path, $node) = @_;
 #warn "element: $path\n";
 
-    my @childs   = _childs($node);
+    my @childs   = $self->childs($node);
 
     my $name     = $node->getAttribute('name')
-        or croak "ERROR: element $path without name";
-    _assert_type($path, name => NCName => $name);
+        or $self->error($path, "element has no name");
+    $self->assert_type($path, name => NCName => $name);
     $path       .= "/el($name)";
 
-    my $qual     = $args->{elems_qual};
+    my $qual     = $self->{elems_qual};
     if(my $form = $node->getAttribute('form'))
     {   $qual = $form eq 'qualified'   ? 1
               : $form eq 'unqualified' ? 0
-              : croak "ERROR: form must be (un)qualified, not $form";
+              : $self->error($path, "form must be (un)qualified, not $form");
     }
 
     my $trans    = $qual ? 'tag_qualified' : 'tag_unqualified';
-    my $tag      = $args->{run}{$trans}->($args, $node, $name);
+    my $tag      = $self->make($trans => $path, $node, $name);
 
     my $type;
     if(my $isa = $node->getAttribute('type'))
-    {   @childs and warn "ERROR: no childs expected with type in $path\n";
-        my $typename = _rel2abs($node, $isa);
-        $type = _type_by_name($path, $args, $typename);
+    {   @childs
+            and $self->error($path, "no childs expected with type");
+
+        my $typename = $self->rel2abs($path, $node, $isa);
+        $type = $self->type_by_name($path, $typename);
     }
     elsif(!@childs)
-    {   my $typename = _rel2abs($node, 'anyType');
-        $type = _type_by_name($path, $args, $typename);
+    {   my $anytype = $self->rel2abs($path, $node, 'anyType');
+        $type = $self->type_by_name($path, $anytype);
     }
     else
     {   @childs > 1
-           and die "ERROR: expected is only one child in $path\n";
+           and $self->error($path, "expected is only one child");
  
         # nameless types
         my $child = $childs[0];
         my $local = $child->localname;
-        $type = $local eq 'simpleType'  ? _simpleType($path, $args, $child, 0)
-              : $local eq 'complexType' ? _complexType($path, $args, $child)
+        $type = $local eq 'simpleType'  ? $self->simpleType($path, $child, 0)
+              : $local eq 'complexType' ? $self->complexType($path, $child)
               : $local =~ m/^(sequence|choice|all|group)$/
-              ?                           _complexType($path, $args, $child)
-              : die "ERROR: unexpected element child $local at $path\n";
+              ?                           $self->complexType($path, $child)
+              : $self->error($path, "unexpected element child $local");
     }
 
     my $attrs = $type->{attrs};
@@ -561,28 +580,26 @@ sub _element_by_node($$$)
     {   my @do = @$elems;
         push @do, @$attrs if $attrs;
 
-        return $args->{run}{create_complex_element}
-                    ->($path, $args, $tag, @do);
+        return $self->make(create_complex_element => $path, $tag, @do);
     }
 
     if(defined $attrs)
-    {   return $args->{run}{create_tagged_element}
-                    ->($path, $args, $tag, $type->{st}, $attrs);
+    {   return $self->make(create_tagged_element =>
+           $path, $tag, $type->{st}, $attrs);
     }
 
-    $args->{run}{create_simple_element}
-         ->($path, $args, $tag, $type->{st});
+    $self->make(create_simple_element => $path, $tag, $type->{st});
 }
 
-sub _particles($$$$$)
-{   my ($path, $args, $node, $min, $max) = @_;
+sub particles($$$$)
+{   my ($self, $path, $node, $min, $max) = @_;
 #warn "Particles ".$node->localName;
-    map { _particle($path, $args, $_, $min, $max) } _childs($node);
+    map { $self->particle($path, $_, $min, $max) } $self->childs($node);
 }
 
-sub _particle($$$$$);
-sub _particle($$$$$)
-{   my ($path, $args, $node, $min_default, $max_default) = @_;
+sub particle($$$$);
+sub particle($$$$)
+{   my ($self, $path, $node, $min_default, $max_default) = @_;
 
     my $local = $node->localName;
     my $min   = $node->getAttribute('minOccurs');
@@ -594,19 +611,19 @@ sub _particle($$$$$)
     if($local eq 'sequence' || $local eq 'choice' || $local eq 'all')
     {   defined $min or $min = $local eq 'choice' ? 0 : 1;
         defined $max or $max = 1;
-        return _particles($path, $args, $node, $min, $max)
+        return $self->particles($path, $node, $min, $max)
     }
 
     if($local eq 'group')
     {   my $ref = $node->getAttribute('ref')
-           or croak "ERROR: group $path without ref";
+           or $self->error($path, "group without ref");
 
         $path     .= "/gr";
-        my $typename = _rel2abs($node, $ref);
+        my $typename = $self->rel2abs($path, $node, $ref);
 #warn $typename;
 
-        my $dest   = _ref("$path/gr", $args, $typename, 'group');
-        return _particles($path, $args, $dest->{node}, $min, $max);
+        my $dest   = $self->reference("$path/gr", $typename, 'group');
+        return $self->particles($path, $dest->{node}, $min, $max);
     }
 
     return ()
@@ -616,22 +633,22 @@ sub _particle($$$$$)
     defined $max or $max = $max_default;
 
     if(my $ref =  $node->getAttribute('ref'))
-    {   my $refname = _rel2abs($node, $ref);
-        my $def     = _ref($path, $args, $refname, 'element');
+    {   my $refname = $self->rel2abs($path, $node, $ref);
+        my $def     = $self->reference($path, $refname, 'element');
         $node       = $def->{node};
 
         my $abstract = $node->getAttribute('abstract') || 'false';
-        return map {_particle($path, $args, $_, 0, 1)}
-                   _substitutionGroupElements($path, $args, $node)
+        return map { $self->particle($path, $_, 0, 1)}
+                   $self->substitutionGroupElements($path, $node)
             if $abstract eq 'true';
     }
 
     my $name = $node->getAttribute('name');
     defined $name
-        or croak "ERROR: missing name for element in $path\n";
+        or $self->error($path, "missing name for element");
 #warn "    is element $name";
 
-    my $do   = _element_by_node($path, $args, $node);
+    my $do   = $self->element_by_node($path, $node);
 
     my $nillable = 0;
     if(my $nil = $node->getAttribute('nillable'))
@@ -643,11 +660,11 @@ sub _particle($$$$$)
 
     my $generate
      = ($max eq 'unbounded' || $max > 1)
-     ? ( $args->{check_occurs}
+     ? ( $self->{check_occurs}
        ? 'element_repeated'
        : 'element_array'
        )
-     : ($args->{check_occurs} && $min==1)
+     : ($self->{check_occurs} && $min==1)
      ? ( $nillable        ? 'element_nillable'
        : defined $fixed   ? 'element_fixed'
        :                    'element_obligatory'
@@ -660,38 +677,36 @@ sub _particle($$$$$)
     my $value = defined $default ? $default : $fixed;
     my $ns    = $node->namespaceURI;
 
-    ( $name
-      => $args->{run}{$generate}
-            ->("$path/$name", $args, $ns, $name, $do, $min, $max, $value)
-    );
+    ( $name => $self->make( $generate => "$path/$name"
+                         , $ns, $name, $do, $min, $max, $value));
 }
 
-sub _attribute($$$)
-{   my ($path, $args, $node) = @_;
+sub attribute($$)
+{   my ($self, $path, $node) = @_;
 
     my $name = $node->getAttribute('name')
-       or croak "ERROR: attribute $path without name";
+       or $self->error($path, "attribute without name");
 
     $path   .= "/at($name)";
 
-    my $qual = $args->{attrs_qual};
+    my $qual = $self->{attrs_qual};
     if(my $form = $node->getAttribute('form'))
     {   $qual = $form eq 'qualified'   ? 1
               : $form eq 'unqualified' ? 0
-              : croak "ERROR: form must be (un)qualified, not $form";
+              : $self->error($path, "form must be (un)qualified, not $form");
     }
 
     my $trans    = $qual ? 'tag_qualified' : 'tag_unqualified';
-    my $tag  = $args->{run}{$trans}->($args, $node, $name);
+    my $tag  = $self->make($trans => $path, $node, $name);
 
     my $do;
     my $typeattr = $node->getAttribute('type')
-       or croak "ERROR: attribute without type in $path\n";
+       or $self->error($path, "attribute without type");
 
-    my $typename = _rel2abs($node, $typeattr);
-    my $type     = _type_by_name($path, $args, $typename);
+    my $typename = $self->rel2abs($path, $node, $typeattr);
+    my $type     = $self->type_by_name($path, $typename);
     my $st       = $type->{st}
-        or croak "ERROR: attribute not based in simple value type in $path\n";
+        or $self->error($path, "attribute not based in simple value type");
 
     my $use     = $node->getAttribute('use') || 'optional';
     my $default = $node->getAttributeNode('default');
@@ -703,200 +718,203 @@ sub _attribute($$$)
      : $use eq 'required'  ? 'attribute_required'
      : $use eq 'optional'  ? 'attribute_optional'
      : $use eq 'prohibited'? 'attribute_prohibited'
-     : croak "ERROR: attribute use is required, optional or prohibited (not '$use') in $path.\n";
+     : $self->error($path, "attribute use is required, optional or prohibited (not '$use')");
 
     my $value = defined $default ? $default : $fixed;
-    $name => $args->{run}{$generate}->($path, $args, $tag, $st, $value);
+    $name => $self->make($generate => $path, $tag, $st, $value);
 }
 
-sub _attribute_group($$$);
-sub _attribute_group($$$)
-{   my ($path, $args, $node) = @_;
+sub attribute_group($$);
+sub attribute_group($$)
+{   my ($self, $path, $node) = @_;
 
     my $ref  = $node->getAttribute('ref')
-       or croak "ERROR: attributeGroup $path without ref";
+       or $self->error($path, "attributeGroup use without ref");
 
     $path   .= "/ag";
-    my $typename = _rel2abs($node, $ref);
+    my $typename = $self->rel2abs($path, $node, $ref);
 #warn $typename;
 
-    my $def  = _ref($path, $args, $typename, 'attributeGroup');
+    my $def  = $self->reference($path, $typename, 'attributeGroup');
     defined $def or return ();
 
     my @attrs;
     my $dest = $def->{node};
-    foreach my $child (_childs($dest))
+    foreach my $child ( $self->childs($dest))
     {   my $local = $child->localname;
         if($local eq 'attribute')
-        {   push @attrs, _attribute($path, $args, $child) }
+        {   push @attrs, $self->attribute($path, $child) }
         elsif($local eq 'attributeGroup')
-        {   push @attrs, _attribute_group($path, $args, $child) }
+        {   push @attrs, $self->attribute_group($path, $child) }
         else
-        {   croak "ERROR: unexpected $local in attributeGroup in $path";
+        {   $self->error($path, "unexpected $local in attributeGroup");
         }
     }
 
     @attrs;
 }
 
-sub _complexType($$$)
-{   my ($path, $args, $node) = @_;
+sub complexType($$)
+{   my ($self, $path, $node) = @_;
 
-    my @childs = _childs($node);
-    @childs or croak "ERROR: empty contentType";
+    my @childs = $self->childs($node);
+    @childs or $self->error($path, "empty contentType");
 
     my $first  = shift @childs;
     my $local  = $first->localName;
 
     if($local eq 'simpleContent')
-    {   croak "ERROR: simpleContent must be alone in complexType in $path"
-           if @childs;
+    {   @childs
+            and $self->error($path,"$local must be alone in complexType");
 
-        return _simpleContent($path, $args, $first);
+        return $self->simpleContent($path, $first);
     }
 
     my $type;
     if($local eq 'complexContent')
     {   @childs
-         && croak "ERROR: complexContent must be alone in complexType in $path";
+            and $self->error($path,"$local must be alone in complexType");
 
-        return _complexContent($path, $args, $first);
+        return $self->complexContent($path, $first);
     }
 
-    _complex_body($path, $args, $node);
+    $self->complex_body($path, $node);
 }
 
-sub _complex_body($$$)
-{   my ($path, $args, $node) = @_;
+sub complex_body($$)
+{   my ($self, $path, $node) = @_;
 
-    my @childs = _childs($node);
+    my @childs = $self->childs($node);
 
-    my $first  = $childs[0] or croak "ERROR: empty body";
+    my $first  = $childs[0]
+        or $self->error($path, "empty complex body");
+
     my $local  = $first->localName;
 
     my @elems;
     if($local =~ m/^(?:sequence|choice|all|group)$/)
-    {   @elems = _particle($path, $args, $first, 1, 1);
+    {   @elems = $self->particle($path, $first, 1, 1);
         shift @childs;
     }
-    my @attrs = _attribute_list($path, $args, @childs);
+    my @attrs = $self->attribute_list($path, @childs);
 
     {elems => \@elems, attrs => \@attrs};
 }
 
-sub _attribute_list($$@)
-{   my ($path, $args) = (shift, shift);
+sub attribute_list($@)
+{   my ($self, $path) = (shift, shift);
     my @attrs;
 
     foreach my $attr (@_)
     {   my $local = $attr->localName;
         if($local eq 'attribute')
-        {   push @attrs, _attribute($path, $args, $attr);
+        {   push @attrs, $self->attribute($path, $attr);
         }
         elsif($local eq 'attributeGroup')
-        {   push @attrs, _attribute_group($path, $args, $attr);
+        {   push @attrs, $self->attribute_group($path, $attr);
         }
         else
-        {   croak "ERROR: expected is attribute(Group) not $local in $path.  (forgot sequence?)\n";
+        {   $self->error($path
+             , "expected is attribute(Group) not $local. Forgot <sequence>?");
         }
     }
 
     @attrs;
 }
 
-sub _simpleContent($$$)
-{   my ($path, $args, $node) = @_;
+sub simpleContent($$)
+{   my ($self, $path, $node) = @_;
 
     my @elems;
-    my @childs = _childs($node);
+    my @childs = $self->childs($node);
     @childs == 1
-      or croak "ERROR: only one simpleContent child";
+      or $self->error($path, "only one simpleContent child");
 
     my $child  = shift @childs;
     my $name = $child->localName;
  
-    return _simpleContent_ext($path, $args, $child)
+    return $self->simpleContent_ext($path, $child)
         if $name eq 'extension';
 
     # nice for validating, but base can be ignored
-    return _simpleContent_res($path, $args, $child)
+    return $self->simpleContent_res($path, $child)
         if $name eq 'restriction';
 
-    warn "WARN: simpleContent either extension or restriction, not '$name' in $path\n";
-    ();
+    $self->error($path
+     , "simpleContent either extension or restriction, not '$name'");
 }
 
-sub _simpleContent_ext($$$)
-{   my ($path, $args, $node) = @_;
+sub simpleContent_ext($$)
+{   my ($self, $path, $node) = @_;
 
     my $base     = $node->getAttribute('base') || 'anyType';
-    my $typename = _rel2abs($node, $base);
+    my $typename = $self->rel2abs($path, $node, $base);
 
-    my $basetype = _type_by_name("$path#base", $args, $typename);
+    my $basetype = $self->type_by_name("$path#base", $typename);
     my $st = $basetype->{st}
-        or croak "ERROR: base of simpleContent not simple in $path";
+        or $self->error($path, "base of simpleContent not simple");
  
     my %type     = (st => $st);
     my @attrs    = defined $basetype->{attrs} ? @{$basetype->{attrs}} : ();
-    my @childs   = _childs($node);
+    my @childs   = $self->childs($node);
 
-    push @attrs, _attribute_list($path, $args, @childs)
+    push @attrs, $self->attribute_list($path, @childs)
         if @childs;
 
     $type{attrs} = \@attrs;
     \%type;
 }
 
-sub _simpleContent_res($$$)
-{   my ($path, $args, $node) = @_;
-    my $type = _simple_restriction($path, $args, $node, 0);
+sub simpleContent_res($$)
+{   my ($self, $path, $node) = @_;
+    my $type = $self->simple_restriction($path, $node, 0);
 
     my $st    = $type->{st}
-       or croak "ERROR: not a simpleType in simpleContent/restriction at $path";
+       or $self->error($path, "not a simpleType in simpleContent/restriction");
 
     $type;
 }
 
-sub _complexContent($$$)
-{   my ($path, $args, $node) = @_;
+sub complexContent($$)
+{   my ($self, $path, $node) = @_;
 
     my @elems;
-    my @childs = _childs($node);
+    my @childs = $self->childs($node);
     @childs == 1
-      or croak "ERROR: only one complexContent child";
+      or $self->error($path, "only one complexContent child");
 
     my $child  = shift @childs;
     my $name = $child->localName;
  
-    return _complexContent_ext($path, $args, $child)
+    return $self->complexContent_ext($path, $child)
         if $name eq 'extension';
 
     # nice for validating, but base can be ignored
-    return _complex_body($path, $args, $child)
+    return $self->complex_body($path, $child)
         if $name eq 'restriction';
 
-    warn "WARN: complexContent either extension or restriction, not '$name' in $path\n";
-    ();
+    $self->error($path
+     , "complexContent either extension or restriction, not '$name'");
 }
 
-sub _complexContent_ext($$$)
-{   my ($path, $args, $node) = @_;
+sub complexContent_ext($$)
+{   my ($self, $path, $node) = @_;
 
     my $base = $node->getAttribute('base') || 'anyType';
     my $type = {};
 
     if($base ne 'anyType')
-    {   my $typename = _rel2abs($node, $base);
-        my $typedef  = $args->{nss}->findType($typename)
-            or die "ERROR: cannot base on unknown $base, at $path";
+    {   my $typename = $self->rel2abs($path, $node, $base);
+        my $typedef  = $self->namespaces->findType($typename)
+            or $self->error($path, "cannot base on unknown $base");
 
         $typedef->{type} eq 'complexType'
-            or die "ERROR: base $base not complexType, at $path";
+            or $self->error($path, "base $base not complexType");
 
-        $type = _complex_body($path, $args, $typedef->{node});
+        $type = $self->complex_body($path, $typedef->{node});
     }
 
-    my $own = _complex_body($path, $args, $node);
+    my $own = $self->complex_body($path, $node);
     push @{$type->{elems}}, @{$own->{elems}};
     push @{$type->{attrs}}, @{$own->{attrs}};
     $type;
@@ -906,19 +924,20 @@ sub _complexContent_ext($$$)
 # Helper routines
 #
 
-# print _rel2abs($node, '{ns}type')    ->  '{ns}type'
-# print _rel2abs($node, 'prefix:type') ->  '{ns(prefix)}type'
+# print $self->rel2abs($path, $node, '{ns}type')    ->  '{ns}type'
+# print $self->rel2abs($path, $node, 'prefix:type') ->  '{ns(prefix)}type'
 
-sub _rel2abs($$)
-{   return $_[1] if substr($_[1], 0, 1) eq '{';
+sub rel2abs($$$)
+{   my ($self, $path, $node, $type) = @_;
+    return $type if substr($type, 0, 1) eq '{';
 
     my ($url, $local)
-     = $_[1] =~ m/^(.+?)\:(.*)/
-     ? ($_[0]->lookupNamespaceURI($1), $2)
-     : ($_[0]->namespaceURI, $_[1]);
+     = $type =~ m/^(.+?)\:(.*)/
+     ? ($node->lookupNamespaceURI($1), $2)
+     : ($node->namespaceURI, $type);
 
      defined $url
-         or croak "ERROR: cannot understand type '$_[1]'";
+         or $self->error($path, "cannot understand type '$type'");
 
      "{$url}$local";
 }
