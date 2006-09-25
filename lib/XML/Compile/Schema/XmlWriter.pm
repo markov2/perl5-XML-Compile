@@ -322,7 +322,7 @@ sub union
 # Attributes
 
 sub attribute_required
-{   my ($path, $args, $tag, $do) = @_;
+{   my ($path, $args, $ns, $tag, $do) = @_;
     my $err = $args->{err};
 
     sub { my $value = $do->(@_);
@@ -330,12 +330,12 @@ sub attribute_required
                      , "missing value for required attribute $tag")
              unless defined $value;
           defined $value or return ();
-          $_[0]->createAttribute($tag, $value);
+          $_[0]->createAttributeNS($ns, $tag, $value);
         };
 }
 
 sub attribute_prohibited
-{   my ($path, $args, $tag, $do) = @_;
+{   my ($path, $args, $ns, $tag, $do) = @_;
     my $err = $args->{err};
 
     sub { my $value = $do->(@_);
@@ -346,21 +346,21 @@ sub attribute_prohibited
 }
 
 sub attribute_default
-{   my ($path, $args, $tag, $do) = @_;
+{   my ($path, $args, $ns, $tag, $do) = @_;
     sub { my $value = $do->(@_);
-          defined $value ? $_[0]->createAttribute($tag, $value) : ();
+          defined $value ? $_[0]->createAttributeNS($ns, $tag, $value) : ();
         };
 }
 *attribute_optional = \&attribute_default;
 
 sub attribute_fixed
-{   my ($path, $args, $tag, $do, $fixed) = @_;
+{   my ($path, $args, $ns, $tag, $do, $fixed) = @_;
     my $err  = $args->{err};
     $fixed   = $fixed->value;
 
     sub { my ($doc, $value) = @_;
           my $ret = defined $value ? $do->($doc, $value) : undef;
-          return $doc->createAttribute($tag, $ret)
+          return $doc->createAttributeNS($ns, $tag, $ret)
               if defined $ret && $ret eq $fixed;
 
           $err->($path, $value, "attr value fixed to '$fixed'");

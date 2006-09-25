@@ -11,7 +11,6 @@ use XML::LibXML  ();
 use File::Spec   ();
 
 use XML::Compile::Schema::Specs;
-use XML::Compile::Schema::BuiltInStructs qw/builtin_structs/;
 use XML::Compile::Schema::Translate      ();
 use XML::Compile::Schema::Instance;
 use XML::Compile::Schema::NameSpaces;
@@ -66,7 +65,7 @@ get created with the C<compile> method.
 
 =over 4
 
-=item XML Reader
+=item READER (translate XML to HASH)
 
 The XML reader produces a HASH from a M<XML::LibXML::Node> tree or an
 XML string.  Those represent the input data.  The values are checked.
@@ -82,7 +81,7 @@ or
 
  my $hash   = $msgin->($xml_string);
 
-=item XML Writer
+=item WRITER (translate HASH to XML)
 
 The writer produces schema compliant XML, based on a HASH.  To get the
 data encoding correct, you are required to pass a document in which the
@@ -105,230 +104,8 @@ valid according to W3C.  Only in some cases, the translater will
 refuse to accept mistakes: mainly because it cannot produce valid
 code.
 
-=section Addressing components
+See chapter L</DETAILS> and learn how the data is processed.
 
-Normally, external users can only address elements within a schema,
-and types are hidden to be used by other schema's only.  For this
-reason, it is permitted to create an element and a type with the
-same name.
-
-The compiler requires a starting-point.  This can either be an
-element name or an element's id.  The format of the element name
-is C<{url}name>, for instance
-
- {http://library}book
-
-refers to the built-in C<int> data-type.  You may also start with
-
- http://www.w3.org/2001/XMLSchema#float
-
-as long as this ID refers to an element.
-
-Wildcard elements C<any> and C<anyAttribute> elements frustrate our
-attempt for simplification.  Where we normally know which name-space
-we are dealing with, these wildcard elements can use any name-space.
-Therefore, in the HASH, these elements will use keys like C<{url}name>,
-in stead of simply the name.
-
-=section Representing data-structures
-
-The code will do its best to produce a correct translation. For
-instance, an accidental C<1.9999> will be converted into C<2>
-when the schema says that the field is an C<int>.  It will also
-strip superfluous blanks when the data-type permits.  Especially
-watch-out for the C<Integer> types, which produce M<Math::BigInt>
-objects unless M<compile(sloppy_integers)> is used.
-
-Elements can be complex, and themselve contain elements which
-are complex.  In the Perl representation of the data, this will
-be shown as nested hashes with the same structure as the XML.
-
-You should not take tare of character encodings, whereas XML::LibXML is
-doing that for us: you shall not escape characters like "E<lt>" yourself.
-
-The schemas define kinds of data types.  There are various ways to define
-them (with restrictions and extensions), but for the resulting data
-structure is that knowledge not important.
-
-=over 4
-
-=item simpleType
-
-A single value.  A lot of single value data-types are built-in (see
-M<XML::Compile::Schema::BuiltInTypes>).
-
-Simple types may have range limiting restrictions (facets), which will
-be checked by default.  Types may also have some white-space behavior,
-for instance blanks are stripped from integers: before, after, but also
-inside the number representing string.
-
-=example typical simpleType
-
-In XML, it looks like this:
-
- <test1>42</test1>
-
-In the HASH structure, the data will be represented as
-
- test1 => 42
-
-=item complexType/simpleContent
-
-In this case, the single value container may have attributes.  The number
-of attributes can be endless, and the value is only one.  This value
-has no name, and therefore gets a predefined name C<_>.
-
-=example typical simpleContent example
-
-In XML, this looks like this:
-
- <test2 question="everything">42</test2>
-
-As a HASH, this looks like
-
- test2 => { _ => 42, question => 'everything' }
-
-=item complexType and complexType/complexContent
-
-These containers not only have attributes, but also multiple values
-as content.  The C<complexContent> is used to create inheritance
-structures in the data-type definition.  This does not affect the
-XML data package itself.
-
-=example typical complexType element
-
-The XML could look like:
-
- <test3 question="everything" by="mouse">
-   <answer>42</answer>
-   <when>5 billion BC</when>
- </test3>
-
-Represented as HASH, this looks like
-
- test3 => { question => 'everything', by => 'mouse'
-          , answer => 42, when => '5 billion BC' }
-
-=back
-
-=section Processing elements
-
-A second factor which determines the data-structure is the element
-occurence.  Usually, elements have to appear once and exactly once
-on a certain location in the XML data structure.  This order is
-automatically produced by this module. But elements may appear multiple
-times.
-
-=over 4
-
-=item usual case
-
-The default behavior for an element (in a sequence container) is to
-appear exactly once.  When missing, this is an error.
-
-=item maxOccurs larger than 1
-
-In this case, the element can appear multiple times.  Multiple values will
-be kept in an ARRAY within the HASH.  Non-schema based XML processors
-will not return a single value as an ARRAY, which makes that code more
-complicated.
-
-An error will be produced when the number of elements found is
-less than C<minOccurs> or more than C<maxOccurs>, unless
-M<compile(check_occurs)> is C<false>.
-
-=example two values for C<a>
-
- <test4><a>12</a><a>13</a><b>14</b></test4>
-
-will become
-
- test4 => { a => [12, 13], b => 14 };
-
-=example always an array
-
-Even when there is only one element found, it will be returned as
-ARRAY (of one element).  Therefore, you can write
-
- my $data = $reader->($xml);
- foreach my $a ( @{$data->{a}} ) {...}
-
-
-=item use="optional" or minOccurs="0"
-
-The element may be skipped.  When found it is a single value.
-
-=item use="forbidden"
-
-When the element is found, an error is produced.
-
-=item default="value"
-
-When the XML does not contain the element, the default value is
-used... but only if this element's container exists.  This has
-no effect on the writer.
-
-=item fixed="value"
-
-Produce an error when the value is not present or different (after
-the white-space rules where applied).
-
-=back
-
-=section List type
-
-List simpleType objects are also represented as ARRAY, like elements
-with a minOccurs or maxOccurs unequal 1.
-
-=example with a list of ints
-
-  <test5>3 8 12</test5>
-
-as Perl structure:
-
-  test5 => [3, 8, 12]
-
-=section substitutionGroup
-
-A substitution group is kind-of choice between alternative (complex)
-types.  However, in this case roles have reversed: instead a C<choice>
-which lists the alternatives, here the alternative elements register
-themselves as valid for an abstract (I<head>) element.  All alternatives
-should be extensions of the head element's type, but there is no way to
-check that.
-
-=example substitutionGroup
-
- <xs:element name="price"  type="xs:int" abstract="true" />
- <xs:element name="euro"   type="xs:int" substitutionGroup="price" />
- <xs:element name="dollar" type="xs:int" substitutionGroup="price" />
-
- <xs:element name="product">
-   <xs:complexType>
-      <xs:element name="name" type="xs:string" />
-      <xs:element ref="price" />
-   </xs:complexType>
- </xs:element>
- 
-Now, valid XML data is
-
- <product>
-   <name>Ball</name>
-   <euro>12</euro>
- </product>
-
-and
-
- <product>
-   <name>Ball</name>
-   <dollar>6</dollar>
- </product>
-
-The HASH repesentation is respectively
-
- product => {name => 'Ball', euro  => 12}
- product => {name => 'Ball', dollar => 6}
- 
 =chapter METHODS
 
 =section Constructors
@@ -620,5 +397,233 @@ sub elements()
           map {$nss->schemas($_)}
              $nss->list;
 }
+
+=chapter DETAILS
+
+=section Addressing components
+
+Normally, external users can only address elements within a schema,
+and types are hidden to be used by other schema's only.  For this
+reason, it is permitted to create an element and a type with the
+same name.
+
+The compiler requires a starting-point.  This can either be an
+element name or an element's id.  The format of the element name
+is C<{url}name>, for instance
+
+ {http://library}book
+
+refers to the built-in C<int> data-type.  You may also start with
+
+ http://www.w3.org/2001/XMLSchema#float
+
+as long as this ID refers to an element.
+
+Wildcard elements C<any> and C<anyAttribute> elements frustrate our
+attempt for simplification.  Where we normally know which name-space
+we are dealing with, these wildcard elements can use any name-space.
+Therefore, in the HASH, these elements will use keys like C<{url}name>,
+in stead of simply the name.
+
+=section Representing data-structures
+
+The code will do its best to produce a correct translation. For
+instance, an accidental C<1.9999> will be converted into C<2>
+when the schema says that the field is an C<int>.  It will also
+strip superfluous blanks when the data-type permits.  Especially
+watch-out for the C<Integer> types, which produce M<Math::BigInt>
+objects unless M<compile(sloppy_integers)> is used.
+
+Elements can be complex, and themselve contain elements which
+are complex.  In the Perl representation of the data, this will
+be shown as nested hashes with the same structure as the XML.
+
+You should not take tare of character encodings, whereas XML::LibXML is
+doing that for us: you shall not escape characters like "E<lt>" yourself.
+
+The schemas define kinds of data types.  There are various ways to define
+them (with restrictions and extensions), but for the resulting data
+structure is that knowledge not important.
+
+=over 4
+
+=item simpleType
+
+A single value.  A lot of single value data-types are built-in (see
+M<XML::Compile::Schema::BuiltInTypes>).
+
+Simple types may have range limiting restrictions (facets), which will
+be checked by default.  Types may also have some white-space behavior,
+for instance blanks are stripped from integers: before, after, but also
+inside the number representing string.
+
+=example typical simpleType
+
+In XML, it looks like this:
+
+ <test1>42</test1>
+
+In the HASH structure, the data will be represented as
+
+ test1 => 42
+
+=item complexType/simpleContent
+
+In this case, the single value container may have attributes.  The number
+of attributes can be endless, and the value is only one.  This value
+has no name, and therefore gets a predefined name C<_>.
+
+=example typical simpleContent example
+
+In XML, this looks like this:
+
+ <test2 question="everything">42</test2>
+
+As a HASH, this looks like
+
+ test2 => { _ => 42, question => 'everything' }
+
+=item complexType and complexType/complexContent
+
+These containers not only have attributes, but also multiple values
+as content.  The C<complexContent> is used to create inheritance
+structures in the data-type definition.  This does not affect the
+XML data package itself.
+
+=example typical complexType element
+
+The XML could look like:
+
+ <test3 question="everything" by="mouse">
+   <answer>42</answer>
+   <when>5 billion BC</when>
+ </test3>
+
+Represented as HASH, this looks like
+
+ test3 => { question => 'everything', by => 'mouse'
+          , answer => 42, when => '5 billion BC' }
+
+=back
+
+=section Processing elements
+
+A second factor which determines the data-structure is the element
+occurence.  Usually, elements have to appear once and exactly once
+on a certain location in the XML data structure.  This order is
+automatically produced by this module. But elements may appear multiple
+times.
+
+=over 4
+
+=item usual case
+
+The default behavior for an element (in a sequence container) is to
+appear exactly once.  When missing, this is an error.
+
+=item maxOccurs larger than 1
+
+In this case, the element can appear multiple times.  Multiple values will
+be kept in an ARRAY within the HASH.  Non-schema based XML processors
+will not return a single value as an ARRAY, which makes that code more
+complicated.
+
+An error will be produced when the number of elements found is
+less than C<minOccurs> or more than C<maxOccurs>, unless
+M<compile(check_occurs)> is C<false>.
+
+=example two values for C<a>
+
+ <test4><a>12</a><a>13</a><b>14</b></test4>
+
+will become
+
+ test4 => { a => [12, 13], b => 14 };
+
+=example always an array
+
+Even when there is only one element found, it will be returned as
+ARRAY (of one element).  Therefore, you can write
+
+ my $data = $reader->($xml);
+ foreach my $a ( @{$data->{a}} ) {...}
+
+
+=item use="optional" or minOccurs="0"
+
+The element may be skipped.  When found it is a single value.
+
+=item use="forbidden"
+
+When the element is found, an error is produced.
+
+=item default="value"
+
+When the XML does not contain the element, the default value is
+used... but only if this element's container exists.  This has
+no effect on the writer.
+
+=item fixed="value"
+
+Produce an error when the value is not present or different (after
+the white-space rules where applied).
+
+=back
+
+=section List type
+
+List simpleType objects are also represented as ARRAY, like elements
+with a minOccurs or maxOccurs unequal 1.
+
+=example with a list of ints
+
+  <test5>3 8 12</test5>
+
+as Perl structure:
+
+  test5 => [3, 8, 12]
+
+=section substitutionGroup
+
+A substitution group is kind-of choice between alternative (complex)
+types.  However, in this case roles have reversed: instead a C<choice>
+which lists the alternatives, here the alternative elements register
+themselves as valid for an abstract (I<head>) element.  All alternatives
+should be extensions of the head element's type, but there is no way to
+check that.
+
+=example substitutionGroup
+
+ <xs:element name="price"  type="xs:int" abstract="true" />
+ <xs:element name="euro"   type="xs:int" substitutionGroup="price" />
+ <xs:element name="dollar" type="xs:int" substitutionGroup="price" />
+
+ <xs:element name="product">
+   <xs:complexType>
+      <xs:element name="name" type="xs:string" />
+      <xs:element ref="price" />
+   </xs:complexType>
+ </xs:element>
+ 
+Now, valid XML data is
+
+ <product>
+   <name>Ball</name>
+   <euro>12</euro>
+ </product>
+
+and
+
+ <product>
+   <name>Ball</name>
+   <dollar>6</dollar>
+ </product>
+
+The HASH repesentation is respectively
+
+ product => {name => 'Ball', euro  => 12}
+ product => {name => 'Ball', dollar => 6}
+ 
+=cut
 
 1;

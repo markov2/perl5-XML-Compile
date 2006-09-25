@@ -51,117 +51,7 @@ W3C schema's are implemented.  A few nuts are still to crack:
 
 Of course, these are all fixed in next release ;-)
 
-=section Performance optimization
-
-The M<XML::Compile::Schema::compile()> method (and wrappers) defines
-a set options to improve performance or usability.  These options
-are translated into the executed code: compile time, not run-time!
-
-The following options with their implications:
-
-=over 4
-
-=item sloppy_integers BOOLEAN
-
-The C<integer> type, as defined by the schema built-in specification,
-accepts really huge values.  Also the derived types, like
-C<nonNegativeInteger> can contain much larger values than Perl's
-internal C<long>.  Therefore, the module will start to use M<Math::BigInt>
-for these types if needed.
-
-However, in most cases, people design C<integer> where an C<int> suffices.
-The use of big-int values comes with heigh performance costs.  Set this
-option to C<true> when you are sure that ALL USES of C<integer> in the
-scheme will fit into signed longs (are between -2147483648 and 2147483647
-inclusive)
-
-=item check_occurs BOOLEAN
-
-Checking whether the number of occurrences for an item are between
-C<minOccurs> and C<maxOccurs> (implied for C<all>, C<sequence>, and
-C<choice> or explictly specified) takes time.  Of course, in cases
-errors must be handled.  When this option is set to C<false>, 
-only distinction between single and array elements is made.
-
-=item ignore_facets BOOLEAN
-
-Facets limit field content in the restriction block of a simpleType.
-When this option is C<true>, no checks are performed on the values.
-In some cases, this may cause problems: especially with whiteSpace and
-digits of floats.  However, you may be able to control this yourself.
-In most cases, luck even plays a part in this.  Less checks means a
-better performance.
-
-Simple type restrictions are not implemented by other XML perl
-modules.  When the schema is nicely detailed, this will give
-extra security.
-
-=back
-
-=section Qualified XML
-
-The produced XML may not use the name-spaces as defined by the schema's,
-just to simplify the input and output.  The structural definition of
-the schema's is still in-tact, but name-space collission may appear.
-
-Per schema, it can be specified whether the elements and attributes
-defined in-there need to be used qualified (with prefix) or not.
-This can cause horrible output when within an unqualified schema
-elements are used from an other schema which is qualified.
-
-The suggested solution in articles about the subject is to provide
-people with both a schema which is qualified as one which is not.
-Perl is known to be blunt in its approach: we simply define a flag
-which can force one of both on all schema's together, using
-C<elements_qualified> and C<attributes_qualified>.  May people and
-applications do not understand name-spaces sufficiently, and these
-options may make your day!
-
-=section Name-spaces
-
-The translator does respect name-spaces, but not all senders and
-receivers of XML are name-space capable.  Therefore, you have some
-options to interfere.
-
-=over 4
-
-=item output_namespaces HASH
-
-The translator will create XML elements (WRITER) which use name-spaces,
-based on its own name-space/prefix mapping administration.  This is
-needed because the XML tree is formed bottom-up, where XML::LibXML
-can only handle this top-down.
-
-When your pass your own HASH as argument, you can explicitly specify
-the prefixes you like to be used for which name-space.  Found name-spaces
-will be added to the hash, as well the use count.  When a new name-space
-URI is discovered, an attempt is made to use the prefix as found in the
-schema. Prefix collisions are actively avoided: when two URIs want the
-same prefix, a sequence number is added to one of them which makes it
-unique.
-
-=item include_namespaces BOOLEAN
-
-When true and WRITER, the top level returned XML element will contain
-the prefix definitions.  Only name-spaces which are actually used
-will be included (a count is kept by the translator).  It may
-very well list name-spaces which are not in the actual output
-because the fields which require them are not included for there is
-not value for those fields.
-
-If you like to combine XML output from separate translated parts
-(for instance in case of generating SOAP), you may want to delay
-the inclusion of name-spaces until a higher level of the XML
-hierarchy which is produced later.
-
-=item namespace_reset BOOLEAN
-
-You can pass the same HASH to a next call to a reader or writer to get
-consistent name-space usage.  However, when C<include_namespaces> is
-used, you may get ghost name-space listings.  This option will reset
-the counts on all defined name-spaces.
-
-=back
+See chapter L</DETAILS> for more on how the tune the translator.
 
 =chapter METHODS
 
@@ -696,8 +586,9 @@ sub attribute($$)
               : $self->error($path, "form must be (un)qualified, not $form");
     }
 
-    my $trans    = $qual ? 'tag_qualified' : 'tag_unqualified';
-    my $tag  = $self->make($trans => $path, $node, $name);
+    my $trans = $qual ? 'tag_qualified' : 'tag_unqualified';
+    my $tag   = $self->make($trans => $path, $node, $name);
+    my $ns    = $qual ? $self->{tns} : '';
 
     my $do;
     my $typeattr = $node->getAttribute('type')
@@ -721,7 +612,7 @@ sub attribute($$)
      : $self->error($path, "attribute use is required, optional or prohibited (not '$use')");
 
     my $value = defined $default ? $default : $fixed;
-    $name => $self->make($generate => $path, $tag, $st, $value);
+    $name => $self->make($generate => $path, $ns, $tag, $st, $value);
 }
 
 sub attribute_group($$);
@@ -941,5 +832,122 @@ sub rel2abs($$$)
 
      "{$url}$local";
 }
+
+=chapter DETAILS
+
+=section Performance optimization
+
+The M<XML::Compile::Schema::compile()> method (and wrappers) defines
+a set options to improve performance or usability.  These options
+are translated into the executed code: compile time, not run-time!
+
+The following options with their implications:
+
+=over 4
+
+=item sloppy_integers BOOLEAN
+
+The C<integer> type, as defined by the schema built-in specification,
+accepts really huge values.  Also the derived types, like
+C<nonNegativeInteger> can contain much larger values than Perl's
+internal C<long>.  Therefore, the module will start to use M<Math::BigInt>
+for these types if needed.
+
+However, in most cases, people design C<integer> where an C<int> suffices.
+The use of big-int values comes with heigh performance costs.  Set this
+option to C<true> when you are sure that ALL USES of C<integer> in the
+scheme will fit into signed longs (are between -2147483648 and 2147483647
+inclusive)
+
+=item check_occurs BOOLEAN
+
+Checking whether the number of occurrences for an item are between
+C<minOccurs> and C<maxOccurs> (implied for C<all>, C<sequence>, and
+C<choice> or explictly specified) takes time.  Of course, in cases
+errors must be handled.  When this option is set to C<false>, 
+only distinction between single and array elements is made.
+
+=item ignore_facets BOOLEAN
+
+Facets limit field content in the restriction block of a simpleType.
+When this option is C<true>, no checks are performed on the values.
+In some cases, this may cause problems: especially with whiteSpace and
+digits of floats.  However, you may be able to control this yourself.
+In most cases, luck even plays a part in this.  Less checks means a
+better performance.
+
+Simple type restrictions are not implemented by other XML perl
+modules.  When the schema is nicely detailed, this will give
+extra security.
+
+=back
+
+=section Qualified XML
+
+The produced XML may not use the name-spaces as defined by the schema's,
+just to simplify the input and output.  The structural definition of
+the schema's is still in-tact, but name-space collission may appear.
+
+Per schema, it can be specified whether the elements and attributes
+defined in-there need to be used qualified (with prefix) or not.
+This can cause horrible output when within an unqualified schema
+elements are used from an other schema which is qualified.
+
+The suggested solution in articles about the subject is to provide
+people with both a schema which is qualified as one which is not.
+Perl is known to be blunt in its approach: we simply define a flag
+which can force one of both on all schema's together, using
+C<elements_qualified> and C<attributes_qualified>.  May people and
+applications do not understand name-spaces sufficiently, and these
+options may make your day!
+
+=section Name-spaces
+
+The translator does respect name-spaces, but not all senders and
+receivers of XML are name-space capable.  Therefore, you have some
+options to interfere.
+
+=over 4
+
+=item output_namespaces HASH
+
+The translator will create XML elements (WRITER) which use name-spaces,
+based on its own name-space/prefix mapping administration.  This is
+needed because the XML tree is formed bottom-up, where XML::LibXML
+can only handle this top-down.
+
+When your pass your own HASH as argument, you can explicitly specify
+the prefixes you like to be used for which name-space.  Found name-spaces
+will be added to the hash, as well the use count.  When a new name-space
+URI is discovered, an attempt is made to use the prefix as found in the
+schema. Prefix collisions are actively avoided: when two URIs want the
+same prefix, a sequence number is added to one of them which makes it
+unique.
+
+=item include_namespaces BOOLEAN
+
+When true and WRITER, the top level returned XML element will contain
+the prefix definitions.  Only name-spaces which are actually used
+will be included (a count is kept by the translator).  It may
+very well list name-spaces which are not in the actual output
+because the fields which require them are not included for there is
+not value for those fields.
+
+If you like to combine XML output from separate translated parts
+(for instance in case of generating SOAP), you may want to delay
+the inclusion of name-spaces until a higher level of the XML
+hierarchy which is produced later.
+
+=item namespace_reset BOOLEAN
+
+You can pass the same HASH to a next call to a reader or writer to get
+consistent name-space usage.  However, when C<include_namespaces> is
+used, you may get ghost name-space listings.  This option will reset
+the counts on all defined name-spaces.
+
+=back
+
+=cut
+
 
 1;

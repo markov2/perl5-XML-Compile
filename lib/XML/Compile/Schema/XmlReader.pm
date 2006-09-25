@@ -28,12 +28,12 @@ into a (nested) Perl HASH structure.
 # The returned reader subroutines will always be called
 #       $reader->($xml_node) 
 
-sub tag_qualified
+sub tag_unqualified
 {   my $name = $_[3];
-     $name =~ s/.*?\://;   # strip prefix, that's all
-     $name;
-      };
-*tag_unqualified = \&tag_qualified;
+    $name =~ s/.*?\://;   # strip prefix, that's all
+    $name;
+}
+*tag_qualified = \&tag_unqualified;
 
 sub wrapper
 {   my $processor = shift;
@@ -269,10 +269,10 @@ sub union
 # Attributes
 
 sub attribute_required
-{   my ($path, $args, $tag, $do) = @_;
+{   my ($path, $args, $ns, $tag, $do) = @_;
     my $err  = $args->{err};
-    sub { my $node = $_[0]->getAttributeNode($tag)
-                  || $err->($path, undef, "attribute $tag required");
+    sub { my $node = $_[0]->getAttributeNodeNS($ns, $tag)
+             || $err->($path, undef, "attribute $tag required");
           defined $node or return ();
           my $value = $do->($node);
           defined $value ? ($tag => $value) : ();
@@ -280,9 +280,9 @@ sub attribute_required
 }
 
 sub attribute_prohibited
-{   my ($path, $args, $tag, $do) = @_;
+{   my ($path, $args, $ns, $tag, $do) = @_;
     my $err  = $args->{err};
-    sub { my $node = $_[0]->getAttributeNode($tag);
+    sub { my $node = $_[0]->getAttributeNodeNS($ns, $tag);
           defined $node or return ();
           $err->($path, $node->textContent, "attribute $tag prohibited");
           ();
@@ -290,9 +290,9 @@ sub attribute_prohibited
 }
 
 sub attribute_optional
-{   my ($path, $args, $tag, $do) = @_;
+{   my ($path, $args, $ns, $tag, $do) = @_;
     my $err  = $args->{err};
-    sub { my $node = $_[0]->getAttributeNode($tag)
+    sub { my $node = $_[0]->getAttributeNodeNS($ns, $tag)
              or return ();
           my $val = $do->($node);
           defined $val ? ($tag => $val) : ();
@@ -300,21 +300,21 @@ sub attribute_optional
 }
 
 sub attribute_default
-{   my ($path, $args, $tag, $do, $default) = @_;
+{   my ($path, $args, $ns, $tag, $do, $default) = @_;
     my $err  = $args->{err};
     my $def  = $do->($default);
 
-    sub { my $node = $_[0]->getAttributeNode($tag);
+    sub { my $node = $_[0]->getAttributeNodeNS($ns, $tag);
           ($tag => defined $node ? $do->($node) : $def);
         };
 }
 
 sub attribute_fixed
-{   my ($path, $args, $tag, $do, $fixed) = @_;
+{   my ($path, $args, $ns, $tag, $do, $fixed) = @_;
     my $err = $args->{err};
     my $def  = $do->($fixed);
 
-    sub { my $node  = $_[0]->getAttributeNode($tag);
+    sub { my $node  = $_[0]->getAttributeNodeNS($ns, $tag);
           my $value = defined $node ? $do->($node) : undef;
           $err->($path, $value, "attr value fixed to '".$fixed->value."'")
               if !defined $value || $value ne $def;

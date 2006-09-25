@@ -4,6 +4,17 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.09: Mon Sep 25 08:40:24 CEST 2006
+
+	Fixes:  [thanks to cpan-testers work by Slavan Rezic]
+
+	- MANIFEST not correct: contained old files
+
+	- Removed dependency for Regex::Common, added Math::BigInt
+
+	- Upgraded to XML::LibXML 1.60, which changed from Attribute
+	  handling.
+
 version 0.08: Fri Sep 22 15:52:49 CEST 2006
 
 	- Turned XML::Compile::Schema::Translate into a singleton object,
