@@ -32,19 +32,19 @@ ok(defined $schema);
 my @errors;
 push @run_opts, invalid => sub {no warnings; push @errors, "$_[2] ($_[1])"};
 
-run_test($schema, "test1" => <<__XML__, "abc");
+test_rw($schema, "test1" => <<__XML__, "abc");
 <test1>abc</test1>
 __XML__
 ok(!@errors);
 
-run_test($schema, "test1" => <<__XML__, undef, <<__XML__, 'abbc');
+test_rw($schema, "test1" => <<__XML__, undef, <<__XML__, 'abbc');
 <test1>abbc</test1>
 __XML__
 __XML__
 is(shift @errors, 'does not match pattern (?-xism:a.c) (abbc)');
 ok(!@errors);
 
-run_test($schema, "test1" => <<__XML__, 'abaaBcdef');
+test_rw($schema, "test1" => <<__XML__, 'abaaBcdef');
 <test1>abaaBcdef</test1>
 __XML__
 ok(!@errors);

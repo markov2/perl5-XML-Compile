@@ -448,8 +448,7 @@ sub element_by_node($$)
         $type = $self->type_by_name($path, $typename);
     }
     elsif(!@childs)
-    {   my $anytype = $self->rel2abs($path, $node, 'anyType');
-        $type = $self->type_by_name($path, $anytype);
+    {   $type = $self->type_by_name($path, $self->anyType($node));
     }
     else
     {   @childs > 1
@@ -556,6 +555,7 @@ sub particle($$$$)
        )
      : ($self->{check_occurs} && $min==1)
      ? ( $nillable        ? 'element_nillable'
+       : defined $default ? 'element_default'
        : defined $fixed   ? 'element_fixed'
        :                    'element_obligatory'
        )
@@ -590,11 +590,11 @@ sub attribute($$)
     my $tag   = $self->make($trans => $path, $node, $name);
     my $ns    = $qual ? $self->{tns} : '';
 
-    my $do;
-    my $typeattr = $node->getAttribute('type')
-       or $self->error($path, "attribute without type");
+    my $typeattr = $node->getAttribute('type');
+    my $typename = defined $typeattr
+     ? $self->rel2abs($path, $node, $typeattr)
+     : $self->anyType($node);
 
-    my $typename = $self->rel2abs($path, $node, $typeattr);
     my $type     = $self->type_by_name($path, $typename);
     my $st       = $type->{st}
         or $self->error($path, "attribute not based in simple value type");
@@ -678,7 +678,7 @@ sub complex_body($$)
     my @childs = $self->childs($node);
 
     my $first  = $childs[0]
-        or $self->error($path, "empty complex body");
+        or return {};
 
     my $local  = $first->localName;
 
@@ -738,8 +738,9 @@ sub simpleContent($$)
 sub simpleContent_ext($$)
 {   my ($self, $path, $node) = @_;
 
-    my $base     = $node->getAttribute('base') || 'anyType';
-    my $typename = $self->rel2abs($path, $node, $base);
+    my $base     = $node->getAttribute('base');
+    my $typename = defined $base ? $self->rel2abs($path, $node, $base)
+     : $self->anyType($node);
 
     my $basetype = $self->type_by_name("$path#base", $typename);
     my $st = $basetype->{st}
@@ -806,8 +807,8 @@ sub complexContent_ext($$)
     }
 
     my $own = $self->complex_body($path, $node);
-    push @{$type->{elems}}, @{$own->{elems}};
-    push @{$type->{attrs}}, @{$own->{attrs}};
+    push @{$type->{elems}}, @{$own->{elems}} if $own->{elems};
+    push @{$type->{attrs}}, @{$own->{attrs}} if $own->{attrs};
     $type;
 }
 
@@ -825,12 +826,18 @@ sub rel2abs($$$)
     my ($url, $local)
      = $type =~ m/^(.+?)\:(.*)/
      ? ($node->lookupNamespaceURI($1), $2)
-     : ($node->namespaceURI, $type);
+     : ($node->lookupNamespaceURI(''), $type);
 
      defined $url
          or $self->error($path, "cannot understand type '$type'");
 
      "{$url}$local";
+}
+
+sub anyType($)
+{   my ($self, $node) = @_;
+    my $ns = $node->namespaceURI;
+    "{$ns}anyType";
 }
 
 =chapter DETAILS

@@ -26,6 +26,7 @@ lib/XML/Compile/Schema/BuiltInTypes.pm
 lib/XML/Compile/Schema/Instance.pm
 lib/XML/Compile/Schema/NameSpaces.pm
 lib/XML/Compile/Schema/Specs.pm
+lib/XML/Compile/Schema/Template.pm
 lib/XML/Compile/Schema/Translate.pm
 lib/XML/Compile/Schema/XmlReader.pm
 lib/XML/Compile/Schema/XmlWriter.pm
@@ -50,6 +51,7 @@ t/50ns.t
 t/51ctsext.t
 t/52ctsres.t
 t/53subst.t
+t/70templ.t
 t/TestTools.pm
 version
 xsd/1998-namespace.xsd

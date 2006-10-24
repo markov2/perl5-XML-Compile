@@ -4,6 +4,41 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.10: Tue Oct 24 11:40:09 CEST 2006
+
+	Fixes:
+
+	- Some minor cleanups in XmlWriter
+
+	- Now depends on XML::LibXML 1.61, which has a lot of improvements
+	  and fixes.  As disadvantage does it require a recent libxml2,
+	  which is only included with very recent Linux distributions.
+
+	- t/49big.t test failed when installed on 64bit Perl, because
+	  one of the test-values was smaller then MAX_INT in that case.
+
+	- Default attribute type anyType.
+
+	- anyType is correct namespace.
+
+	- Type resolving when schemaNamespace is not the default was
+	  broken.
+
+	- Complex body permitted to be empty.
+
+	- Default for "check_occurs" set to `true', because default should
+	  give best results.
+
+	- Missing element with default gave error when check_occurs.
+
+	Improvements:
+
+	- Added Template.pm to produce a Perl template example of a certain
+	  type.  See XML::Compile::Schema::template()
+
+	- Implemented type definitions contain an example which is used
+	  for the templates.
+
 version 0.09: Mon Sep 25 08:40:24 CEST 2006
 
 	Fixes:  [thanks to cpan-testers work by Slavan Rezic]
@@ -15,7 +50,13 @@ version 0.09: Mon Sep 25 08:40:24 CEST 2006
 	- Upgraded to XML::LibXML 1.60, which changed from Attribute
 	  handling.
 
+	Improvements:
+
+	- Reorganized order in some man-pages.
+
 version 0.08: Fri Sep 22 15:52:49 CEST 2006
+
+	Improvements:
 
 	- Turned XML::Compile::Schema::Translate into a singleton object,
 	  and reshaped functions into methods.  The arguments hash intern

@@ -39,7 +39,7 @@ my @errors;
 push @run_opts, invalid => sub {no warnings; push @errors, "$_[2] ($_[1])"};
 
 eval {
-run_test($schema, "test1" => <<__XML__, [1]);
+test_rw($schema, "test1" => <<__XML__, [1]);
 <test1><t1>42</t1><t2>43</t2><t3>44</t3></test1>
 __XML__
 };
@@ -86,11 +86,11 @@ $schema->addSchemas( <<__EXTRA__ );
 __EXTRA__
 
 my %t1 = (t1 => 42, alt1 => {a1 => 43}, t3 => 44);
-run_test($schema, "test1" => <<__XML__, \%t1);
+test_rw($schema, "test1" => <<__XML__, \%t1);
 <test1><t1>42</t1><alt1><a1>43</a1></alt1><t3>44</t3></test1>
 __XML__
 
 my %t2 = (t1 => 45, alt2 => {a2 => 46}, t3 => 47);
-run_test($schema, "test1" => <<__XML__, \%t2);
+test_rw($schema, "test1" => <<__XML__, \%t2);
 <test1><t1>45</t1><alt2><a2>46</a2></alt2><t3>47</t3></test1>
 __XML__

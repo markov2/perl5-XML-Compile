@@ -32,7 +32,7 @@ __SCHEMA__
 ok(defined $schema);
 
 my %t1 = (_ => 11, a1_a => 13);
-run_test($schema, "test1" => <<__XML__, \%t1);
+test_rw($schema, "test1" => <<__XML__, \%t1);
 <test1 a1_a="13">11</test1>
 __XML__
 

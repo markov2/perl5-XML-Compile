@@ -55,21 +55,21 @@ __SCHEMA__
 ok(defined $schema);
 
 my %t1 = (_ => 11, a2_a => 16);
-run_test($schema, "test1" => <<__XML__, \%t1);
+test_rw($schema, "test1" => <<__XML__, \%t1);
 <test1 a2_a="16">11</test1>
 __XML__
 
 my %t2 = (_ => 12, a3_a => 17);
-run_test($schema, "test2" => <<__XML__, \%t2);
+test_rw($schema, "test2" => <<__XML__, \%t2);
 <test2 a3_a="17">12</test2>
 __XML__
 
-run_test($schema, "test2" => <<__XML__, {_ => 14});
+test_rw($schema, "test2" => <<__XML__, {_ => 14});
 <test2>14</test2>
 __XML__
 
 my %t3 = (_ => 30, a2_a => 31, a4 => 32);
-run_test($schema, "test3" => <<__XML__, \%t3);
+test_rw($schema, "test3" => <<__XML__, \%t3);
 <test3 a2_a="31" a4="32">30</test3>
 __XML__
 

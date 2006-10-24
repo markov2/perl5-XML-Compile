@@ -220,7 +220,7 @@ Turning this off will improve the processing significantly, but is
 data from external sources.
 
 =option  check_occurs BOOLEAN
-=default check_occurs <true>
+=default check_occurs <false>
 Whether code will be produced to complain about elements which
 should or should not appear, and is between bounds or not.
 Elements which may have more than 1 occurence will still always
@@ -299,7 +299,7 @@ sub compile($$@)
        or $args{check_values} = 1;
 
     exists $args{check_occurs}
-       or $args{check_occurs} = 0;
+       or $args{check_occurs} = 1;
 
     $args{sloppy_integers}   ||= 0;
     unless($args{sloppy_integers})
@@ -327,7 +327,7 @@ sub compile($$@)
     my $bricks = 'XML::Compile::Schema::' .
      ( $action eq 'READER' ? 'XmlReader'
      : $action eq 'WRITER' ? 'XmlWriter'
-     : croak "ERROR: create only READER or WRITER, not '$action'."
+     : croak "ERROR: create only READER, WRITER, or XMLTEMPLATE, not '$action'."
      );
 
     eval "require $bricks";
@@ -339,6 +339,85 @@ sub compile($$@)
      , err    => $self->invalidsErrorHandler($args{invalid})
      , nss    => $self->namespaces
      );
+}
+
+=method template 'XML'|'PERL', TYPE, OPTIONS
+WARNING: under development!
+
+Schema's can be horribly complex and unreadible.  Therefore, this template
+method can be called to create a template which shows how data of the
+specified TYPE as XML or Perl is organized in practice.
+
+Some OPTIONS are explained in M<XML::Compile::Schema::Translate>.
+There are some extra OPTIONS defined for the final output process.
+
+=option  elements_qualified BOOLEAN
+=default elements_qualified <undef>
+
+=option  attributes_qualified BOOLEAN
+=default attributes_qualified <undef>
+
+=option  include_namespaces BOOLEAN
+=default include_namespaces <true>
+
+=option  show STRING|'ALL'|'NONE'
+=default show C<ALL>
+A comma seperated list of tokens, which explain what kind of comments need
+to be included in the output.  The available tokens are: C<struct>, C<type>,
+C<occur>, C<facets>.  A value of C<ALL> will select all available comments.
+The C<NONE> or empty string will exclude all comments.
+
+=option  indent STRING
+=default indent "  "
+The leading indentation string per nesting.  Must start with at least one
+blank.
+
+=cut
+
+sub template($@)
+{   my ($self, $action, $type, %args) = @_;
+
+    my $show = exists $args{show} ? $args{show} : 'ALL';
+    $show = 'struct,type,occur,facets' if $show eq 'ALL';
+    $show = '' if $show eq 'NONE';
+    my @comment = map { ("show_$_" => 1) } split m/\,/, $show;
+
+    my $nss = $self->namespaces;
+    my $top = $nss->findType($type) || $nss->findElement($type)
+       or croak "ERROR: type $type is not defined";
+
+    my $indent                  = $args{indent} || "  ";
+    $args{check_occurs}         = 1;
+    $args{include_namespaces} ||= 1;
+
+    my $bricks = 'XML::Compile::Schema::Template';
+    eval "require $bricks";
+    die $@ if $@;
+
+    my $compiled = XML::Compile::Schema::Translate->compileTree
+     ( $top->{full}
+     , bricks => $bricks
+     , nss    => $self->namespaces
+     , err    => $self->invalidsErrorHandler('IGNORE')
+     , %args
+     );
+
+    my $ast = $compiled->();
+# use Data::Dumper;
+# $Data::Dumper::Indent = 1;
+# warn Dumper $ast;
+
+    if($action eq 'XML')
+    {   my $doc    = XML::LibXML::Document->new('1.1', 'UTF-8');
+        # translate $ast into $doc
+        $doc->toString(1);
+    }
+    elsif($action eq 'PERL')
+    {   $bricks->toPerl($ast, @comment, indent => $indent);
+    }
+    else
+    {   die "ERROR: template output is either in XML or PERL layout, not '$action'\n";
+    }
 }
 
 =method invalidsErrorHandler 'IGNORE','USE'.'WARN','DIE',CODE

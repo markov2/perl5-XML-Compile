@@ -83,22 +83,22 @@ __ELEMS__
 
 ok(1, "** Testing simple namespace");
 
-run_test($schema, test1 => <<__XML__, 10);
+test_rw($schema, test1 => <<__XML__, 10);
 <test1 xmlns="$TestNS">10</test1>
 __XML__
 
-run_test($schema, "test2" => <<__XML__, {c1_a => 11});
+test_rw($schema, "test2" => <<__XML__, {c1_a => 11});
 <test2 xmlns="$TestNS"><c1_a>11</c1_a></test2>
 __XML__
 
-run_test($schema, "{$NS2}test3" => <<__XML__, {c1_a => 12, a1_a => 13});
+test_rw($schema, "{$NS2}test3" => <<__XML__, {c1_a => 12, a1_a => 13});
 <test3 xmlns="$NS2" xmlns:x0="$TestNS" x0:a1_a="13">
    <x0:c1_a>12</x0:c1_a>
 </test3>
 __XML__
 
 my %t4 = (c1_a => 14, a1_a => 15, c4_a => 16, a4_a => 17);
-run_test($schema, "{$NS2}test4" => <<__XML__, \%t4);
+test_rw($schema, "{$NS2}test4" => <<__XML__, \%t4);
 <test4 xmlns="$NS2"
        a1_a="15"
        a4_a="17">
@@ -113,7 +113,7 @@ __XML__
  ( ignore_namespaces => 1
  );
 
-run_test($schema, "{$NS2}test3" => <<__XML__, {c1_a => 18});
+test_rw($schema, "{$NS2}test3" => <<__XML__, {c1_a => 18});
 <test3>
    <c1_a>18</c1_a>
 </test3>

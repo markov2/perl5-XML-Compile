@@ -50,13 +50,13 @@ push @run_opts
 ### Integers
 ##  Big-ints are checked in 49big.t
 
-run_test($schema, "test1" => <<__XML__, {t1a => 11, t1b => 12});
+test_rw($schema, "test1" => <<__XML__, {t1a => 11, t1b => 12});
 <test1><t1a>11</t1a><t1b>12</t1b></test1>
 __XML__
 ok(!@errors);
 
 # insert default in hash, but not when producing XML
-run_test($schema, "test1" => <<__XML__, {t1a => 10, t1b => 13}, <<__XML__, {t1b => 13});
+test_rw($schema, "test1" => <<__XML__, {t1a => 10, t1b => 13}, <<__XML__, {t1b => 13});
 <test1><t1b>13</t1b></test1>
 __XML__
 <test1><t1b>13</t1b></test1>
@@ -69,7 +69,7 @@ ok(!@errors);
 
 my %t21 = (t2a => 'foo', t2b => 'bar', t2c => '42');
 my %t22 = (t2b => 'bar');  # do not complete default in XML output
-run_test($schema, "test2" => <<__XML__, \%t21, <<__XML__, \%t22);
+test_rw($schema, "test2" => <<__XML__, \%t21, <<__XML__, \%t22);
 <test2><t2b>bar</t2b></test2>
 __XML__
 <test2><t2b>bar</t2b></test2>

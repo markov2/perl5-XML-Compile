@@ -50,17 +50,17 @@ push @run_opts, invalid => sub {no warnings; push @errors, "$_[2] ($_[1])"};
 # In range
 #
 
-run_test($schema, "test1" => <<__XML__, 12);
+test_rw($schema, "test1" => <<__XML__, 12);
 <test1>12</test1>
 __XML__
 ok(!@errors);
 
-run_test($schema, "test2" => <<__XML__, 13);
+test_rw($schema, "test2" => <<__XML__, 13);
 <test2>13</test2>
 __XML__
 ok(!@errors);
 
-run_test($schema, "test3" => <<__XML__, 14);
+test_rw($schema, "test3" => <<__XML__, 14);
 <test3>14</test3>
 __XML__
 ok(!@errors);
@@ -69,12 +69,12 @@ ok(!@errors);
 # too small
 #
 
-run_test($schema, "test1" => <<__XML__, 5);
+test_rw($schema, "test1" => <<__XML__, 5);
 <test1>5</test1>
 __XML__
 ok(!@errors);
 
-run_test($schema, "test2" => <<__XML__, 10, <<__XML__, 6);
+test_rw($schema, "test2" => <<__XML__, 10, <<__XML__, 6);
 <test2>6</test2>
 __XML__
 <test2>10</test2>
@@ -84,7 +84,7 @@ is(shift @errors, "too small inclusive, min 10 (6)");
 ok(!@errors);
 
 # inherited restriction
-run_test($schema, "test3" => <<__XML__, 10, <<__XML__, 6);
+test_rw($schema, "test3" => <<__XML__, 10, <<__XML__, 6);
 <test3>6</test3>
 __XML__
 <test3>10</test3>
@@ -97,17 +97,17 @@ ok(!@errors);
 # too large
 #
 
-run_test($schema, "test1" => <<__XML__, 55);
+test_rw($schema, "test1" => <<__XML__, 55);
 <test1>55</test1>
 __XML__
 ok(!@errors);
 
-run_test($schema, "test2" => <<__XML__, 56);
+test_rw($schema, "test2" => <<__XML__, 56);
 <test2>56</test2>
 __XML__
 ok(!@errors);
 
-run_test($schema, "test3" => <<__XML__, 20 , <<__XML__, 57);
+test_rw($schema, "test3" => <<__XML__, 20 , <<__XML__, 57);
 <test3>57</test3>
 __XML__
 <test3>20</test3>

@@ -58,39 +58,39 @@ my @errors;
 push @run_opts,
      invalid => sub {no warnings; push @errors, "$_[2] ($_[1])"; undef};
 
-run_test($schema, "test1" => <<__XML__, 1 );
+test_rw($schema, "test1" => <<__XML__, 1 );
 <test1>1</test1>
 __XML__
 ok(!@errors);
 
-run_test($schema, "test1" => <<__XML__, 'unbounded');
+test_rw($schema, "test1" => <<__XML__, 'unbounded');
 <test1>unbounded</test1>
 __XML__
 ok(!@errors);
 
-run_test($schema, "test1" => <<__XML__, undef, '', 'other');
+test_rw($schema, "test1" => <<__XML__, undef, '', 'other');
 <test1>other</test1>
 __XML__
 
 is(shift @errors, 'no match in union (other)');
 ok(!@errors);
 
-run_test($schema, "test3" => <<__XML__, 1 );
+test_rw($schema, "test3" => <<__XML__, 1 );
 <test3>1</test3>
 __XML__
 ok(!@errors);
 
-run_test($schema, "test3" => <<__XML__, 'any');
+test_rw($schema, "test3" => <<__XML__, 'any');
 <test3>any</test3>
 __XML__
 ok(!@errors);
 
-run_test($schema, "test3" => <<__XML__, 'none');
+test_rw($schema, "test3" => <<__XML__, 'none');
 <test3>none</test3>
 __XML__
 ok(!@errors);
 
-run_test($schema, "test3" => <<__XML__, undef, '', 'other');
+test_rw($schema, "test3" => <<__XML__, undef, '', 'other');
 <test3>other</test3>
 __XML__
 

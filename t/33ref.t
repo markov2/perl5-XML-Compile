@@ -72,7 +72,7 @@ ok(defined $schema);
 ok(1, "** Testing element ref ");
 
 my %r1_a = (a1_a => 10, e1_a => 11, e1_b => 12);
-run_test($schema, "{$TestNS2}test3" => <<__XML__, {test1 => \%r1_a});
+test_rw($schema, "{$TestNS2}test3" => <<__XML__, {test1 => \%r1_a});
 <test3><test1 a1_a="10"><e1_a>11</e1_a><e1_b>12</e1_b></test1></test3>
 __XML__
 
@@ -83,7 +83,7 @@ __XML__
 ok(1, "** Testing element group ");
 
 my %r2_a = (e2_a => 20, g2_a => 22, g2_b => 23, e2_b => 21);
-run_test($schema, test2 => <<__XML__, \%r2_a);
+test_rw($schema, test2 => <<__XML__, \%r2_a);
 <test2>
   <e2_a>20</e2_a>
   <g2_a>22</g2_a>

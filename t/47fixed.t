@@ -40,13 +40,13 @@ push @run_opts
 ### Integers
 ##  Big-ints are checked in 49big.t
 
-run_test($schema, test1 => <<__XML__, {t1a => 'not-changeable', t1c => 42});
+test_rw($schema, test1 => <<__XML__, {t1a => 'not-changeable', t1c => 42});
 <test1 t1c="42"><t1a>not-changeable</t1a></test1>
 __XML__
 ok(!@errors);
 
 my %t1b = (t1a => 'not-changeable', t1b => 12, t1c => 42);
-run_test($schema, test1 => <<__XML__, \%t1b, <<__EXPECT__, {t1b => 13});
+test_rw($schema, test1 => <<__XML__, \%t1b, <<__EXPECT__, {t1b => 13});
 <test1><t1b>12</t1b></test1>
 __XML__
 <test1 t1c="42"><t1a>not-changeable</t1a><t1b>13</t1b></test1>

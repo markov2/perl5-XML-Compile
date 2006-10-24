@@ -205,6 +205,7 @@ sub printIndex(;$)
 {   my $self  = shift;
     my $fh    = shift || select;
 
+    $fh->print("namespace: ", $self->targetNamespace, "\n");
     $fh->printf("  %11s %s\n", $_->{type}, $_->{name})
       for sort {$a->{name} cmp $b->{name}}
              values %{$self->{types}}, values %{$self->{elements}}

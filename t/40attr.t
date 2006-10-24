@@ -56,7 +56,7 @@ ok(defined $schema);
 ok(1, "** Testing attributes");
 
 my %t1 = (t1_a => 10, t1_b => 9, a1_a => 11, a1_b => 12);
-run_test($schema, test1 => <<__XML__, \%t1);
+test_rw($schema, test1 => <<__XML__, \%t1);
 <test1 a1_a="11" a1_b="12">
   <t1_a>10</t1_a>
   <t1_b>9</t1_b>
@@ -64,7 +64,7 @@ run_test($schema, test1 => <<__XML__, \%t1);
 __XML__
 
 my %t1_b = (t1_a => 20, t1_b => 21, a1_b => 23);
-run_test($schema, test1 => <<__XML__, \%t1_b);
+test_rw($schema, test1 => <<__XML__, \%t1_b);
 <test1 a1_b="23">
   <t1_a>20</t1_a>
   <t1_b>21</t1_b>
@@ -77,7 +77,7 @@ __XML__
      );
 
 my %t1_c = (a1_b => 24, t1_a => 25, t1_b => 26);
-run_test($schema, test1 => <<__XML__, \%t1_c, <<__XML__);
+test_rw($schema, test1 => <<__XML__, \%t1_c, <<__XML__);
 <test1>
   <t1_a>25</t1_a>
   <t1_b>26</t1_b>
@@ -97,12 +97,12 @@ __XML__
 ok(1, "** Testing attributeGroups");
 
 my %t2_a = (a2_a => 30, a2_b => 31, a2_c => 29);
-run_test($schema, test2 => <<__XML__, \%t2_a);
+test_rw($schema, test2 => <<__XML__, \%t2_a);
 <test2 a2_a="30" a2_c="29" a2_b="31"/>
 __XML__
 
 my %t2_b = (a2_a => 32, a2_b => 33, a2_c => 34, a2_d => 35);
-run_test($schema, test2 => <<__XML__, \%t2_b);
+test_rw($schema, test2 => <<__XML__, \%t2_b);
 <test2 a2_a="32" a2_c="34" a2_d="35" a2_b="33"/>
 __XML__
 
@@ -113,7 +113,7 @@ __XML__
 
    my %t2_a = (a2_c => 29);
    my %t2_b = (a2_c => 29, a2_e => 666);
-   run_test($schema, test2 => <<__XML__, \%t2_a, <<__XML__, \%t2_b);
+   test_rw($schema, test2 => <<__XML__, \%t2_a, <<__XML__, \%t2_b);
 <test2 a2_c="29" a2_e="666" />
 __XML__
 <test2 a2_c="29"/>

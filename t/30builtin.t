@@ -3,13 +3,12 @@
 use warnings;
 use strict;
 
-use lib 'lib';
+use lib 'lib','t';
+use TestTools;
+
 use XML::Compile::Schema;
 
 use Test::More tests => 8;
-
-my $TestNS   = 'http://test-types';
-my $SchemaNS = 'http://www.w3.org/2001/XMLSchema';
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"

@@ -4,7 +4,7 @@ use warnings;
 use strict;
 
 use lib 'lib';
-use Test::More tests => 10;
+use Test::More tests => 11;
 
 # The versions of the following packages are reported to help understanding
 # the environment in which the tests are run.  This is certainly not a
@@ -37,3 +37,4 @@ require_ok('XML::Compile::Schema::Specs');
 require_ok('XML::Compile::Schema::Translate');
 require_ok('XML::Compile::Schema::XmlReader');
 require_ok('XML::Compile::Schema::XmlWriter');
+require_ok('XML::Compile::Schema::XmlTemplate');

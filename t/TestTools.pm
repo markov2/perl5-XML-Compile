@@ -14,14 +14,16 @@ our @EXPORT = qw/
  $TestNS
  $SchemaNS
  @run_opts
- run_test
+ test_rw
+ templ_xml
+ templ_perl
  /;
 
 our $TestNS   = 'http://test-types';
 our $SchemaNS = 'http://www.w3.org/2001/XMLSchema';
 our @run_opts = ();
 
-sub run_test($$$$;$$)
+sub test_rw($$$$;$$)
 {   my ($schema, $test, $xml, $hash, $expect, $h2) = @_;
 
     # Read testing
@@ -97,6 +99,36 @@ sub run_test($$$$;$$)
         }
     }
     is($dump, $expect);
+}
+
+sub templ_xml($$$@)
+{   my ($schema, $test, $xml, @opts) = @_;
+
+    # Read testing
+    my $abs = $test =~ m/\{/ ? $test : "{$TestNS}$test";
+
+    my $output = $schema->template
+     ( XML                => $abs
+     , include_namespaces => 0
+     , @opts
+     );
+
+   is($output, $xml);
+}
+
+sub templ_perl($$$@)
+{   my ($schema, $test, $perl, @opts) = @_;
+
+    # Read testing
+    my $abs    = $test =~ m/\{/ ? $test : "{$TestNS}$test";
+
+    my $output = $schema->template
+     ( PERL               => $abs
+     , include_namespaces => 0
+     , @opts
+     );
+
+    is($output, $perl, "perl for $test");
 }
 
 1;

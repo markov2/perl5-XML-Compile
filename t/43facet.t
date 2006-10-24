@@ -94,23 +94,23 @@ push @run_opts,
 ### Integers
 ##
 
-run_test($schema, "test1" => <<__XML__, 12);
+test_rw($schema, "test1" => <<__XML__, 12);
 <test1>12</test1>
 __XML__
 ok(!@errors);
 
-run_test($schema, "test2" => <<__XML__, 13);
+test_rw($schema, "test2" => <<__XML__, 13);
 <test2>13</test2>
 __XML__
 ok(!@errors);
 
-run_test($schema, "test2" => <<__XML__, 42);
+test_rw($schema, "test2" => <<__XML__, 42);
 <test2>42</test2>
 __XML__
 ok(!@errors);
 
 # correct to ceiling
-run_test($schema, "test2" => <<__XML__, 42, <<__XML__);
+test_rw($schema, "test2" => <<__XML__, 42, <<__XML__);
 <test2>43</test2>
 __XML__
 <test2>42</test2>
@@ -119,7 +119,7 @@ is(shift @errors, "too large inclusive, max 42 (43)");
 ok(!@errors);
 
 # correct to floor
-run_test($schema, "test2" => <<__XML__, 12, <<__XML__);
+test_rw($schema, "test2" => <<__XML__, 12, <<__XML__);
 <test2>11</test2>
 __XML__
 <test2>12</test2>
@@ -127,20 +127,20 @@ __XML__
 is(shift @errors, "too small inclusive, min 12 (11)");
 ok(!@errors);
 
-run_test($schema, "test3" => <<__XML__, 44);
+test_rw($schema, "test3" => <<__XML__, 44);
 <test3>44</test3>
 __XML__
 ok(!@errors);
 
 # correct to ceiling
-run_test($schema, "test3" => <<__XML__, 45, undef);
+test_rw($schema, "test3" => <<__XML__, 45, undef);
 <test3>45</test3>
 __XML__
 is(shift @errors, "too large exclusive, smaller 45 (45)");
 ok(!@errors);
 
 # correct to floor
-run_test($schema, "test3" => <<__XML__, 13, undef);
+test_rw($schema, "test3" => <<__XML__, 13, undef);
 <test3>13</test3>
 __XML__
 is(shift @errors, "too small exclusive, larger 13 (13)");
@@ -150,12 +150,12 @@ ok(!@errors);
 ### strings
 ##
 
-run_test($schema, "test4" => <<__XML__, "aap");
+test_rw($schema, "test4" => <<__XML__, "aap");
 <test4>aap</test4>
 __XML__
 ok(!@errors);
 
-run_test($schema, "test4" => <<__XML__, "noo", <<__XML__, 'noot');
+test_rw($schema, "test4" => <<__XML__, "noo", <<__XML__, 'noot');
 <test4>noot</test4>
 __XML__
 <test4>noo</test4>
@@ -164,7 +164,7 @@ is(shift @errors, "required length 3 (noot)");
 is(shift @errors, "required length 3 (noot)");
 ok(!@errors);
 
-run_test($schema, "test4" => <<__XML__, "ikX", <<__XML__, 'ik');
+test_rw($schema, "test4" => <<__XML__, "ikX", <<__XML__, 'ik');
 <test4>ik</test4>
 __XML__
 <test4>ikX</test4>
@@ -173,13 +173,13 @@ is(shift @errors, "required length 3 (ik)");
 is(shift @errors, "required length 3 (ik)");
 ok(!@errors);
 
-run_test($schema, "test5" => <<__XML__, "\ \ \t\n\tmies \t");
+test_rw($schema, "test5" => <<__XML__, "\ \ \t\n\tmies \t");
 <test5>\ \ \t
 \tmies \t</test5>
 __XML__
 ok(!@errors);
 
-run_test($schema, "test6" => <<__XML__, "     mies  ", <<__XML__, "\ \ \t \tmies \t");
+test_rw($schema, "test6" => <<__XML__, "     mies  ", <<__XML__, "\ \ \t \tmies \t");
 <test6>\ \ \t
 \tmies \t</test6>
 __XML__
@@ -187,7 +187,7 @@ __XML__
 __XML__
 ok(!@errors);
 
-run_test($schema, "test7" => <<__XML__, 'mies', <<__XML__, "\ \ \t \tmies \t");
+test_rw($schema, "test7" => <<__XML__, 'mies', <<__XML__, "\ \ \t \tmies \t");
 <test7>\ \ \t
 \tmies \t</test7>
 __XML__
@@ -195,23 +195,23 @@ __XML__
 __XML__
 ok(!@errors);
 
-run_test($schema, "test8" => <<__XML__, 'one');
+test_rw($schema, "test8" => <<__XML__, 'one');
 <test8>one</test8>
 __XML__
 ok(!@errors);
 
-run_test($schema, "test8" => <<__XML__, 'two');
+test_rw($schema, "test8" => <<__XML__, 'two');
 <test8>two</test8>
 __XML__
 ok(!@errors);
 
-run_test($schema, "test8" => <<__XML__, "three", '', 'three');
+test_rw($schema, "test8" => <<__XML__, "three", '', 'three');
 <test8>three</test8>
 __XML__
 is(shift @errors, "invalid enum (three)");
 ok(!@errors);
 
-run_test($schema, "test8" => <<__XML__, "", '', '');
+test_rw($schema, "test8" => <<__XML__, "", '', '');
 <test8/>
 __XML__
 is(shift @errors, "invalid enum ()");

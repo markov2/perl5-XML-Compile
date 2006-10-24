@@ -40,33 +40,33 @@ ok(defined $schema);
 my @errors;
 push @run_opts, invalid => sub {no warnings; push @errors, "$_[2] ($_[1])"};
 
-run_test($schema, "test1" => <<__XML__, [1]);
+test_rw($schema, "test1" => <<__XML__, [1]);
 <test1>1</test1>
 __XML__
 ok(!@errors);
 
-run_test($schema, "test1" => <<__XML__, [2, 3]);
+test_rw($schema, "test1" => <<__XML__, [2, 3]);
 <test1>2 3</test1>
 __XML__
 ok(!@errors);
 
-run_test($schema, "test1" => <<__XML__, [4, 5, 6]);
+test_rw($schema, "test1" => <<__XML__, [4, 5, 6]);
 <test1> 4
   5\t  6 </test1>
 __XML__
 ok(!@errors);
 
-run_test($schema, "test2" => <<__XML__, [1]);
+test_rw($schema, "test2" => <<__XML__, [1]);
 <test2>1</test2>
 __XML__
 ok(!@errors);
 
-run_test($schema, "test2" => <<__XML__, [2, 3]);
+test_rw($schema, "test2" => <<__XML__, [2, 3]);
 <test2>2 3</test2>
 __XML__
 ok(!@errors);
 
-run_test($schema, "test2" => <<__XML__, [4, 5, 6]);
+test_rw($schema, "test2" => <<__XML__, [4, 5, 6]);
 <test2> 4
   5\t  6 </test2>
 __XML__

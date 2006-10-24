@@ -4,7 +4,7 @@ WriteMakefile
  ( NAME	 => 'XML::Compile'
  , VERSION_FROM => 'version'
  , PREREQ_PM    =>
-   { XML::LibXML               => 1.60
+   { XML::LibXML               => 1.61
    , Test::More                => 0.54
    , Test::Deep                => 0.095
    , Math::BigInt              => 1.77
