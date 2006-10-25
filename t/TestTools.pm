@@ -113,7 +113,7 @@ sub templ_xml($$$@)
      , @opts
      );
 
-   is($output, $xml);
+   is($output."\n", $xml, "xml for $test");
 }
 
 sub templ_perl($$$@)

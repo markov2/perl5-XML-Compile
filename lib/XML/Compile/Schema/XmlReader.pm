@@ -40,7 +40,9 @@ sub wrapper
     sub { my $xml = ref $_[0] && $_[0]->isa('XML::LibXML::Node')
                   ? $_[0]
                   : XML::Compile->parse(\$_[0]);
-          $xml ? $processor->($xml) : ();
+          defined $xml or return ();
+          $xml = $xml->documentElement if $xml->isa('XML::LibXML::Document');
+          $processor->($xml);
         };
 }
 
@@ -79,7 +81,7 @@ sub element_obligatory
     sub {
 # This should work with namespaces (but doesn't yet)
 # because the wrong namespace is passed in $ns
-# my @nodes = $_[0]->getElementsByTagNameNS($ns,$childname);
+# my @nodes = $_[0]->getChildrenByTagNameNS($ns,$childname);
           my @nodes = $_[0]->getChildrenByLocalName($childname);
           my $node
            = (@nodes==0 || !defined $nodes[0])
@@ -138,7 +140,7 @@ sub element_nillable
 sub element_optional
 {   my ($path, $args, $ns, $childname, $do) = @_;
     my $err  = $args->{err};
-    sub { my @nodes = $_[0]->getElementsByLocalName($childname)
+    sub { my @nodes = $_[0]->getChildrenByLocalName($childname)
              or return ();
           $err->($path, scalar @nodes, "only one value expected")
              if @nodes > 1;

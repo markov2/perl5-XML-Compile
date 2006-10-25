@@ -4,6 +4,21 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.11: Wed Oct 25 08:08:20 CEST 2006
+
+	Fixes:
+
+	- Need to use "getChildrenBy..." in stead of "getElementsBy" in
+	  XmlReader, because otherwise we search the whole tree.
+	  Problem reported by [Igor Shynkarev]
+
+	Improvements:
+
+	- When the reader is called with a document, its document-element
+	  is taken automatically.  In response to [Igor Shynkarev]
+
+	- First attempt for XML template output.
+
 version 0.10: Tue Oct 24 11:40:09 CEST 2006
 
 	Fixes:
