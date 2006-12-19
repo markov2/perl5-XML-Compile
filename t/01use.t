@@ -37,4 +37,4 @@ require_ok('XML::Compile::Schema::Specs');
 require_ok('XML::Compile::Schema::Translate');
 require_ok('XML::Compile::Schema::XmlReader');
 require_ok('XML::Compile::Schema::XmlWriter');
-require_ok('XML::Compile::Schema::XmlTemplate');
+require_ok('XML::Compile::Schema::Template');

@@ -378,7 +378,7 @@ $builtin_types{dateTime} =
        \:(?:[0-5]?[0-9])     # seconds
     )?
     (?:[+-]\d\d?\:\d\d|Z)?   # time-zone
-    $/x ? $1 : 0 }
+    $/x ? $_[0] : 0 }
  , example => '2006-10-06T00:23:02'
  };
 

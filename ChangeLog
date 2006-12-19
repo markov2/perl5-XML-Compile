@@ -4,6 +4,16 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.12: Tue Dec 19 15:22:59 CET 2006
+
+	Fixes:
+
+	- fixed attributes can be optional. [Igor Shynkarev]
+
+	- correct dateTime values were disapproved. [John R.]
+
+	- converted to use oodist script (new feature of OODoc)
+
 version 0.11: Wed Oct 25 08:08:20 CEST 2006
 
 	Fixes:

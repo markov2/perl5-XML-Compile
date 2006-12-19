@@ -53,7 +53,6 @@ t/52ctsres.t
 t/53subst.t
 t/70templ.t
 t/TestTools.pm
-version
 xsd/1998-namespace.xsd
 xsd/1999-XMLSchema-part2.xsd
 xsd/1999-XMLSchema.xsd

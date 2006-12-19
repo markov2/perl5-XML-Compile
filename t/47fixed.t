@@ -9,7 +9,7 @@ use TestTools;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 25;
+use Test::More tests => 57;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -26,6 +26,12 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
   </complexType>
 </element>
 
+<element name="test2">
+  <complexType>
+    <attribute name="t2a" type="int" />
+    <attribute name="t2b" type="int" fixed="13" use="optional" />
+  </complexType>
+</element>
 </schema>
 __SCHEMA__
 
@@ -37,7 +43,7 @@ push @run_opts
  ;
 
 ##
-### Integers
+### Fixed Integers
 ##  Big-ints are checked in 49big.t
 
 test_rw($schema, test1 => <<__XML__, {t1a => 'not-changeable', t1c => 42});
@@ -56,4 +62,31 @@ is(shift @errors, "value fixed to 'not-changeable' ()");
 is(shift @errors, "attr value fixed to '42' ()");
 is(shift @errors, "value fixed to 'not-changeable' ()");
 is(shift @errors, "attr value fixed to '42' ()");
+ok(!@errors);
+
+#
+# Optional fixed integers
+#
+
+my %t2a = (t2a => 14, t2b => 13);
+test_rw($schema, test2 => <<__XML__, \%t2a);
+<test2 t2a="14" t2b="13"/>
+__XML__
+ok(!@errors);
+
+my %t2b     = (t2a => 15, t2b => 13);
+my %t2b_err = (t2a => 16, t2b => 12);
+test_rw($schema, test2 => <<__XML__, \%t2b, <<__EXPECT__, \%t2b_err);
+<test2 t2a="15" t2b="12"/>
+__XML__
+<test2 t2a="16" t2b="13"/>
+__EXPECT__
+is(shift @errors, "attr value fixed to '13' (12)");
+is(shift @errors, "attr value fixed to '13' (12)");
+ok(!@errors);
+
+my %t2c     = (t2a => 17);
+test_rw($schema, test2 => <<__XML__, \%t2c);
+<test2 t2a="17"/>
+__XML__
 ok(!@errors);

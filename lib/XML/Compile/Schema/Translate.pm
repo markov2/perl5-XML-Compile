@@ -553,15 +553,15 @@ sub particle($$$$)
        ? 'element_repeated'
        : 'element_array'
        )
-     : ($self->{check_occurs} && $min==1)
+     : ($self->{check_occurs} && $min>=1)
      ? ( $nillable        ? 'element_nillable'
        : defined $default ? 'element_default'
        : defined $fixed   ? 'element_fixed'
        :                    'element_obligatory'
        )
      : ( defined $default ? 'element_default'
-       : defined $fixed   ? 'element_fixed'
-       : 'element_optional'
+       : defined $fixed   ? 'element_fixed_optional'
+       :                    'element_optional'
        );
 
     my $value = defined $default ? $default : $fixed;
@@ -599,17 +599,21 @@ sub attribute($$)
     my $st       = $type->{st}
         or $self->error($path, "attribute not based in simple value type");
 
-    my $use     = $node->getAttribute('use') || 'optional';
+    my $use     = $node->getAttribute('use') || '';
+    $self->error($path
+      , "attribute use is required, optional or prohibited (not '$use')")
+       if $use !~ m/^(?:optional|required|prohibited|)$/;
+
     my $default = $node->getAttributeNode('default');
     my $fixed   = $node->getAttributeNode('fixed');
 
     my $generate
      = defined $default    ? 'attribute_default'
-     : defined $fixed      ? 'attribute_fixed'
+     : defined $fixed
+     ? ($use eq 'optional' ? 'attribute_fixed_optional' : 'attribute_fixed')
      : $use eq 'required'  ? 'attribute_required'
-     : $use eq 'optional'  ? 'attribute_optional'
      : $use eq 'prohibited'? 'attribute_prohibited'
-     : $self->error($path, "attribute use is required, optional or prohibited (not '$use')");
+     :                       'attribute_optional';
 
     my $value = defined $default ? $default : $fixed;
     $name => $self->make($generate => $path, $ns, $tag, $st, $value);
@@ -829,7 +833,7 @@ sub rel2abs($$$)
      : ($node->lookupNamespaceURI(''), $type);
 
      defined $url
-         or $self->error($path, "cannot understand type '$type'");
+         or $self->error($path, "No namespace for type '$type'");
 
      "{$url}$local";
 }

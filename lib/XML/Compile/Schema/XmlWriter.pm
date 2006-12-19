@@ -136,6 +136,20 @@ sub element_fixed
         };
 }
 
+sub element_fixed_optional
+{   my ($path, $args, $ns, $childname, $do, $min, $max, $fixed) = @_;
+    my $err  = $args->{err};
+    $fixed   = $fixed->value;
+
+    sub { my ($doc, $value) = @_;
+          my $ret = defined $value ? $do->($doc, $value) : undef;
+          return $ret if !defined $ret || $ret->textContent eq $fixed;
+
+          $err->($path, $value, "value fixed to '$fixed'");
+          $do->($doc, $fixed);
+        };
+}
+
 sub element_nillable
 {   my ($path, $args, $ns, $childname, $do) = @_;
     my $err  = $args->{err};
@@ -362,6 +376,24 @@ sub attribute_fixed
 
     sub { my ($doc, $value) = @_;
           my $ret = defined $value ? $do->($doc, $value) : undef;
+          return $doc->createAttributeNS($ns, $tag, $ret)
+              if defined $ret && $ret eq $fixed;
+
+          $err->($path, $value, "attr value fixed to '$fixed'");
+          $ret = $do->($doc, $fixed);
+          defined $ret ? $doc->createAttributeNS($ns, $tag, $ret) : ();
+        };
+}
+
+sub attribute_fixed_optional
+{   my ($path, $args, $ns, $tag, $do, $fixed) = @_;
+    my $err  = $args->{err};
+    $fixed   = $fixed->value;
+
+    sub { my ($doc, $value) = @_;
+          defined $value or return ();
+
+          my $ret = $do->($doc, $value);
           return $doc->createAttributeNS($ns, $tag, $ret)
               if defined $ret && $ret eq $fixed;
 

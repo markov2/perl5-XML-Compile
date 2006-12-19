@@ -122,6 +122,22 @@ sub element_fixed
         };
 }
 
+sub element_fixed_optional
+{   my ($path, $args, $ns, $childname, $do, $min, $max, $fixed) = @_;
+    my $err = $args->{err};
+    my $def  = $do->($fixed);
+
+    sub { my @nodes = $_[0]->getChildrenByLocalName($childname);
+          my $node  = shift @nodes or return ();
+          $node = $err->($path, 'found '.@nodes, "only one value expected")
+              if @nodes;
+          my $value = defined $node ? $do->($node) : undef;
+          $err->($path, $value,"value fixed to '".$fixed->value."'")
+              if !defined $value || $value ne $def;
+          ($childname => $def);
+        };
+}
+
 sub element_nillable
 {   my ($path, $args, $ns, $childname, $do) = @_;
     my $err  = $args->{err};
@@ -319,6 +335,19 @@ sub attribute_fixed
 
     sub { my $node  = $_[0]->getAttributeNodeNS($ns, $tag);
           my $value = defined $node ? $do->($node) : undef;
+          $err->($path, $value, "attr value fixed to '".$fixed->value."'")
+              if !defined $value || $value ne $def;
+          ($tag => $def);
+        };
+}
+
+sub attribute_fixed_optional
+{   my ($path, $args, $ns, $tag, $do, $fixed) = @_;
+    my $err = $args->{err};
+    my $def  = $do->($fixed);
+
+    sub { my $node  = $_[0]->getAttributeNodeNS($ns, $tag) or return ();
+          my $value = $do->($node);
           $err->($path, $value, "attr value fixed to '".$fixed->value."'")
               if !defined $value || $value ne $def;
           ($tag => $def);
