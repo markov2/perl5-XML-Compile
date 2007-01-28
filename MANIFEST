@@ -51,6 +51,7 @@ t/50ns.t
 t/51ctsext.t
 t/52ctsres.t
 t/53subst.t
+t/54any.t
 t/70templ.t
 t/TestTools.pm
 xsd/1998-namespace.xsd
@@ -60,3 +61,9 @@ xsd/2000-XMLSchema.xsd
 xsd/2001-XMLSchema.dtd
 xsd/2001-XMLSchema.xsd
 xsd/2001-datatypes.dtd
+xsd/soap-encoding.xsd
+xsd/soap-envelope.xsd
+xsd/wsdl-http.xsd
+xsd/wsdl-mime.xsd
+xsd/wsdl-soap.xsd
+xsd/wsdl.xsd

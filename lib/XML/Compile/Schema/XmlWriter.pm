@@ -172,7 +172,8 @@ sub element_default
 #
 
 sub create_complex_element
-{   my ($path, $args, $tag, @do) = @_;
+{   my ($path, $args, $tag, $childs, $any_elem, $any_attr) = @_;
+    my @do = @$childs;
     my $err = $args->{err};
     sub { my ($doc, $data) = @_;
           unless(UNIVERSAL::isa($data, 'HASH'))
@@ -187,6 +188,34 @@ sub create_complex_element
               push @childs, (shift @elems)
                   ->($doc, delete $data->{$childname});
           }
+
+       ANY:
+          foreach my $tag (sort keys %$data)
+          {   next unless $tag =~ m/^\{([^}]*)\}(.*)$/;
+              my ($ns, $type) = ($1, $2);
+              my $value = delete $data->{$tag};
+              my $any
+               = !ref $value                         ? undef
+               : $value->isa('XML::LibXML::Attr')    ? $any_attr
+               : $value->isa('XML::LibXML::Element') ? $any_elem
+               : undef;
+
+              unless($any)
+              {   $err->($path, ref $value
+                , "requires XML::LibXML::Attr or ::Element as value for $tag");
+                  next ANY;
+              }
+
+              foreach my $try (@$any)
+              {   my $v = $try->($doc, $tag, $ns, $type, $value);
+                  defined $v or next;
+                  push @childs, $v;
+                  next ANY;
+              }
+
+              $err->($path, ref $value, "value for $tag not used");
+          }
+
           $err->($path, join(' ', sort keys %$data), 'unused data')
               if keys %$data;
 
@@ -402,6 +431,49 @@ sub attribute_fixed_optional
           defined $ret ? $doc->createAttributeNS($ns, $tag, $ret) : ();
         };
 }
+
+# anyAttribute
+
+sub anyAttribute
+{   my ($path, $args, $handler, $yes, $no, $process) = @_;
+    my %yes = map { ($_ => 1) } @{$yes || []};
+    my %no  = map { ($_ => 1) } @{$no  || []};
+    my $err = $args->{err};
+
+    sub { my ($doc, $key, $ns, $type, $value) = @_;
+          my $vns = $value->namespaceURI;
+          $vns eq $ns or $err->($path, $vns, "value name-space must be $ns");
+          # type can best be made explicit, but cannot be checked.
+          return $yes{$ns} ? $value : undef  if keys %yes;
+          return $no{$ns}  ? undef  : $value if keys %no;
+          $value;
+        };
+}
+
+=chapter DETAILS
+
+=section Processing Wildcards
+
+Complex elements can define C<any> (element) and C<anyAttribute> components,
+with unpredictable content.  In this case, you are quite on your own in
+processing those constructs.  The use of both schema components should
+be avoided: please specify your data-structures explicit by clean type
+extensions.
+
+The procedure for the XmlWriter is simple: add key-value pairs to your
+hash, in which the valie is a fully prepared M<XML::LibXML::Attr>
+or M<XML::LibXML::Element>.  The keys have the form C<{namespace}type>.
+The I<namespace> component is important, because only spec confirmant
+namespaces will be used.  The type is ignored.  The elements and
+attributes are added in random order.
+
+=example specify anyAttribute
+ my $attr = $doc->createAttributeNS($somens, $sometype, 42);
+ my $h = { a => 12     # normal element or attribute
+         , "{$somens}$sometype" => $attr # anyAttribute
+         };
+
+=cut
 
 1;
 

@@ -4,6 +4,8 @@ use strict;
 use warnings;
 no warnings 'once';
 
+use List::Util  qw/first/;
+
 =chapter NAME
 
 XML::Compile::Schema::XmlReader - bricks to translate XML to HASH
@@ -37,9 +39,10 @@ sub tag_unqualified
 
 sub wrapper
 {   my $processor = shift;
-    sub { my $xml = ref $_[0] && $_[0]->isa('XML::LibXML::Node')
-                  ? $_[0]
-                  : XML::Compile->parse(\$_[0]);
+    sub { my $xml = XML::Compile->dataToXML($_[0]);
+ #ref $_[0] && $_[0]->isa('XML::LibXML::Node')
+                  #? $_[0]
+                  #: XML::Compile->parse(\$_[0]);
           defined $xml or return ();
           $xml = $xml->documentElement if $xml->isa('XML::LibXML::Document');
           $processor->($xml);
@@ -170,9 +173,13 @@ sub element_optional
 #
 
 sub create_complex_element
-{   my ($path, $args, $tag, @childs) = @_;
+{   my ($path, $args, $tag, $childs, $any_elem, $any_attr) = @_;
+
+    my @childs = @$childs;
     my @do;
     while(@childs) {shift @childs; push @do, shift @childs}
+    push @do, @$any_elem if $any_elem;
+    push @do, @$any_attr if $any_attr;
 
     sub { my @pairs = map {$_->(@_)} @do;
           @pairs ? {@pairs} : ();
@@ -368,6 +375,149 @@ sub element_substgroup
           $err->($path, $name, "none of the substitution alternatives found.");
         };
 }
+
+# anyAttribute
+
+sub anyAttribute
+{   my ($path, $args, $handler, $yes, $no, $process) = @_;
+    return () unless defined $handler;
+
+    my %yes = map { ($_ => 1) } @{$yes || []};
+    my %no  = map { ($_ => 1) } @{$no  || []};
+
+    # Takes all, before filtering
+    my $all =
+    sub { my @result;
+          foreach my $attr ($_[0]->attributes)
+          {   $attr->isa('XML::LibXML::Attr') or next;
+              my $ns = $attr->namespaceURI || $_[0]->namespaceURI;
+              next if keys %yes && !$yes{$ns};
+              next if keys %no  &&   $no{$ns};
+              my $local = $attr->localName;
+              push @result, "{$ns}$local" => $attr;
+          }
+          @result;
+        };
+
+    # Create filter if requested
+    $handler eq 'TAKE_ALL' ? $all
+    : sub { my @attrs = $all->(@_);
+            my @result;
+            while(@attrs)
+            {   my ($type, $data) = (shift @attrs, shift @attrs);
+                my ($label, $out) = $handler->($type, $data, $path, $args);
+                push @result, $label, $out if defined $label;
+            }
+            @result;
+          };
+}
+
+=chapter DETAILS
+
+=section Processing Wildcards
+
+If you want to collect information from the XML structure, which is
+permitted by C<any> and C<anyAttribute> specifications in the schema,
+you have to implement that yourself.  The problem is C<XML::Compile>
+has less knowledge than you about the possible data.
+
+=subsection anyAttribute
+By default, the C<anyAttribute> specification is ignored.  When C<TAKE_ALL>
+is given, all attributes which are fulfilling the name-space requirement
+added to the returned data-structure.  As key, the absolute element name
+will be used, with as value the related unparsed XML element.
+
+In the current implementation, if an explicit attribute is also
+covered by the name-spaces permitted by the anyAttribute definition,
+then it will also appear in that list (and hence the handler will
+be called as well).
+
+Use M<XML::Compile::Schema::compile(anyAttribute)> to write your
+own handler, to influence the behavior.  The handler will be called for
+each attribute, and you must return list of pairs of derived information.
+When the returned is empty, the attribute data is lost.  The value may
+be a complex structure.
+
+=example anyAttribute in XmlReader
+Say your schema looks like this:
+
+ <schema targetNamespace="http://mine"
+    xmlns:me="http://mine" ...>
+   <element name="el">
+     <complexType>
+       <attribute name="a" type="xs:int" />
+       <anyAttribute namespace="##targetNamespace"
+          processContents="lax">
+     </complexType>
+   </element>
+   <simpleType name="non-empty">
+     <restriction base="xs:NCName" />
+   </simpleType>
+ </schema>
+
+Then, in an application, you write:
+
+ my $r = $schema->compile(READER => '{http://mine}el'
+  , anyAttribute => 'ALL'
+  );
+
+ my $h = $r->( <<'__XML' );
+   <el xmlns:me="http://mine">
+     <a>42</a>
+     <b type="me:non-empty">
+        everything
+     </b>
+   </el>
+ __XML
+
+ use Data::Dumper 'Dumper';
+ print Dumper $h;
+ __XML__
+
+The output is something like
+
+ $VAR1 =
+  { a => 42
+  , '{http://mine}a' => ... # XML::LibXML::Node with <a>42</a>
+  , '{http://mine}b' => ... # XML::LibXML::Node with <b>everything</b>
+  };
+
+You can improve the reader with a callback.  When you know that the
+extra attribute is always of type C<non-empty>, then you can do
+
+ my $read = $schema->compile
+  ( READER => '{http://mine}el'
+  , anyAttribute => \&filter
+  );
+
+ my $anyAttRead = $schema->compile
+  ( READER => '{http://mine}non-empty'
+  );
+
+ sub filter($$$$)
+ {   my ($fqn, $xml, $path, $translator) = @_;
+     return () if $fqn ne '{http://mine}b';
+     (b => $anyAttRead->($xml));
+ }
+
+ my $h = $r->( see above );
+ print Dumper $h;
+
+Which will result in
+
+ $VAR1 =
+  { a => 42
+  , b => 'everything'
+  };
+
+The filter will be called twice, but return nothing in the first
+case.  You can implement any kind of complex processing in the filter.
+
+=subsection any element
+By default, the C<any> definition in a schema will ignore all elements
+from the container which are not used.
+
+=cut
 
 1;
 

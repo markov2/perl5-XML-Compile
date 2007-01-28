@@ -9,7 +9,7 @@ use lib 'lib', 't';
 use XML::Compile::Schema;
 use TestTools;
 
-use Test::More tests => 18;
+use Test::More tests => 17;
 
 our $xmlfile = File::Spec->rel2abs('xsd/2001-XMLSchema.xsd');
 
@@ -44,7 +44,7 @@ close OUT;
 
 my @types   = split /\n/, $list;
 is(shift(@types), "namespace: $SchemaNS");
-cmp_ok(scalar(@types), '==', 147);
+cmp_ok(scalar(@types), '==', 145);
 
 my $random = (sort @types)[42];
 is($random, '      element redefine');
@@ -55,11 +55,11 @@ foreach (@types)
     $t{$type}++;
 }
 
-cmp_ok(scalar(keys %t), '==', 6);
+cmp_ok(scalar(keys %t),    '==', 5);
 
 cmp_ok($t{simpleType},     '==', 55);
 cmp_ok($t{complexType},    '==', 35);
 cmp_ok($t{group},          '==', 12);
 cmp_ok($t{attributeGroup}, '==',  2);
 cmp_ok($t{element},        '==', 41);
-cmp_ok($t{notation},       '==',  2);
+#cmp_ok($t{notation},       '==',  2);

@@ -15,14 +15,6 @@ use XML::Compile::Schema::Translate      ();
 use XML::Compile::Schema::Instance;
 use XML::Compile::Schema::NameSpaces;
 
-my %schemaLocation =
- ( 'http://www.w3.org/1999/XMLSchema'     => '1999-XMLSchema.xsd'
- , 'http://www.w3.org/1999/part2.xsd'     => '1999-XMLSchema-part2.xsd'
- , 'http://www.w3.org/2000/10/XMLSchema'  => '2000-XMLSchema.xsd'
- , 'http://www.w3.org/2001/XMLSchema'     => '2001-XMLSchema.xsd'
- , 'http://www.w3.org/XML/1998/namespace' => '1998-namespace.xsd'
- );
-
 =chapter NAME
 
 XML::Compile::Schema - Compile a schema
@@ -165,24 +157,15 @@ sub addSchemas($$)
     );
 }
 
-=method importSchema FILENAME|NAMESPACE
-Import (parse) the XML found in the specified file.  Some NAMESPACES
-are linked to predefined filenames, especially the schema defining files.
-The FILENAME can be relative, see M<findSchemaFile()>.
+=method importSchema  XMLDATA
+Import (include) the schema information included in the XMLDATA.  The
+XMLDATA must be acceptable for M<dataToXML().
 =cut
 
 sub importSchema($)
 {   my ($self, $thing) = @_;
-
-    my $filename = $schemaLocation{$thing} || $thing;
-
-    my $path = $self->findSchemaFile($filename)
-        or croak "ERROR: cannot find $filename for $thing";
-
-    my $tree = $self->parseFile($path)
-        or croak "ERROR: cannot parse XML from $path";
-
-    $self->addSchema($tree);
+    my $tree = $self->dataToXML($thing);
+    $self->addSchemas($tree);
 }
 
 =section Compilers
@@ -289,6 +272,20 @@ floats.  See their respective manual-pages.  Especially when you wish
 for some performance, you should optimize access to these objects to
 avoid expensive copying which is exactly the spot where the difference
 are.
+
+=option  anyElement CODE
+=default anyElement C<undef>
+In general, C<any> schema components cannot be handled automatically.
+If  you need to create or process any information, then read about
+wildcards in the DETAILS chapter of the manual-page for the specific
+back-end.
+
+=option  anyAttribute CODE
+=default anyAttribute C<undef>
+In general, C<anyAttribute> schema components cannot be handled
+automatically.  If  you need to create or process anyAttribute
+information, then read about wildcards in the DETAILS chapter of the
+manual-page for the specific back-end.
 
 =cut
 
@@ -498,12 +495,6 @@ refers to the built-in C<int> data-type.  You may also start with
 
 as long as this ID refers to an element.
 
-Wildcard elements C<any> and C<anyAttribute> elements frustrate our
-attempt for simplification.  Where we normally know which name-space
-we are dealing with, these wildcard elements can use any name-space.
-Therefore, in the HASH, these elements will use keys like C<{url}name>,
-in stead of simply the name.
-
 =section Representing data-structures
 
 The code will do its best to produce a correct translation. For
@@ -703,6 +694,26 @@ The HASH repesentation is respectively
  product => {name => 'Ball', euro  => 12}
  product => {name => 'Ball', dollar => 6}
  
+=section Wildcards
+
+The C<any> and C<anyAttribute> elements are referred to as C<wildcards>:
+they specify groups of elements and attributes which can be used, in
+stead of being explicit.
+
+The author of this module advices B<against the use of wildcards>
+in schema's, because the purpose of schema's is to be explicit and that
+basic idea is simply thrown away by these wildcards.  Let people cleanly
+extend the schema with inheritance!  If you use a standard schema
+which facilitates these wildcards, then please do not use them!
+
+Because wildcards are not explicit about the types to expect, the
+C<XML::Compile> module can not prepare for them automatically.
+However, as user of the schema you probably know better about the possible
+contents of these fields.  Therefore, you can translate that
+knowledge into code explicitly.  Read about the processing of wildcards
+in the manual page for each of the back-ends, because it is different
+in each case.
+
 =cut
 
 1;

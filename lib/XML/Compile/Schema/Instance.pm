@@ -110,7 +110,14 @@ sub substitutionGroupMembers($)
 =section Index
 =cut
 
-my %as_element = map { ($_ => 1) } qw/element group attributeGroup/;
+my %as_element = map { ($_ => 1) }
+   qw/element group attributeGroup/;
+
+my %as_type    = map { ($_ => 1) }
+   qw/complexType simpleType attribute attributeGroup group/;
+
+my %skip_toplevel = map { ($_ => 1) }
+   qw/annotation import notation include redefine/;
 
 sub _collectTypes($)
 {   my ($self, $schema) = @_;
@@ -139,8 +146,7 @@ sub _collectTypes($)
     {   next unless $node->isa('XML::LibXML::Element');
         my $local = $node->localname;
 
-        next if $local eq 'annotation';
-        next if $local eq 'import';
+        next if $skip_toplevel{$local};
 
         my $tag   = $node->getAttribute('name');
         my $ref;
@@ -174,7 +180,15 @@ sub _collectTypes($)
              $sg = "{$sgns}$sgname";
         }
 
-        my $class = $as_element{$local} ? 'elements' : 'types';
+        my $class
+           = $as_element{$local} ? 'elements'
+           : $as_type{$local}    ? 'types'
+           :                       undef;
+
+        unless(defined $class)
+        {   warn "WARNING: skipping unknown top-level component `$local'\n";
+            next;
+        }
 
         my $info  = $self->{$class}{$label}
           = { type => $local, id => $id,   node => $node, full => "{$ns}$name"

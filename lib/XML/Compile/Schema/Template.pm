@@ -24,6 +24,7 @@ and creates a kind of abstract syntax tree from it, which can be used
 for documentational purposes.  Then, it implements to ways to represent
 that knowledge: as an XML or a Perl example of the data-structure which
 the schema describes.
+
 =cut
 
 BEGIN {
@@ -106,13 +107,19 @@ sub element_optional
 #
 
 sub create_complex_element
-{   my ($path, $args, $tag, @do) = @_;
+{   my ($path, $args, $tag, $childs, $any_elem, $any_attr) = @_;
+
+    my @childs = @$childs;
+    my @do;
+    while(@childs) {shift @childs; push @do, shift @childs}
+    push @do, @$any_elem if $any_elem;
+    push @do, @$any_attr if $any_attr;
+
     sub { my @parts = @do;
           my (@attrs, @elems);
 
           while(@parts)
-          {   my $childname = shift @parts;
-              my $child     = (shift @parts)->();
+          {   my $child     = (shift @parts)->();
               if($child->{attr})
               {   push @attrs, $child;
               }
@@ -259,6 +266,19 @@ sub attribute_fixed
            , tag     => $tag
            , occurs  => "attribute $tag is fixed"
            , example => $fixed
+           };
+        };
+}
+
+
+# anyAttribute
+
+sub anyAttribute
+{   my ($path, $args, $handler, $yes, $no, $process) = @_;
+    my $occurs = @$yes ? "in @$yes" : @$no ? "not in @$no" : 'any type';
+
+    sub { +{ kind    => 'attr'
+           , struct  => "anyAttribute $occurs"
            };
         };
 }

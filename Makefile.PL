@@ -2,7 +2,7 @@ use ExtUtils::MakeMaker;
 
 WriteMakefile
  ( NAME	 	=> 'XML::Compile'
- , VERSION	=> 0.12
+ , VERSION	=> 0.13
  , PREREQ_PM    =>
    { XML::LibXML               => 1.61
    , Test::More                => 0.54
@@ -23,7 +23,7 @@ LICENSE         = artistic
 
 # for POD
 FIRST_YEAR      = 2006
-EMAIL           = oodoc@overmeer.net
+EMAIL           = perl@overmeer.net
 WEBSITE         = http://perl.overmeer.net/xml-compile/
 
 # for HTML

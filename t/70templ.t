@@ -8,7 +8,7 @@ use TestTools;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 4;
+use Test::More tests => 5;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -59,6 +59,8 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 
 </schema>
 __SCHEMA__
+
+ok(defined $schema);
 
 templ_perl($schema, 'test1', <<__TEST1__, show => 'ALL');
 # test1 is complex

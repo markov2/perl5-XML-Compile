@@ -4,6 +4,35 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+TODO: improve template output, f.i. anyAttribute
+
+version 0.13: Mon Jan 29 00:11:12 CET 2007
+
+	Fixes:
+
+	- One place with nested Complex extensions, but more may need
+	  fixing.
+
+	Improvements:
+
+	- Added WSDL and SOAP schema's
+
+	- fixed importSchema() where addSchema() missed an 's'
+	  -> addSchemas().
+
+	- XML::Compile::new() now also accepts a filename, a ref
+	  Scalar, and pre-defined name-spaces.
+
+	- skip key, keyref, unique, selector, fields elements; just
+	  like notation and annotation are lost.
+
+	- defined top-level element "attribute", but not yet used.
+	  Only useful in anyAttribute, which is not checked.
+
+	- check all top-level elements for their name, to find typo's.
+
+	- implemented anyAttribute
+
 version 0.12: Tue Dec 19 15:22:59 CET 2006
 
 	Fixes:

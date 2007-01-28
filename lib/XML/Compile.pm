@@ -7,6 +7,20 @@ package XML::Compile;
 use XML::LibXML;
 use Carp;
 
+my %namespace_defs =
+ ( 'http://www.w3.org/1999/XMLSchema'      => '1999-XMLSchema.xsd'
+ , 'http://www.w3.org/1999/part2.xsd'      => '1999-XMLSchema-part2.xsd'
+ , 'http://www.w3.org/2000/10/XMLSchema'   => '2000-XMLSchema.xsd'
+ , 'http://www.w3.org/2001/XMLSchema'      => '2001-XMLSchema.xsd'
+ , 'http://www.w3.org/XML/1998/namespace'  => '1998-namespace.xsd'
+ , 'http://schemas.xmlsoap.org/wsdl/'      => 'wsdl.xsd'
+ , 'http://schemas.xmlsoap.org/wsdl/soap/' => 'wsdl-soap.xsd'
+ , 'http://schemas.xmlsoap.org/wsdl/http/' => 'wsdl-http.xsd'
+ , 'http://schemas.xmlsoap.org/wsdl/mime/' => 'wsdl-mime.xsd'
+ , 'http://schemas.xmlsoap.org/soap/encoding/' => 'soap-encoding.xsd'
+ , 'http://schemas.xmlsoap.org/soap/envelope/' => 'soap-envelope.xsd'
+ );
+
 =chapter NAME
 
 XML::Compile - Compilation based XML processing
@@ -67,11 +81,9 @@ and therefore should not be accessed directly.
 
 =method new TOP, OPTIONS
 
-The TOP is a M<XML::LibXML::Document> (a direct result from parsing
-activities) or a M<XML::LibXML::Node> (a sub-tree).  It may also be a
-text which represents one or more schema's, as long as it is one node.
+The TOP is the source of XML. See M<dataToXML()> for valid options.
 
-If you have compiled/collected all the information you need,
+If you have compiled/collected all readers and writers you need,
 you may simply terminate the compiler object: that will clean-up
 (most of) the XML::LibXML objects.
 
@@ -81,10 +93,12 @@ Where to find schema's.  This can be specified with the
 environment variable C<SCHEMA_DIRECTORIES> or with this option.
 See M<addSchemaDirs()> for a detailed explanation.
 
+=error no XML data specified
 =cut
 
 sub new(@)
 {   my ($class, $top) = (shift, shift);
+
     croak "ERROR: you should instantiate a sub-class, $class is base only"
         if $class eq __PACKAGE__;
 
@@ -95,27 +109,12 @@ sub init($)
 {   my ($self, $args) = @_;
 
     my $top = $args->{top}
-       or croak "ERROR: XML definition not specified";
-
-    $self->{XC_top}
-      = ref $top && $top->isa('XML::LibXML::Node') ? $top
-      : $self->parse(\$top);
+       or croak "ERROR: no XML data specified\n";
 
     $self->addSchemaDirs($ENV{SCHEMA_DIRECTORIES});
     $self->addSchemaDirs($args->{schema_dirs});
+    $self->{XC_top} = $self->dataToXML($top);
     $self;
-}
-
-sub parse($)
-{   my ($thing, $data) = @_;
-    my $xml = XML::LibXML->new->parse_string($$data);
-    defined $xml ? $xml->documentElement : undef;
-}
-
-sub parseFile($)
-{   my ($thing, $fn) = @_;
-    my $xml = XML::LibXML->new->parse_file($fn);
-    defined $xml ? $xml->documentElement : undef;
 }
 
 =section Accessors
@@ -150,6 +149,14 @@ sub addSchemaDirs(@)
     $self;
 }
 
+=ci_method knownNamespace NAMESPACE
+Returns the file which contains the definition of a NAMESPACE, if it
+is one of the set which is distributed with the M<XML::Compile>
+module.
+=cut
+
+sub knownNamespace($) { $namespace_defs{$_[1]} }
+
 =method findSchemaFile FILENAME
 Runs through all defined schema directories (see M<addSchemaDirs()>)
 in search of the specified FILENAME.  When the FILENAME is absolute,
@@ -171,6 +178,79 @@ sub findSchemaFile($)
     }
 
     undef;
+}
+
+=section Read XML
+
+=method dataToXML NODE|REF-XML|XML|FILENAME|KNOWN
+Collect XML data.  Either a preparsed NODE is provided, which
+is returned unchanged.  A ref of SCALAR is interpreted as reference
+to XML as plain text (XML texts can be large, hence you can improve
+performance by passing it around as reference in stead of copy).
+Any value which starts with blanks followed by a "E<lt>" is interpreted
+as XML text.
+
+You may also specify a pre-defined (KNOWN) name-space.  A set of definition
+files is included in the distribution, and installed somewhere when the
+modules got installed.  Either define an environmen variable SCHEMA_LOCATION
+or use M<new(schema_dirs)> to inform the library where to find these
+files.
+
+=error cannot find pre-installed name-space files
+Use $ENV{SCHEMA_LOCATION} or M<new(schema_dirs)> to express location
+of installed name-space files, which came with the M<XML::Compile>
+distribution package.
+
+=error don't known how to interpret XML data
+=cut
+
+sub dataToXML($)
+{   my ($self, $thing) = @_;
+
+    return $thing
+       if ref $thing && $thing->isa('XML::LibXML::Node');
+
+    return $self->parse($thing)
+       if ref $thing eq 'SCALAR'; # XML string as ref
+
+    return $self->parse(\$thing)
+       if $thing =~ m/^\s*\</;    # XML starts with '<', rare for files
+
+    if(my $known = $self->knownNamespace($thing))
+    {   my $fn = $self->findSchemaFile($known)
+            or croak "ERROR: cannot find pre-installed name-space files.\n";
+
+        return $self->parseFile($fn);
+    }
+
+    return $self->parseFile($thing)
+         if -f $thing;
+
+    my $data = "$thing";
+    $data = substr($data, 0, 39) . '...' if length($data) > 40;
+    croak "ERROR: don't known how to interpret XML data\n   $data\n";
+}
+
+=method parse STRING
+Extract document element tree from the STRING, which represents XML.
+This is a wrapper around M<XML::LibXML> method C<parse_string()>.
+=cut
+
+sub parse($)
+{   my ($thing, $data) = @_;
+    my $xml = XML::LibXML->new->parse_string($$data);
+    defined $xml ? $xml->documentElement : undef;
+}
+
+=method parseFile FILENAME
+Extract document element tree from a file, specified by FILENAME.
+This is a wrapper around M<XML::LibXML> method C<parse_file()>.
+=cut
+
+sub parseFile($)
+{   my ($thing, $fn) = @_;
+    my $xml = XML::LibXML->new->parse_file($fn);
+    defined $xml ? $xml->documentElement : undef;
 }
 
 =section Filters
