@@ -1,4 +1,8 @@
 
+# The code is this module is messy: sorry.  It needs a good rewrite.
+# Gladly, a large number of tests guarentees at least most of the
+# expected functionality.
+
 use warnings;
 use strict;
 
@@ -59,6 +63,7 @@ A few nuts are still to crack:
  final
  notation, annotation
  explicit ordering within choice and all
+ QName writer namespace to prefix translation
 
 Of course, the latter list is all fixed in next release ;-)
 See chapter L</DETAILS> for more on how the tune the translator.
@@ -165,21 +170,21 @@ sub element_by_name($$)
     $self->element_by_node($path, $top->{node});
 }
 
-sub type_by_name($$)
-{   my ($self, $path, $typename) = @_;
+sub type_by_name($$$)
+{   my ($self, $path, $node, $typename) = @_;
 
     #
     # First try to catch build-ins
     #
 
     my $code = XML::Compile::Schema::Specs->builtInType
-       ($typename, sloppy_integers => $self->{sloppy_integers});
+       ($node, $typename, sloppy_integers => $self->{sloppy_integers});
 
     if($code)
     {
 #warn "TYPE FINAL: $typename\n";
-        my $c = $self->{check_values}? 'builtin_checked':'builtin_unchecked';
-        my $type = $self->make($c => $path, $typename, $code);
+        my $c = $self->{check_values}? 'builtin_checked' : 'builtin_unchecked';
+        my $type = $self->make($c => $path, $node, $typename, $code);
 
         return {st => $type};
     }
@@ -263,7 +268,7 @@ sub simple_list($$)
     my $per_item;
     if(my $type = $node->getAttribute('itemType'))
     {   my $typename = $self->rel2abs($path, $node, $type);
-        $per_item    = $self->type_by_name($path, $typename);
+        $per_item    = $self->type_by_name($path, $node, $typename);
     }
     else
     {   my @childs   = $self->childs($node);
@@ -305,7 +310,7 @@ sub simple_union($$)
     if(my $members = $node->getAttribute('memberTypes'))
     {   foreach my $union (split " ", $members)
         {   my $typename = $self->rel2abs($path, $node, $union);
-            my $type = $self->type_by_name($path, $typename);
+            my $type = $self->type_by_name($path, $node, $typename);
             my $st   = $type->{st}
                or $self->error($path, "union only of simpleTypes");
 
@@ -333,7 +338,7 @@ sub simple_restriction($$$)
 
     if(my $basename = $node->getAttribute('base'))
     {   my $typename = $self->rel2abs($path, $node, $basename);
-        $base        = $self->type_by_name($path, $typename);
+        $base        = $self->type_by_name($path, $node, $typename);
         defined $base->{st}
            or $self->error($path, "base $basename for simple-restriction is not simpleType");
     }
@@ -346,7 +351,7 @@ sub simple_restriction($$$)
     {   my $facet = $child->localName;
 
         if($facet eq 'simpleType')
-        {   $base = $self->type_by_name("$path/st", $facet);
+        {   $base = $self->type_by_name("$path/st", $child, $facet);
             next FACET;
         }
 
@@ -455,10 +460,10 @@ sub element_by_node($$)
             and $self->error($path, "no childs expected for type");
 
         my $typename = $self->rel2abs($path, $node, $isa);
-        $type = $self->type_by_name($path, $typename);
+        $type = $self->type_by_name($path, $node, $typename);
     }
     elsif(!@childs)
-    {   $type = $self->type_by_name($path, $self->anyType($node));
+    {   $type = $self->type_by_name($path, $node, $self->anyType($node));
     }
     else
     {   @childs > 1
@@ -467,25 +472,29 @@ sub element_by_node($$)
         # nameless types
         my $child = $childs[0];
         my $local = $child->localname;
-        $type = $local eq 'simpleType'  ? $self->simpleType($path, $child, 0)
-              : $local eq 'complexType' ? $self->complexType($path, $child)
-              : $local =~ m/^(sequence|choice|all|group)$/
-              ?                           $self->complexType($path, $child)
-              : $self->error($path, "unexpected element child $local");
+        $type
+         = $local eq 'simpleType'  ? $self->simpleType($path, $child, 0)
+         : $local eq 'complexType' ? $self->complexType($path, $child)
+         : $local =~ m/^(sequence|choice|all|group)$/
+         ?                           $self->complexType($path, $child)
+         : $self->error($path, "unexpected element child $local");
     }
 
-    my $attrs = $type->{attrs};
-    if(my $elems = $type->{elems})  # complex complex
+    my $attrs     = $type->{attrs}     || [];
+    my $attrs_any = $type->{attrs_any} || [];
+    my $elems     = $type->{elems}     || [];
+    my $elems_any = $type->{elems_any} || [];
+    unless($type->{st})             # complex type
     {   my @do = @$elems;
         push @do, @$attrs if $attrs;
 
         return $self->make(create_complex_element => $path, $tag, \@do,
-            $type->{elems_any}, $type->{attrs_any});
+            $elems_any, $attrs_any);
     }
 
-    if(defined $attrs)              # simple complex
+    if(@$attrs || @$attrs_any)      # simple complex
     {   return $self->make(create_tagged_element =>
-           $path, $tag, $type->{st}, $attrs);
+           $path, $tag, $type->{st}, $attrs, $attrs_any);
     }
 
                                     # simple
@@ -495,7 +504,13 @@ sub element_by_node($$)
 sub particles($$$$)
 {   my ($self, $path, $node, $min, $max) = @_;
 #warn "Particles ".$node->localName;
-    map { $self->particle($path, $_, $min, $max) } $self->childs($node);
+    my %h;
+    foreach my $child ($self->childs($node))
+    {   my $p = $self->particle($path, $child, $min, $max);
+        push @{$h{elems}},     @{$p->{elems}}     if $p->{elems};
+        push @{$h{elems_any}}, @{$p->{elems_any}} if $p->{elems_any};
+    }
+    \%h;
 }
 
 sub particle($$$$);
@@ -510,8 +525,8 @@ sub particle($$$$)
     my @do;
 
     if($local eq 'sequence' || $local eq 'choice' || $local eq 'all')
-    {   defined $min or $min = $local eq 'choice' ? 0 : 1;
-        defined $max or $max = 1;
+    {   defined $min or $min = $local eq 'choice' ? 0 : ($min_default || 1);
+        defined $max or $max = ($max_default || 1);
         return $self->particles($path, $node, $min, $max)
     }
 
@@ -527,8 +542,14 @@ sub particle($$$$)
         return $self->particles($path, $dest->{node}, $min, $max);
     }
 
-    return ()
-        if $local ne 'element';
+    if($local eq 'any')
+    {   return {elems_any => [$self->any_element($path, $node, $min, $max)]};
+    }
+
+    if($local ne 'element')
+    {   $self->error($path, "unknown particle type '$local'");
+        return undef;
+    }
 
     defined $min or $min = $min_default;
     defined $max or $max = $max_default;
@@ -539,9 +560,15 @@ sub particle($$$$)
         $node       = $def->{node};
 
         my $abstract = $node->getAttribute('abstract') || 'false';
-        return map { $self->particle($path, $_, 0, 1)}
-                   $self->substitutionGroupElements($path, $node)
-            if $abstract eq 'true';
+        if($abstract eq 'true')
+        {   my %h;
+            foreach my $e ($self->substitutionGroupElements($path, $node))
+            {   my $p = $self->particle($path, $e, 0, 1);
+                push @{$h{elems}},     @{$p->{elems}}     if $p->{elems}; 
+                push @{$h{elems_any}}, @{$p->{elems_any}} if $p->{elems_any}; 
+            }
+            return \%h;
+        }
     }
 
     my $name = $node->getAttribute('name');
@@ -579,8 +606,8 @@ sub particle($$$$)
     my $value = defined $default ? $default : $fixed;
     my $ns    = $node->namespaceURI;
 
-    ( $name => $self->make( $generate => "$path/$name"
-                         , $ns, $name, $do, $min, $max, $value));
+    { elems => [$name => $self->make($generate => "$path/$name"
+    , $ns, $name, $do, $min,$max, $value)]};
 }
 
 sub attribute($$)
@@ -607,7 +634,7 @@ sub attribute($$)
      ? $self->rel2abs($path, $node, $typeattr)
      : $self->anyType($node);
 
-    my $type     = $self->type_by_name($path, $typename);
+    my $type     = $self->type_by_name($path, $node, $typename);
     my $st       = $type->{st}
         or $self->error($path, "attribute not based in simple value type");
 
@@ -684,6 +711,17 @@ sub any_attribute($$)
     defined $do ? (attrs_any => [$do]) : ();
 }
 
+sub any_element($$$$)
+{   my ($self, $path, $node, $min, $max) = @_;
+    my $handler   = $self->{anyElement};
+    my $namespace = $node->getAttribute('namespace')       || '##any';
+    my $not_ns    = $node->getAttribute('notNamespace');
+    my $process   = $node->getAttribute('processContents') || 'strict';
+
+    my ($yes, $no) = $self->translate_ns_limits($namespace, $not_ns);
+    $self->make(anyElement => $path, $handler, $yes,$no, $process, $min,$max);
+}
+
 # namespace    = (##any|##other) | List of (anyURI|##targetNamespace|##local)
 # notNamespace = List of (anyURI |##targetNamespace|##local)
 # handling of ##local ignored: only full namespaces are supported
@@ -748,13 +786,15 @@ sub complex_body($$)
 
     my $local  = $first->localName;
 
-    my @elems;
+    my $elems;
     if($local =~ m/^(?:sequence|choice|all|group)$/)
-    {   @elems = $self->particle($path, $first, 1, 1);
+    {   $elems = $self->particle($path, $first, 1, 1);
         shift @childs;
     }
 
-    {elems => \@elems, $self->attribute_list($path, @childs) };
+   +{ ($elems ? %$elems : ())
+    , $self->attribute_list($path, @childs)
+    };
 }
 
 sub simpleContent($$)
@@ -786,7 +826,7 @@ sub simpleContent_ext($$)
     my $typename = defined $base ? $self->rel2abs($path, $node, $base)
      : $self->anyType($node);
 
-    my $basetype = $self->type_by_name("$path#base", $typename);
+    my $basetype = $self->type_by_name("$path#base", $node, $typename);
     my $st = $basetype->{st}
         or $self->error($path, "base of simpleContent not simple");
  
@@ -851,7 +891,8 @@ sub complexContent_ext($$)
     }
 
     my $own = $self->complex_body($path, $node);
-    push @{$type->{elems}}, @{$own->{elems}} if $own->{elems};
+    push    @{$type->{elems}},     @{$own->{elems}}     if $own->{elems};
+    push    @{$type->{elems_any}}, @{$own->{elems_any}} if $own->{elems_any};
     push    @{$type->{attrs}},     @{$own->{attrs}}     if $own->{attrs};
     unshift @{$type->{attrs_any}}, @{$own->{attrs_any}} if $own->{attrs_any};
     $type;
@@ -1009,7 +1050,7 @@ these elements.
 
 =over 4
 
-=item anyElement CODE
+=item anyElement CODE|'TAKE_ALL'
 This will be called when the type definition contains an C<any>
 definition, after processing the other element components.  By
 default, all C<any> specifications will be ignored.

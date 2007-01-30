@@ -155,8 +155,8 @@ standard compliant.
 
 =cut
 
-sub builtInType($;$@)
-{   my ($class, $ns) = (shift, shift);
+sub builtInType($$;$@)
+{   my ($class, $node, $ns) = (shift, shift, shift);
     my $name = @_ % 1 ? shift : undef;
     unless(defined $name)
     {   if($ns =~ m/^\s*\{(.*)\}(.*)/ ) { ($ns, $name) = ($1, $2) }

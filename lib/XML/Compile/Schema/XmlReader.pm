@@ -40,9 +40,6 @@ sub tag_unqualified
 sub wrapper
 {   my $processor = shift;
     sub { my $xml = XML::Compile->dataToXML($_[0]);
- #ref $_[0] && $_[0]->isa('XML::LibXML::Node')
-                  #? $_[0]
-                  #: XML::Compile->parse(\$_[0]);
           defined $xml or return ();
           $xml = $xml->documentElement if $xml->isa('XML::LibXML::Document');
           $processor->($xml);
@@ -178,8 +175,7 @@ sub create_complex_element
     my @childs = @$childs;
     my @do;
     while(@childs) {shift @childs; push @do, shift @childs}
-    push @do, @$any_elem if $any_elem;
-    push @do, @$any_attr if $any_attr;
+    push @do, @$any_elem, @$any_attr;
 
     sub { my @pairs = map {$_->(@_)} @do;
           @pairs ? {@pairs} : ();
@@ -191,10 +187,11 @@ sub create_complex_element
 #
 
 sub create_tagged_element
-{   my ($path, $args, $tag, $st, $attrs) = @_;
+{   my ($path, $args, $tag, $st, $attrs, $attrs_any) = @_;
     my @attrs = @$attrs;
     my @do;
     while(@attrs) {shift @attrs; push @do, shift @attrs}
+    push @do, @$attrs_any;
 
     sub { my @a = @do;
           my $simple = $st->(@_);
@@ -217,7 +214,7 @@ sub create_simple_element
 }
 
 sub builtin_checked
-{   my ($path, $args, $type, $def) = @_;
+{   my ($path, $args, $node, $type, $def) = @_;
     my $check = $def->{check};
     defined $check
        or return builtin_unchecked(@_); 
@@ -228,7 +225,7 @@ sub builtin_checked
     ? sub { my $value = ref $_[0] ? $_[0]->textContent : $_[0];
             defined $value or return undef;
               $check->($value)
-            ? $parse->($value)
+            ? $parse->($value, $_[0])
             : $err->($path, $value, "illegal value for $type");
           }
     : sub { my $value = ref $_[0] ? $_[0]->textContent : $_[0];
@@ -240,10 +237,10 @@ sub builtin_checked
 }
 
 sub builtin_unchecked
-{   my $parse = $_[3]->{parse};
+{   my $parse = $_[4]->{parse};
 
       defined $parse
-    ? sub { my $v = $_[0]->textContent; defined $v ? $parse->($v) : undef }
+    ? sub { my $v = $_[0]->textContent; defined $v ? $parse->($v,$_[0]) :undef}
     : sub { $_[0]->textContent }
 }
 
@@ -412,6 +409,31 @@ sub anyAttribute
           };
 }
 
+# anyElement
+
+sub anyElement
+{   my ($path, $args, $handler, $yes, $no, $process, $min, $max) = @_;
+    defined $handler or return sub { () };
+    $handler = sub { @_ } if $handler eq 'TAKE_ALL';
+
+    my %yes = map { ($_ => 1) } @{$yes || []};
+    my %no  = map { ($_ => 1) } @{$no  || []};
+
+    # Takes all, before filtering
+    my $all =
+    sub { my %result;
+          my @elems = grep {$_->isa('XML::LibXML::Element')} $_[0]->childNodes;
+          foreach my $elem (@elems)
+          {   my $ns = $elem->namespaceURI || $_[0]->namespaceURI;
+              next if keys %yes && !$yes{$ns};
+              next if keys %no  &&   $no{$ns};
+              my ($k, $v) = $handler->("{$ns}".$elem->localName => $elem);
+              push @{$result{$k}}, $v;
+          }
+          %result;
+        };
+}
+
 =chapter DETAILS
 
 =section Processing Wildcards
@@ -515,7 +537,12 @@ case.  You can implement any kind of complex processing in the filter.
 
 =subsection any element
 By default, the C<any> definition in a schema will ignore all elements
-from the container which are not used.
+from the container which are not used.  Also in this case C<TAKE_ANY>
+is required to enable C<any> processing.
+
+The C<minOccurs> and C<maxOccurs> of C<any> are ignored: the amount of
+elements is always unbounded.  Therefore, you will get an array of
+elements back per type. 
 
 =cut
 

@@ -175,7 +175,7 @@ sub create_simple_element
 }
 
 sub builtin_checked
-{   my ($path, $args, $type, $def) = @_;
+{   my ($path, $args, $node, $type, $def) = @_;
     my $example = $def->{example};
     sub { ( type    => $type
           , example => $example

@@ -1,8 +1,10 @@
 use ExtUtils::MakeMaker;
 
+use 5.8.0;
+
 WriteMakefile
  ( NAME	 	=> 'XML::Compile'
- , VERSION	=> 0.13
+ , VERSION	=> 0.14
  , PREREQ_PM    =>
    { XML::LibXML               => 1.61
    , Test::More                => 0.54

@@ -4,7 +4,28 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
-TODO: improve template output, f.i. anyAttribute
+TODO:
+  - improve template output, f.i. anyAttribute
+  - the min/max calculation on nested choice/sequences can be done better
+
+version 0.14: Tue Jan 30 12:30:34 CET 2007
+
+	Fixes:
+
+	- Sequence of choices will multiply min/max.  Required to
+	  understand WSDL.
+
+	- Give error on unknown particles.
+
+	Improvements:
+
+	- Implemented 'any' element
+
+	- fields of type QName are translated from "prefix:type"
+	  into "{namespace}type".
+
+	- Makefile.PL requires 5.8.0, which is probably still a mild
+	  setting.  XML::LibXML is probably more demanding.
 
 version 0.13: Mon Jan 29 00:11:12 CET 2007
 
@@ -32,6 +53,9 @@ version 0.13: Mon Jan 29 00:11:12 CET 2007
 	- check all top-level elements for their name, to find typo's.
 
 	- implemented anyAttribute
+
+	- XML::Compile::dataToXML is used to accept user spec of XML
+	  on many places.
 
 version 0.12: Tue Dec 19 15:22:59 CET 2006
 

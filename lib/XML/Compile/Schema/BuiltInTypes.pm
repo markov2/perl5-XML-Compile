@@ -11,6 +11,7 @@ our %builtin_types;
 use Regexp::Common   qw/URI/;
 use MIME::Base64;
 use POSIX            qw/strftime/;
+use Carp             qw/croak/;
 
 # use XML::RegExp;  ### can we use this?
 
@@ -577,7 +578,11 @@ $builtin_types{anyURI} =
  };
 
 =function QName
-A qualified type name: a type name with optional prefix.
+A qualified type name: a type name with optional prefix.  The prefix notation
+C<prefix:type> will be translated into the C<{$ns}type> notation.
+
+This conversion currently only works for the reader, but should be
+implemented for the writer as well.
 =cut
 
 sub _valid_qname($)
@@ -588,7 +593,14 @@ sub _valid_qname($)
 }
 
 $builtin_types{QName} =
- { check   => \&_valid_qname
+ { parse   =>
+     sub { my ($qname, $node) = @_;
+           my $prefix = $qname =~ s/^([^:]*)\:// ? $1 : '';
+           my $ns = $node->lookupNamespaceURI($prefix)
+               or croak "ERROR: cannot find prefix $prefix for QNAME $qname";
+           "{$ns}$qname";
+         }
+ , check   => \&_valid_qname
  , example => 'myns:name'
  };
 

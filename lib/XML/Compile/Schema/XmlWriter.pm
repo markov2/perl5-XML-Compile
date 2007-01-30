@@ -194,6 +194,8 @@ sub create_complex_element
           {   next unless $tag =~ m/^\{([^}]*)\}(.*)$/;
               my ($ns, $type) = ($1, $2);
               my $value = delete $data->{$tag};
+              defined $value or next;
+
               my $any
                = !ref $value                         ? undef
                : $value->isa('XML::LibXML::Attr')    ? $any_attr
@@ -285,7 +287,7 @@ sub create_simple_element
 }
 
 sub builtin_checked
-{   my ($path, $args, $type, $def) = @_;
+{   my ($path, $args, $node, $type, $def) = @_;
     my $check  = $def->{check};
     defined $check
        or return builtin_unchecked(@_); 
@@ -295,21 +297,22 @@ sub builtin_checked
 
       defined $format
     ? sub { defined $_[1] or return undef;
-            my $value = $format->($_[1]);
+            my $value = $format->($_[1], $node);
             return $value if defined $value && $check->($value);
             $value = $err->($path, $_[1], "illegal value for $type");
-            defined $value ? $format->($value) : undef;
+            defined $value ? $format->($value, $node) : undef;
           }
     : sub { return $_[1] if !defined $_[1] || $check->($_[1]);
             my $value = $err->($path, $_[1], "illegal value for $type");
-            defined $value ? $format->($value) : undef;
+            defined $value ? $format->($value, $node) : undef;
           };
 }
 
 sub builtin_unchecked
-{   my $format = $_[3]->{format};
+{   my $format = $_[4]->{format};
+    my $node   = $_[2];
       defined $format
-    ? sub { defined $_[1] ? $format->($_[1]) : undef }
+    ? sub { defined $_[1] ? $format->($_[1], $node) : undef }
     : sub { $_[1] }
 }
 
@@ -432,7 +435,7 @@ sub attribute_fixed_optional
         };
 }
 
-# anyAttribute
+# any
 
 sub anyAttribute
 {   my ($path, $args, $handler, $yes, $no, $process) = @_;
@@ -447,6 +450,26 @@ sub anyAttribute
           return $yes{$ns} ? $value : undef  if keys %yes;
           return $no{$ns}  ? undef  : $value if keys %no;
           $value;
+        };
+}
+
+sub anyElement
+{   my ($path, $args, $handler, $yes,$no, $process, $min,$max) = @_;
+    my %yes = map { ($_ => 1) } @{$yes || []};
+    my %no  = map { ($_ => 1) } @{$no  || []};
+    my $err = $args->{err};
+
+    defined $handler or return sub { () };
+
+    sub { my ($doc, $key, $ns, $type, $values) = @_;
+          my @values = ref $values eq 'ARRAY' ? @$values : $values;
+          foreach my $value (@values)
+          {  my $vns = $value->namespaceURI;
+             $vns eq $ns or $err->($path, $vns, "value name-space must be $ns");
+             return $yes{$ns} ? $value : undef  if keys %yes;
+             return $no{$ns}  ? undef  : $value if keys %no;
+          }
+          @values;
         };
 }
 
