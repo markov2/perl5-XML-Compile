@@ -20,6 +20,7 @@ html/other/manuals/list.html
 html/other/methods/index.html
 html/other/xml.css
 lib/XML/Compile.pm
+lib/XML/Compile/SOAP/Operation.pm
 lib/XML/Compile/Schema.pm
 lib/XML/Compile/Schema/BuiltInFacets.pm
 lib/XML/Compile/Schema/BuiltInTypes.pm
@@ -30,6 +31,7 @@ lib/XML/Compile/Schema/Template.pm
 lib/XML/Compile/Schema/Translate.pm
 lib/XML/Compile/Schema/XmlReader.pm
 lib/XML/Compile/Schema/XmlWriter.pm
+lib/XML/Compile/WSDL.pm
 t/01use.t
 t/20types.t
 t/30builtin.t
@@ -52,7 +54,10 @@ t/51ctsext.t
 t/52ctsres.t
 t/53subst.t
 t/54any.t
+t/60hooks_r.t
+t/61hooks_w.t
 t/70templ.t
+t/80wsdl.t
 t/TestTools.pm
 xsd/1998-namespace.xsd
 xsd/1999-XMLSchema-part2.xsd

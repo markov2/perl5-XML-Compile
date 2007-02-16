@@ -7,6 +7,8 @@ use strict;
 use warnings;
 no warnings 'once';
 
+use Carp;
+
 =chapter NAME
 
 XML::Compile::Schema::Template - bricks to create an XML or PERL example
@@ -18,6 +20,7 @@ XML::Compile::Schema::Template - bricks to create an XML or PERL example
  print $schema->template(PERL => $type, ...);
 
 =chapter DESCRIPTION
+
 The translator understands schema's, but does not encode that into
 actions.  This module interprets the parse results of the translator,
 and creates a kind of abstract syntax tree from it, which can be used
@@ -270,6 +273,12 @@ sub attribute_fixed
         };
 }
 
+sub create_hook($$$$$)
+{   my ($path, $args, $r, $before, $produce, $after) = @_;
+    return $r if $r;
+
+    croak "ERROR: replace hook doesn't work with templates";
+}
 
 # anyAttribute
 
@@ -390,5 +399,15 @@ sub xml_any($$$$)
     }
     $node;
 }
+
+=chapter DETAILS
+
+=section Processing Wildcards
+Wildcards are not (yet) supported.
+
+=section Schema hooks
+The C<before> and C<after> hooks are ignored.  The C<replace> hook will
+produce an error.
+=cut
 
 1;

@@ -29,6 +29,9 @@ XML::Compile::Schema - Compile a schema
  # get schema from string
  my $schema = XML::Compile::Schema->new($xml_string);
 
+ # get schema from file
+ my $schema = XML::Compile::Schema->new($filename);
+
  # adding schemas
  $schema->addSchemas($tree);
  $schema->importSchema('http://www.w3.org/2001/XMLSchema');
@@ -64,6 +67,9 @@ XML string.  Those represent the input data.  The values are checked.
 An error produced when a value or the data-structure is not according
 to the specs.
 
+The CODE reference which is returned can be called with anything
+accepted by M<dataFromXML()>.
+
 =example create an XML reader
  my $msgin  = $rules->compile(READER => '{myns}mytype');
  my $xml    = $parser->parse("some-xml.xml");
@@ -71,7 +77,9 @@ to the specs.
 
 or
 
+ my $hash   = $msgin->('some-xml.xml');
  my $hash   = $msgin->($xml_string);
+ my $hash   = $msgin->($xml_node);
 
 =item WRITER (translate HASH to XML)
 
@@ -102,6 +110,16 @@ See chapter L</DETAILS> and learn how the data is processed.
 
 =section Constructors
 
+=method new OPTIONS
+
+=option  hook ARRAY-WITH-HOOKDATA | HOOK
+=default hook C<undef>
+See M<addHook()>.  Adds one HOOK (HASH).
+
+=option  hooks ARRAY-OF-HOOK
+=default hooks []
+See M<addHooks()>.
+
 =cut
 
 sub init($)
@@ -109,10 +127,16 @@ sub init($)
     $self->{namespaces} = XML::Compile::Schema::NameSpaces->new;
     $self->SUPER::init($args);
 
-    if(my $top = $self->top)
-    {   $self->addSchemas($top);
-    }
+    $self->addSchemas($args->{top});
 
+    $self->{hooks} = [];
+    if(my $h1 = $args->{hook})
+    {   $self->addHook(ref $h1 eq 'ARRAY' ? @$h1 : $h1);
+    }
+    if(my $h2 = $args->{hooks})
+    {   $self->addHooks(ref $h2 eq 'ARRAY' ? @$h2 : $h2);
+    }
+ 
     $self;
 }
 
@@ -125,16 +149,16 @@ to collect schemas.
 
 sub namespaces() { shift->{namespaces} }
 
-=method addSchemas NODE|TEXT
-Collect all the schemas defined below the NODE.
+=method addSchemas XML
+Collect all the schemas defined in the XML data, which is something
+accepted by M<dataToXML()>.
 =cut
 
-sub addSchemas($$)
+sub addSchemas($)
 {   my ($self, $top) = @_;
+    defined $top or return;
 
-    my $node = ref $top && $top->isa('XML::LibXML::Node') ? $top
-      : $self->parse(\$top);
-
+    my $node = $self->dataToXML($top);
     $node    = $node->documentElement
        if $node->isa('XML::LibXML::Document');
 
@@ -157,16 +181,45 @@ sub addSchemas($$)
     );
 }
 
-=method importSchema  XMLDATA
+=method importSchema XMLDATA
 Import (include) the schema information included in the XMLDATA.  The
-XMLDATA must be acceptable for M<dataToXML().
+XMLDATA must be acceptable for M<dataToXML()>.
 =cut
 
 sub importSchema($)
 {   my ($self, $thing) = @_;
-    my $tree = $self->dataToXML($thing);
+    my $tree = $self->dataToXML($thing) or return;
     $self->addSchemas($tree);
 }
+
+=method addHook HOOKDATA|HOOK|undef
+HOOKDATA is a LIST of options as key-value pairs, HOOK is a HASH with
+the same data.  C<undef> is ignored. See M<addHooks()> and
+L</Schema hooks> below.
+=cut
+
+sub addHook(@)
+{   my $self = shift;
+    push @{$self->{hooks}}, @_>=1 ? {@_} : defined $_[0] ? shift : ();
+    $self;
+}
+
+=method addHooks HOOK, [HOOK, ...]
+Add multiple hooks at once.  These all must be HASHes. See L</Schema hooks>
+and M<addHook()>. C<undef> values are ignored.
+=cut
+
+sub addHooks(@)
+{   my $self = shift;
+    push @{$self->{hooks}}, grep {defined} @_;
+    $self;
+}
+
+=method hooks
+Returns the LIST of defined hooks (HASHes).
+=cut
+
+sub hooks() { @{shift->{hooks}} }
 
 =section Compilers
 
@@ -287,6 +340,18 @@ automatically.  If  you need to create or process anyAttribute
 information, then read about wildcards in the DETAILS chapter of the
 manual-page for the specific back-end.
 
+=option  hook HOOK|ARRAY-OF-HOOKS
+=default hook C<undef>
+Define one or more processing hooks.  See L</Schema hooks> below.
+These hooks are only active for this compiled entity, where M<addHook()>
+and M<addHooks()> can be used to define hooks which are used for all
+results of M<compile()>.  The hooks specified with the C<hook> or C<hooks>
+option are run before the global definitions.
+
+=option  hooks HOOK|ARRAY-OF-HOOKS
+=default hooks C<undef>
+Alternative for option C<hook>.
+
 =cut
 
 sub compile($$@)
@@ -319,12 +384,17 @@ sub compile($$@)
     my $top   = $nss->findType($type) || $nss->findElement($type)
        or croak "ERROR: type $type is not defined";
 
+    my ($h1, $h2) = (delete $args{hook}, delete $args{hooks});
+    my @hooks = $self->hooks;
+    push @hooks, ref $h1 eq 'ARRAY' ? @$h1 : $h1 if $h1;
+    push @hooks, ref $h2 eq 'ARRAY' ? @$h2 : $h2 if $h2;
+
     $args{path} ||= $top->{full};
 
     my $bricks = 'XML::Compile::Schema::' .
      ( $action eq 'READER' ? 'XmlReader'
      : $action eq 'WRITER' ? 'XmlWriter'
-     : croak "ERROR: create only READER, WRITER, or XMLTEMPLATE, not '$action'."
+     : croak "ERROR: create only READER, WRITER, not '$action'."
      );
 
     eval "require $bricks";
@@ -335,6 +405,7 @@ sub compile($$@)
      , bricks => $bricks
      , err    => $self->invalidsErrorHandler($args{invalid})
      , nss    => $self->namespaces
+     , hooks  => \@hooks
      );
 }
 
@@ -396,6 +467,7 @@ sub template($@)
      , bricks => $bricks
      , nss    => $self->namespaces
      , err    => $self->invalidsErrorHandler('IGNORE')
+     , hooks  => []
      , %args
      );
 
@@ -713,6 +785,128 @@ contents of these fields.  Therefore, you can translate that
 knowledge into code explicitly.  Read about the processing of wildcards
 in the manual page for each of the back-ends, because it is different
 in each case.
+
+=section Schema hooks
+
+You can use hooks, for instance, to block processing parts of the message,
+to create work-arounds for schema bugs, or to extract more information
+during the process than done by default.
+
+=subsection defining hooks
+
+Multiple hooks can active during the compilation process of a type,
+when C<compile()> is called.  During Schema translation, each of the
+hooks is checked for all types which are processed.  When multiple
+hooks select the object to get a modified behavior, then all are
+evaluated in order of definition.
+
+Defining a B<global> hook (where HOOKDATA is the LIST of PAIRS with
+hook parameters, and HOOK a HASH with such HOOKDATA):
+
+ my $schema = XML::Compile::Schema->new
+  ( ...
+  , hook  => HOOK
+  , hooks => [ HOOK, HOOK ]
+  );
+
+ $schema->addHook(HOOKDATA | HOOK);
+ $schema->addHooks(HOOK, HOOK, ...);
+
+ my $wsdl   = XML::Compile::WSDL->new(...);
+ $wsdl->schemas->addHook(HOOKDATA | HOOK);
+
+B<local> hooks are only used for one reader or writer.  They are
+evaluated before the global hooks.
+
+ my $reader = $schema->compile(READER => $type
+  , hook => HOOK, hooks => [ HOOK, HOOK, ...]);
+
+ # syntax may still change
+ $wsdl->call(GetPrice => $params, hook => HOOK, ...);
+ $wsdl->prepare('GetPrice', hook => HOOK, ...);
+ $wsdl->server(hook => HOOK, ...);
+
+=examples of HOOKs:
+
+ my $hook = { type    => '{my_ns}my_type'
+            , before  => sub { ... }
+            };
+
+ my $hook = { path    => qr/\(volume\)/
+            , replace => 'SKIP'
+            };
+
+ my $hook = { path    => qr/\(volume\)/
+            , id      => [ 'aap', 'noot' ]
+            , before  => [ sub {...}, sub { ... } ]
+            , after   => sub { ... }
+            };
+
+=subsection general syntax
+
+Each hook has two kinds of parameters: selectors and processors.
+Selectors define the schema component of which the processing is modified.
+When one of the selectors matches, the processing information for the hook
+is used.  Available selectors (see below for details on each of them):
+
+=over 4
+=item . type
+=item . id
+=item . path
+=back
+
+As argument, you can specify one element as STRING, a regular expression
+to select multiple elements, or an ARRAY of STRINGs and REGEXes.
+
+Next to where the hook is placed, we need to known what to do in
+the case: the hook contains processing information.  When more than
+one hook matches, then all of these processors are called in order
+of hook definition.  However, first the compile hooks are taken,
+and then the global hooks.
+
+How the processing works exactly depends on the compiler back-end.  There
+are major differences.  Each of those manual-pages lists the specifics.
+The label tells us when the processing is initiated.  Available labels are
+C<before>, C<replace>, and C<after>.
+
+=subsection hooks on matching types
+
+The C<type> selector specifies a complexType of simpleType by name.
+Best is to base the selection on the full name, like C<{ns}type>,
+which will avoid all kinds of name-space conflicts in the future.
+However, you may also specify only the C<type> (in any name-space).
+Any REGEX will be matched to the full type name. Be careful with the
+pattern archors.
+
+=examples use of the type selector
+
+ type => 'int'
+ type => '{http://www.w3.org/2000/10/XMLSchema}int'
+ type => qr/\}xml_/   # type start with xml_
+ type => [ qw/int float/ ];
+
+=subsection hooks on matching ids
+
+Matching based on IDs can reach more schema elements: some types are
+anonymous but still have an ID.  Best is to base selection on the full
+ID name, like C<ns#id>, to avoid all kinds of name-space conflicts in
+the future.
+
+=examples use of the ID selector
+
+ # default schema types have id's with same name
+ id => 'int'
+ id => 'http://www.w3.org/2000/10/XMLSchema#int'
+ id => qr/\#xml_/   # id which start with xml_
+ id => [ qw/int float/ ];
+
+=subsection hooks on matching paths
+
+When you see error messages, you always see some representation of
+the path where the problem was discovered.  You can use this path
+as selector, when you know what it is... BE WARNED, that the current
+structure of the path is not really consequent hence will be 
+improved in one of the future releases, breaking backwards compatibility.
 
 =cut
 

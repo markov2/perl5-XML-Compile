@@ -5,6 +5,7 @@ use warnings;
 no warnings 'once';
 
 use List::Util  qw/first/;
+use Carp        qw/croak/;
 
 =chapter NAME
 
@@ -434,6 +435,80 @@ sub anyElement
         };
 }
 
+# any kind of hook
+
+sub create_hook($$$$$)
+{   my ($path, $args, $r, $before, $replace, $after) = @_;
+    return $r unless $before || $replace || $after;
+
+    return sub {()} if $replace && grep {$_ eq 'SKIP'} @$replace;
+
+    my @replace = $replace ? map {_decode_replace($path,$_)} @$replace : ();
+    my @before  = $before  ? map {_decode_before($path,$_) } @$before  : ();
+    my @after   = $after   ? map {_decode_after($path,$_)  } @$after   : ();
+
+    sub
+     { my $xml = shift;
+       foreach (@before)
+       {   $xml = $_->($xml, $path);
+           defined $xml or return ();
+       }
+       my @h = @replace ? map {$_->($xml, $args, $path)} @replace : $r->($xml);
+       @h or return ();
+       my $h = @h > 1 ? {@h} : $h[0];  # detect simpleType
+       foreach (@after)
+       {   $h = $_->($xml, $h, $path);
+           defined $h or return ();
+       }
+       $h;
+     }
+}
+
+sub _decode_before($$)
+{   my ($path, $call) = @_;
+    return $call if ref $call eq 'CODE';
+
+      $call eq 'PRINT_PATH' ? sub {print "$_[1]\n"; $_[0] }
+    : croak "ERROR: labeled hook '$call' undefined.";
+}
+
+sub _decode_replace($$)
+{   my ($path, $call) = @_;
+    return $call if ref $call eq 'CODE';
+
+    croak "ERROR: labeled hook '$call' undefined.";
+}
+
+sub _decode_after($$)
+{   my ($path, $call) = @_;
+    return $call if ref $call eq 'CODE';
+
+      $call eq 'PRINT_PATH' ? sub {print "$_[2]\n"; $_[1] }
+    : $call eq 'XML_NODE'  ?
+      sub { my $values = $_[1];
+            $values = { _ => $values } if ref $values ne 'HASH';
+            $values->{_XML_NODE} = $_[0];
+            $values;
+          }
+    : $call eq 'ELEMENT_ORDER' ?
+      sub { my ($xml, $values) = @_;
+            $values = { _ => $values } if ref $values ne 'HASH';
+            my @order = map {$_->nodeName}
+                grep {$_->isa('XML::LibXML::Element')}
+                   $xml->childNodes;
+            $values->{_ELEMENT_ORDER} = \@order;
+            $values;
+          }
+    : $call eq 'ATTRIBUTE_ORDER' ?
+      sub { my ($xml, $values) = @_;
+            $values = { _ => $values } if ref $values ne 'HASH';
+            my @order = map {$_->nodeName} $xml->attributes;
+            $values->{_ATTRIBUTE_ORDER} = \@order;
+            $values;
+          }
+    : croak "ERROR: labeled hook '$call' undefined.";
+}
+
 =chapter DETAILS
 
 =section Processing Wildcards
@@ -444,6 +519,7 @@ you have to implement that yourself.  The problem is C<XML::Compile>
 has less knowledge than you about the possible data.
 
 =subsection anyAttribute
+
 By default, the C<anyAttribute> specification is ignored.  When C<TAKE_ALL>
 is given, all attributes which are fulfilling the name-space requirement
 added to the returned data-structure.  As key, the absolute element name
@@ -536,6 +612,7 @@ The filter will be called twice, but return nothing in the first
 case.  You can implement any kind of complex processing in the filter.
 
 =subsection any element
+
 By default, the C<any> definition in a schema will ignore all elements
 from the container which are not used.  Also in this case C<TAKE_ANY>
 is required to enable C<any> processing.
@@ -543,6 +620,38 @@ is required to enable C<any> processing.
 The C<minOccurs> and C<maxOccurs> of C<any> are ignored: the amount of
 elements is always unbounded.  Therefore, you will get an array of
 elements back per type. 
+
+=section Schema hooks
+
+=subsection hooks executed before the XML is being processed
+The C<before> hooks receives an M<XML::LibXML::Node> object and
+the path string.  It must return a new (or same) XML node which
+will be used from then on.  You probably can best modify a node
+clone, not the original as provided by the user.  When C<undef>
+is returned, the whole node will disappear.
+
+This hook offers a predefined C<PRINT_PATH>.
+
+=example to trace the paths
+ $schema->addHook(path => qr/./, before => 'PRINT_PATH');
+
+=subsection hooks executed as replacement
+Your C<replace> hook should return a list of key-value pairs. To
+produce it, it will get the M<XML::LibXML::Node> and the path.
+
+This hook has a predefined C<SKIP>.
+
+=subsection hooks for post-processing, after the data is collected
+
+The data is collect, and passed as second argument after the XML
+node.  The third argument is the path.  Be careful that the
+collected data might be a SCALAR (for simpleType).
+
+This hook also offers a predefined C<PRINT_PATH>.  Besides, it
+has C<XML_NODE>, C<ELEMENT_ORDER>, and C<ATTRIBUTE_ORDER>, which will
+result in additional fields in the HASH, respectively containing the
+CODE which was processed, the element names and the attribute names.
+The keys start with an underscore C<_>.
 
 =cut
 

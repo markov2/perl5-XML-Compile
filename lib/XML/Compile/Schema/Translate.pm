@@ -8,6 +8,7 @@ use strict;
 
 package XML::Compile::Schema::Translate;
 
+use List::Util  'first';
 use Carp;
 
 use XML::Compile::Schema::Specs;
@@ -85,6 +86,7 @@ a table of types.
 
 =requires err CODE
 
+=requires hooks ARRAY
 =cut
 
 sub compileTree($@)
@@ -104,6 +106,9 @@ sub compileTree($@)
 
     $self->{err}
         or $self->error($path, "no error handler");
+
+    $self->{hooks}
+        or $self->error($path, "no hooks defined");
 
     if(my $def = $self->namespaces->findID($element))
     {   my $node  = $def->{node};
@@ -129,7 +134,8 @@ sub error($$@)
 sub assert_type($$$$)
 {   my ($self, $path, $field, $type, $value) = @_;
     return if $builtin_types{$type}{check}->($value);
-    $self->error($path, "Field $field contains '$value' which is not a valid $type.");
+    $self->error($path,
+        "Field $field contains '$value' which is not a valid $type.");
 }
 
 my $skip_tags = qr/^(?:notation|annotation|key|unique|keyref|selector|field)$/;
@@ -432,7 +438,6 @@ sub substitutionGroupElements($$)
     map { $_->{node} } @subgrps;
 }
 
-sub element_by_node($$);
 sub element_by_node($$)
 {   my ($self, $path, $node) = @_;
 #warn "element: $path\n";
@@ -443,6 +448,7 @@ sub element_by_node($$)
         or $self->error($path, "element has no name");
     $self->assert_type($path, name => NCName => $name);
     $path       .= "/el($name)";
+#warn "element: $path\n", $node->toString;
 
     my $qual     = $self->{elems_qual};
     if(my $form = $node->getAttribute('form'))
@@ -454,16 +460,17 @@ sub element_by_node($$)
     my $trans    = $qual ? 'tag_qualified' : 'tag_unqualified';
     my $tag      = $self->make($trans => $path, $node, $name);
 
-    my $type;
+    my ($typename, $type);
     if(my $isa = $node->getAttribute('type'))
     {   @childs
             and $self->error($path, "no childs expected for type");
 
-        my $typename = $self->rel2abs($path, $node, $isa);
-        $type = $self->type_by_name($path, $node, $typename);
+        $typename = $self->rel2abs($path, $node, $isa);
+        $type     = $self->type_by_name($path, $node, $typename);
     }
     elsif(!@childs)
-    {   $type = $self->type_by_name($path, $node, $self->anyType($node));
+    {   $typename = $self->anyType($node);
+        $type     = $self->type_by_name($path, $node, $typename);
     }
     else
     {   @childs > 1
@@ -475,8 +482,6 @@ sub element_by_node($$)
         $type
          = $local eq 'simpleType'  ? $self->simpleType($path, $child, 0)
          : $local eq 'complexType' ? $self->complexType($path, $child)
-         : $local =~ m/^(sequence|choice|all|group)$/
-         ?                           $self->complexType($path, $child)
          : $self->error($path, "unexpected element child $local");
     }
 
@@ -484,21 +489,30 @@ sub element_by_node($$)
     my $attrs_any = $type->{attrs_any} || [];
     my $elems     = $type->{elems}     || [];
     my $elems_any = $type->{elems_any} || [];
-    unless($type->{st})             # complex type
+
+    my ($before, $replace, $after)
+        = $self->findHooks($path, $typename, $node);
+
+    my $r;
+    if($replace) { ; }              # overrule processing
+    elsif(!$type->{st})             # complexType (complexContent)
     {   my @do = @$elems;
         push @do, @$attrs if $attrs;
 
-        return $self->make(create_complex_element => $path, $tag, \@do,
+        $r = $self->make(create_complex_element => $path, $tag, \@do,
             $elems_any, $attrs_any);
     }
-
-    if(@$attrs || @$attrs_any)      # simple complex
-    {   return $self->make(create_tagged_element =>
+    elsif(@$attrs || @$attrs_any)   # complex simpleContent
+    {   $r = $self->make(create_tagged_element =>
            $path, $tag, $type->{st}, $attrs, $attrs_any);
     }
+    else                            # simple
+    {   $r = $self->make(create_simple_element => $path, $tag, $type->{st});
+    }
 
-                                    # simple
-    $self->make(create_simple_element => $path, $tag, $type->{st});
+    return $r unless $before || $replace || $after;
+
+    $self->make(create_hook => $path, $r, $before, $replace, $after);
 }
 
 sub particles($$$$)
@@ -522,6 +536,7 @@ sub particle($$$$)
     my $max   = $node->getAttribute('maxOccurs');
 
 #warn "Particle: $local\n";
+#warn "PARTICLE $local: \n",$node->toString;
     my @do;
 
     if($local eq 'sequence' || $local eq 'choice' || $local eq 'all')
@@ -613,13 +628,31 @@ sub particle($$$$)
 sub attribute($$)
 {   my ($self, $path, $node) = @_;
 
-    my $name = $node->getAttribute('name')
-       or $self->error($path, "attribute without name");
+    my($ref, $name, $form, $typeattr);
+    if(my $refattr =  $node->getAttribute('ref'))
+    {   my $refname = $self->rel2abs($path, $node, $refattr);
+        my $def     = $self->reference($path, $refname, 'attribute');
+        $ref        = $def->{node};
+
+        $name       = $ref->getAttribute('name')
+           or $self->error($path, "ref attribute without name");
+
+        $typeattr   = $ref->getAttribute('type');
+        $form       = $ref->getAttribute('form');
+    }
+    else
+    {   $name       = $node->getAttribute('name')
+           or $self->error($path, "attribute without name or ref");
+
+        $typeattr   = $node->getAttribute('type');
+        $form       = $node->getAttribute('form');
+    }
 
     $path   .= "/at($name)";
 
     my $qual = $self->{attrs_qual};
-    if(my $form = $node->getAttribute('form'))
+
+    if($form)
     {   $qual = $form eq 'qualified'   ? 1
               : $form eq 'unqualified' ? 0
               : $self->error($path, "form must be (un)qualified, not $form");
@@ -629,7 +662,6 @@ sub attribute($$)
     my $tag   = $self->make($trans => $path, $node, $name);
     my $ns    = $qual ? $self->{tns} : '';
 
-    my $typeattr = $node->getAttribute('type');
     my $typename = defined $typeattr
      ? $self->rel2abs($path, $node, $typeattr)
      : $self->anyType($node);
@@ -689,7 +721,7 @@ sub attribute_list($@)
          = $local eq 'attributeGroup' ? $self->attribute_group($path, $attr)
          : $local eq 'anyAttribute'   ? $self->any_attribute($path, $attr)
          : $self->error($path
-             , "expected is attribute(Group) not $local. Forgot <sequence>?");
+             , "expected is attribute(Group) not '$local'. Forgot <sequence>?");
 
         push    @attrs, @{$attrs{attrs}     || []};
         unshift @any,   @{$attrs{attrs_any} || []};
@@ -924,6 +956,48 @@ sub anyType($)
 {   my ($self, $node) = @_;
     my $ns = $node->namespaceURI;
     "{$ns}anyType";
+}
+
+sub findHooks($$$)
+{   my ($self, $path, $type, $node) = @_;
+    # where is before, replace, after
+
+    my %hooks;
+    foreach my $hook (@{$self->{hooks}})
+    {   my $match;
+        if(my $p = $hook->{path})
+        {   $match++
+               if first {ref $_ eq 'Regexp' ? $path =~ $_ : $path eq $_}
+                     ref $p eq 'ARRAY' ? @$p : $p;
+        }
+
+        my $id = !$match && $hook->{id} && $node->getAttribute('id');
+        if($id)
+        {   my $i = $hook->{id};
+            $match++
+                if first {ref $_ eq 'Regexp' ? $id =~ $_ : $id eq $_} 
+                    ref $i eq 'ARRAY' ? @$i : $i;
+        }
+
+        if(!$match && defined $type && $hook->{type})
+        {   my $t     = $hook->{type};
+            my $local = $type =~ m/^\{.*?\}(.*)$/ ? $1 : die $type;
+            $match++
+                if first {ref $_ eq 'Regexp'     ? $type  =~ $_
+                         : substr($_,0,1) eq '{' ? $type  eq $_
+                         :                         $local eq $_
+                         } ref $t eq 'ARRAY' ? @$t : $t;
+        }
+
+        $match or next;
+
+        foreach my $where ( qw/before replace after/ )
+        {   my $w = $hook->{$where} or next;
+            push @{$hooks{$where}}, ref $w eq 'ARRAY' ? @$w : $w;
+        }
+    }
+
+    @hooks{ qw/before replace after/ };
 }
 
 =chapter DETAILS

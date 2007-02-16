@@ -1,8 +1,8 @@
 # http://module-build.sourceforge.net/META-spec.html
 #XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
 name:         XML-Compile
-version:      0.10
-version_from: version
+version:      0.15
+version_from: 
 installdirs:  site
 requires:
     Math::BigInt:                  1.77

@@ -5,8 +5,36 @@ Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
 TODO:
-  - improve template output, f.i. anyAttribute
+  - improve template output, f.i. anyAttribute and any
   - the min/max calculation on nested choice/sequences can be done better
+
+version 0.15: Fri Feb 16 16:21:59 CET 2007
+
+	Changes:
+
+	- removed "top()" from XML::Compile, because with multiple
+	  XML sepcification files, there is no real "top" element.
+
+	Fixes:
+
+	- do not destroy caller's data when creating complex or tagged
+	  elements.
+
+	- added missing str2num() in BuiltInTypes for floats and doubles.
+
+	Improvements:
+
+	- move non-distributed xsd's to private dir.
+
+	- added XML::Compile::WSDL and t/80wsdl.t, partial implementation
+
+	- added XML::Compile::SOAP::Operation, partial implementation
+
+	- added reader hooks and t/60hooks_r.t
+
+	- added writer hooks and t/61hooks_w.t
+
+	- implemented attribute by ref
 
 version 0.14: Tue Jan 30 12:30:34 CET 2007
 

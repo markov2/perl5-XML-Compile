@@ -111,10 +111,10 @@ sub substitutionGroupMembers($)
 =cut
 
 my %as_element = map { ($_ => 1) }
-   qw/element group attributeGroup/;
+   qw/element group attributeGroup attribute/;
 
 my %as_type    = map { ($_ => 1) }
-   qw/complexType simpleType attribute attributeGroup group/;
+   qw/complexType simpleType attributeGroup group/;
 
 my %skip_toplevel = map { ($_ => 1) }
    qw/annotation import notation include redefine/;

@@ -6,6 +6,7 @@ use warnings;
 no warnings 'once';
 
 use List::Util    qw/first/;
+use Carp;
 
 =chapter NAME
 
@@ -181,19 +182,20 @@ sub create_complex_element
               $err->($path, $data, 'expected hash of input data');
               return ();
           }
+          my %data  = %$data;  # do not destroy caller's hash
           my @elems = @do;
           my @childs;
           while(@elems)
           {   my $childname = shift @elems;
               push @childs, (shift @elems)
-                  ->($doc, delete $data->{$childname});
+                  ->($doc, delete $data{$childname});
           }
 
        ANY:
-          foreach my $tag (sort keys %$data)
+          foreach my $tag (sort keys %data)
           {   next unless $tag =~ m/^\{([^}]*)\}(.*)$/;
               my ($ns, $type) = ($1, $2);
-              my $value = delete $data->{$tag};
+              my $value = delete $data{$tag};
               defined $value or next;
 
               my $any
@@ -218,8 +220,8 @@ sub create_complex_element
               $err->($path, ref $value, "value for $tag not used");
           }
 
-          $err->($path, join(' ', sort keys %$data), 'unused data')
-              if keys %$data;
+          $err->($path, join(' ', sort keys %data), 'unused data')
+              if keys %data;
 
           @childs or return ();
           my $node  = $doc->createElement($tag);
@@ -246,7 +248,8 @@ sub create_tagged_element
               $err->($path, $data, 'expected hash of input data');
               return ();
           }
-          my $content = $st->($doc, delete $data->{_});
+          my %data    = %$data;
+          my $content = $st->($doc, delete $data{_});
           my @childs;
           push @childs, $doc->createTextNode($content)
              if defined $content;
@@ -255,10 +258,10 @@ sub create_tagged_element
           while(@attrs)
           {   my $childname = shift @attrs;
               push @childs,
-                (shift @attrs)->($doc, delete $data->{$childname});
+                (shift @attrs)->($doc, delete $data{$childname});
           }
-          $err->($path, join(' ', sort keys %$data), 'unused data')
-              if keys %$data;
+          $err->($path, join(' ', sort keys %data), 'unused data')
+              if keys %data;
 
           @childs or return ();
           my $node  = $doc->createElement($tag);
@@ -473,6 +476,62 @@ sub anyElement
         };
 }
 
+sub create_hook($$$$$)
+{   my ($path, $args, $r, $before, $replace, $after) = @_;
+    return $r unless $before || $replace || $after;
+
+    croak "ERROR: writer only supports one production (replace) hook"
+        if $replace && @$replace > 1;
+
+    return sub {()} if $replace && grep {$_ eq 'SKIP'} @$replace;
+
+    my @replace = $replace ? map {_decode_replace($path,$_)} @$replace : ();
+    my @before  = $before  ? map {_decode_before($path,$_) } @$before  : ();
+    my @after   = $after   ? map {_decode_after($path,$_)  } @$after   : ();
+
+    sub
+     { my ($doc, $val) = @_;
+       foreach (@before)
+       {   $val = $_->($doc, $val, $path);
+           defined $val or return ();
+       }
+
+       my $xml = @replace ? $replace[0]->($doc, $val, $path) : $r->($doc, $val);
+       defined $xml or return ();
+
+       foreach (@after)
+       {   $xml = $_->($doc, $xml, $path);
+           defined $xml or return ();
+       }
+
+       $xml;
+     }
+}
+
+sub _decode_before($$)
+{   my ($path, $call) = @_;
+    return $call if ref $call eq 'CODE';
+
+      $call eq 'PRINT_PATH' ? sub { print "$_[2]\n"; $_[1] }
+    : croak "ERROR: labeled hook '$call' undefined.";
+}
+
+sub _decode_replace($$)
+{   my ($path, $call) = @_;
+    return $call if ref $call eq 'CODE';
+
+    # SKIP already handled
+    croak "ERROR: labeled hook '$call' undefined.";
+}
+
+sub _decode_after($$)
+{   my ($path, $call) = @_;
+    return $call if ref $call eq 'CODE';
+
+      $call eq 'PRINT_PATH' ? sub { print "$_[2]\n"; $_[1] }
+    : croak "ERROR: labeled hook '$call' undefined.";
+}
+
 =chapter DETAILS
 
 =section Processing Wildcards
@@ -495,6 +554,113 @@ attributes are added in random order.
  my $h = { a => 12     # normal element or attribute
          , "{$somens}$sometype" => $attr # anyAttribute
          };
+
+=section Schema hooks
+
+All writer hooks behave differently.  Be warned that the user values
+can be a SCALAR or a HASH, dependent on the type.  You can intervene
+on higher data-structure levels, to repair lower levels, if you want
+to.
+
+=subsection hooks executed before normal processing
+
+The C<before> hook gives you the opportunity to fix the user
+supplied data structure.  The XML generator will complain about
+missing, superfluous, and erroneous values which you probably
+want to avoid.
+
+The C<before> hook returns new values.  Just must not interfere
+with the user provided data.  When C<undef> is returned, the whole
+node will be cancelled.
+
+On the moment, the only predefined C<before> hook is C<PRINT_PATH>.
+
+=example before hook on user-provided HASH.
+ sub before_on_complex($$$)
+ {   my ($doc, $values, $path) = @_;
+
+     my %copy = %$values;
+     $copy{extra} = 42;
+     delete $copy{superfluous};
+     $copy{count} =~ s/\D//g;    # only digits
+     \%copy;
+ }
+
+=example before hook on simpleType data
+ sub before_on_simple($$$)
+ {   my ($doc, $value, $path) = @_;
+     $value *= 100;    # convert euro to euro-cents
+ }
+
+=example before hook with object for complexType
+ sub before_on_object($$$)
+ {   my ($doc, $obj, $path) = @_;
+
+     +{ name     => $obj->name
+      , price    => $obj->euro
+      , currency => 'EUR'
+      };
+ }
+
+=subsection hooks replacing the usual XML node generation
+
+Only one C<replace> hook can be defined.  It must return a
+M<XML::LibXML::Node> or C<undef>.  The hook must use the
+C<XML::LibXML::Document> node (which is provided as first
+argument) to create a node.
+
+On the moment, the only predefined C<replace> hook is C<SKIP>.
+
+=example replace hook
+ sub replace($$$)
+ {  my ($doc, $values, $path) = @_
+    $doc->createAttributeNS($myns, $name, 12);
+ }
+
+=subsection hooks executed after the node was created
+
+The C<after> hooks, will each get a chance to modify the
+produced XML node, for instance to encapsulate it.  Each time,
+the new XML node has to be returned.
+
+On the moment, the only predefined C<after> hook is C<PRINT_PATH>.
+
+=example add an extra sibbling after the usual process
+ sub after($$$$)
+ {   my ($doc, $node, $path) = @_;
+     my $child = $doc->createAttributeNS($myns, earth => 42);
+     $node->addChild($child);
+     $node;
+ }
+
+=subsection fixing bad schema's
+
+When a schema makes a mess out of things, we can fix that with hooks.
+Also, when you need things that XML::Compile does not support (yet).
+
+=example creating nodes with text
+
+ {  my $text;
+
+    sub before($$$)
+    {   my ($doc, $values, $path) = @_;
+        my %copy = %$values;
+        $text = delete $copy{text};
+        \%copy;
+    }
+
+    sub after($$$)
+    {   my ($doc, $node, $path) = @_;
+        $node->addChild($doc->createTextNode($text));
+        $node;
+    }
+
+    $schema->addHook
+     ( type   => 'mixed'
+     , before => \&before
+     , after  => \&after
+     );
+ }
 
 =cut
 
