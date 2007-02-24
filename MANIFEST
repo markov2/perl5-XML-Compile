@@ -70,5 +70,6 @@ xsd/soap-encoding.xsd
 xsd/soap-envelope.xsd
 xsd/wsdl-http.xsd
 xsd/wsdl-mime.xsd
+xsd/wsdl-patch.xsd
 xsd/wsdl-soap.xsd
 xsd/wsdl.xsd

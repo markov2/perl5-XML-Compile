@@ -49,6 +49,8 @@ CLASS types are: service, message, bindings, and portType.
 
 =c_method new XML, OPTIONS
 The XML is the WSDL file, which is anything accepted by M<dataToXML()>.
+All options are also passed to create an internal M<XML::Compile::Schema>
+object.  See M<XML::Compile::Schema::new()>
 
 =option  wsdl_namespace IRI
 =default wsdl_namespace C<undef>
@@ -115,15 +117,19 @@ sub addWSDL($)
         if $corens ne $wsdlns;
 
     my $schemas = $self->schemas;
-    $schemas->importSchema($wsdlns);   # to understand WSDL
+    $schemas->importData($wsdlns);      # to understand WSDL
+    $schemas->importData("$wsdlns#patch");
 
     croak "ERROR: don't known how to handle $wsdlns WSDL files"
         if $wsdlns ne $wsdl1;
+
+    my %hook_kind = (type => "{$wsdlns}tOperation", after => 'ELEMENT_ORDER');
 
     my $reader  = $schemas->compile     # to parse the WSDL
      ( READER => "{$wsdlns}definitions"
      , anyElement   => 'TAKE_ALL'
      , anyAttribute => 'TAKE_ALL'
+     , hook         => \%hook_kind
      );
 
     my $spec = $reader->($node);

@@ -34,8 +34,8 @@ XML::Compile::Schema - Compile a schema
 
  # adding schemas
  $schema->addSchemas($tree);
- $schema->importSchema('http://www.w3.org/2001/XMLSchema');
- $schema->importSchema('2001-XMLSchema.xsd');
+ $schema->importData('http://www.w3.org/2001/XMLSchema');
+ $schema->importData('2001-XMLSchema.xsd');
 
  # create and use a reader
  my $read   = $schema->compile(READER => '{myns}mytype');
@@ -68,7 +68,7 @@ An error produced when a value or the data-structure is not according
 to the specs.
 
 The CODE reference which is returned can be called with anything
-accepted by M<dataFromXML()>.
+accepted by M<dataToXML()>.
 
 =example create an XML reader
  my $msgin  = $rules->compile(READER => '{myns}mytype');
@@ -110,7 +110,7 @@ See chapter L</DETAILS> and learn how the data is processed.
 
 =section Constructors
 
-=method new OPTIONS
+=c_method new OPTIONS
 
 =option  hook ARRAY-WITH-HOOKDATA | HOOK
 =default hook C<undef>
@@ -181,12 +181,12 @@ sub addSchemas($)
     );
 }
 
-=method importSchema XMLDATA
+=method importData XMLDATA
 Import (include) the schema information included in the XMLDATA.  The
 XMLDATA must be acceptable for M<dataToXML()>.
 =cut
 
-sub importSchema($)
+sub importData($)
 {   my ($self, $thing) = @_;
     my $tree = $self->dataToXML($thing) or return;
     $self->addSchemas($tree);
@@ -599,6 +599,10 @@ be checked by default.  Types may also have some white-space behavior,
 for instance blanks are stripped from integers: before, after, but also
 inside the number representing string.
 
+Note that some of the reader hooks will alter the single value of these
+elements into a HASH like used for the complexType/simpleContent (next
+paragraph), to be able to return some extra collected information.
+
 =example typical simpleType
 
 In XML, it looks like this:
@@ -609,6 +613,12 @@ In the HASH structure, the data will be represented as
 
  test1 => 42
 
+With reader hook C<after => 'XML_NODE'> hook applied, it will become
+
+ test1 => { _ => 42
+          , _XML_NODE => $obj
+          }
+ 
 =item complexType/simpleContent
 
 In this case, the single value container may have attributes.  The number
@@ -623,7 +633,9 @@ In XML, this looks like this:
 
 As a HASH, this looks like
 
- test2 => { _ => 42, question => 'everything' }
+ test2 => { _ => 42
+          , question => 'everything'
+          }
 
 =item complexType and complexType/complexContent
 
@@ -643,8 +655,11 @@ The XML could look like:
 
 Represented as HASH, this looks like
 
- test3 => { question => 'everything', by => 'mouse'
-          , answer => 42, when => '5 billion BC' }
+ test3 => { question => 'everything'
+          , by       => 'mouse'
+          , answer   => 42
+          , when     => '5 billion BC'
+          }
 
 =back
 

@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions name="XMethodsQuery" targetNamespace="http://www.xmethods.net/interfaces/query.wsdl" xmlns:tns="http://www.xmethods.net/interfaces/query.wsdl" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" xmlns="http://schemas.xmlsoap.org/wsdl/">
+	<types>
+		<schema xmlns="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://www.xmethods.net/interfaces/query.xsd" targetNamespace="http://www.xmethods.net/interfaces/query.xsd">
+			<complexType name="ServiceSummary">
+				<sequence>
+					<element name="name" nillable="true" type="xsd:string"/>
+					<element name="id" nillable="true" type="xsd:string"/>
+					<element name="shortDescription" nillable="true" type="xsd:string"/>
+					<element name="wsdlURL" nillable="true" type="xsd:string"/>
+					<element name="publisherID" nillable="true" type="xsd:string"/>
+				</sequence>
+			</complexType>
+			<complexType name="ArrayOfServiceSummary">
+				<complexContent>
+					<restriction base="soapenc:Array">
+						<attribute ref="soapenc:arrayType" wsdl:arrayType="tns:ServiceSummary[]"/>
+					</restriction>
+				</complexContent>
+			</complexType>
+			<complexType name="IDNamePair">
+				<sequence>
+					<element name="id" nillable="true" type="xsd:string"/>
+					<element name="name" nillable="true" type="xsd:string"/>
+				</sequence>
+			</complexType>
+			<complexType name="ArrayOfIDNamePair">
+				<complexContent>
+					<restriction base="soapenc:Array">
+						<attribute ref="soapenc:arrayType" wsdl:arrayType="tns:IDNamePair[]"/>
+					</restriction>
+				</complexContent>
+			</complexType>
+			<complexType name="ServiceDetail">
+				<sequence>
+					<element name="name" nillable="true" type="xsd:string"/>
+					<element name="id" nillable="true" type="xsd:string"/>
+					<element name="shortDescription" nillable="true" type="xsd:string"/>
+					<element name="description" nillable="true" type="xsd:string"/>
+					<element name="implementationID" nillable="true" type="xsd:string"/>
+					<element name="email" nillable="true" type="xsd:string"/>
+					<element name="wsdlURL" nillable="true" type="xsd:string"/>
+					<element name="infoURL" nillable="true" type="xsd:string"/>
+					<element name="discussionURL" nillable="true" type="xsd:string"/>
+					<element name="notes" nillable="true" type="xsd:string"/>
+					<element name="tmodelID" nillable="true" type="xsd:string"/>
+					<element name="publisherID" nillable="true" type="xsd:string"/>
+					<element name="uuid" nillable="true" type="xsd:string"/>
+				</sequence>
+			</complexType>
+		</schema>
+	</types>
+	<message name="getServiceSummariesByPublisher0SoapIn">
+		<part name="publisherID" type="xsd:string"/>
+	</message>
+	<message name="getServiceSummariesByPublisher0SoapOut">
+		<part name="Result" xmlns:ns1="http://www.xmethods.net/interfaces/query.xsd" type="ns1:ArrayOfServiceSummary"/>
+	</message>
+	<message name="getAllServiceSummaries1SoapIn"/>
+	<message name="getAllServiceSummaries1SoapOut">
+		<part name="Result" xmlns:ns1="http://www.xmethods.net/interfaces/query.xsd" type="ns1:ArrayOfServiceSummary"/>
+	</message>
+	<message name="getAllServiceNames2SoapIn"/>
+	<message name="getAllServiceNames2SoapOut">
+		<part name="Result" xmlns:ns1="http://www.xmethods.net/interfaces/query.xsd" type="ns1:ArrayOfIDNamePair"/>
+	</message>
+	<message name="getServiceNamesByPublisher3SoapIn">
+		<part name="publisherID" type="xsd:string"/>
+	</message>
+	<message name="getServiceNamesByPublisher3SoapOut">
+		<part name="Result" xmlns:ns1="http://www.xmethods.net/interfaces/query.xsd" type="ns1:ArrayOfIDNamePair"/>
+	</message>
+	<message name="getServiceDetail4SoapIn">
+		<part name="id" type="xsd:string"/>
+	</message>
+	<message name="getServiceDetail4SoapOut">
+		<part name="Result" xmlns:ns1="http://www.xmethods.net/interfaces/query.xsd" type="ns1:ServiceDetail"/>
+	</message>
+	<portType name="XMethodsQuerySoapPortType">
+		<operation name="getServiceSummariesByPublisher" parameterOrder="publisherID">
+			<input name="getServiceSummariesByPublisher0SoapIn" message="tns:getServiceSummariesByPublisher0SoapIn"/>
+			<output name="getServiceSummariesByPublisher0SoapOut" message="tns:getServiceSummariesByPublisher0SoapOut"/>
+		</operation>
+		<operation name="getAllServiceSummaries" parameterOrder="">
+			<input name="getAllServiceSummaries1SoapIn" message="tns:getAllServiceSummaries1SoapIn"/>
+			<output name="getAllServiceSummaries1SoapOut" message="tns:getAllServiceSummaries1SoapOut"/>
+		</operation>
+		<operation name="getAllServiceNames" parameterOrder="">
+			<input name="getAllServiceNames2SoapIn" message="tns:getAllServiceNames2SoapIn"/>
+			<output name="getAllServiceNames2SoapOut" message="tns:getAllServiceNames2SoapOut"/>
+		</operation>
+		<operation name="getServiceNamesByPublisher" parameterOrder="publisherID">
+			<input name="getServiceNamesByPublisher3SoapIn" message="tns:getServiceNamesByPublisher3SoapIn"/>
+			<output name="getServiceNamesByPublisher3SoapOut" message="tns:getServiceNamesByPublisher3SoapOut"/>
+		</operation>
+		<operation name="getServiceDetail" parameterOrder="id">
+			<input name="getServiceDetail4SoapIn" message="tns:getServiceDetail4SoapIn"/>
+			<output name="getServiceDetail4SoapOut" message="tns:getServiceDetail4SoapOut"/>
+		</operation>
+	</portType>
+	<binding name="XMethodsQuerySoap" type="tns:XMethodsQuerySoapPortType">
+		<soap:binding style="rpc" transport="http://schemas.xmlsoap.org/soap/http"/>
+		<operation name="getServiceSummariesByPublisher">
+			<soap:operation soapAction="" style="rpc"/>
+			<input name="getServiceSummariesByPublisher0SoapIn">
+				<soap:body use="encoded" namespace="http://www.xmethods.net/interfaces/query" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+			</input>
+			<output name="getServiceSummariesByPublisher0SoapOut">
+				<soap:body use="encoded" namespace="http://www.xmethods.net/interfaces/query" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+			</output>
+		</operation>
+		<operation name="getAllServiceSummaries">
+			<soap:operation soapAction="" style="rpc"/>
+			<input name="getAllServiceSummaries1SoapIn">
+				<soap:body use="encoded" namespace="http://www.xmethods.net/interfaces/query" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+			</input>
+			<output name="getAllServiceSummaries1SoapOut">
+				<soap:body use="encoded" namespace="http://www.xmethods.net/interfaces/query" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+			</output>
+		</operation>
+		<operation name="getAllServiceNames">
+			<soap:operation soapAction="" style="rpc"/>
+			<input name="getAllServiceNames2SoapIn">
+				<soap:body use="encoded" namespace="http://www.xmethods.net/interfaces/query" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+			</input>
+			<output name="getAllServiceNames2SoapOut">
+				<soap:body use="encoded" namespace="http://www.xmethods.net/interfaces/query" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+			</output>
+		</operation>
+		<operation name="getServiceNamesByPublisher">
+			<soap:operation soapAction="" style="rpc"/>
+			<input name="getServiceNamesByPublisher3SoapIn">
+				<soap:body use="encoded" namespace="http://www.xmethods.net/interfaces/query" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+			</input>
+			<output name="getServiceNamesByPublisher3SoapOut">
+				<soap:body use="encoded" namespace="http://www.xmethods.net/interfaces/query" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+			</output>
+		</operation>
+		<operation name="getServiceDetail">
+			<soap:operation soapAction="" style="rpc"/>
+			<input name="getServiceDetail4SoapIn">
+				<soap:body use="encoded" namespace="http://www.xmethods.net/interfaces/query" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+			</input>
+			<output name="getServiceDetail4SoapOut">
+				<soap:body use="encoded" namespace="http://www.xmethods.net/interfaces/query" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+			</output>
+		</operation>
+	</binding>
+	<service name="XMethodsQuery">
+		<documentation>XMethods query service</documentation>
+		<port name="XMethodsQuerySoap" binding="tns:XMethodsQuerySoap">
+			<soap:address location="http://www.xmethods.net/interfaces/query"/>
+		</port>
+	</service>
+</definitions>

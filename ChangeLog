@@ -8,6 +8,23 @@ TODO:
   - improve template output, f.i. anyAttribute and any
   - the min/max calculation on nested choice/sequences can be done better
 
+version 0.16: Sun Feb 25 00:28:48 CET 2007
+
+	Changes:
+
+	- rename Schema::importSchema() into Schema::importData(), because
+	  its parameter is very different from what addSchemas() expects
+	  but the name was too close.
+
+	- added patch to WSDL, to simplify the tOperation type, which
+	  is overly complex.
+
+	- now all four kinds of operations are detected.
+
+	- build-in type anyURI is relative, hence cannot be checked at
+	  parse time.  This means that XML::Compile doesn't need
+	  Regexp::Common anymore (which was a forgotten dependency).
+
 version 0.15: Fri Feb 16 16:21:59 CET 2007
 
 	Changes:

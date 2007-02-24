@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schema
+  xmlns="http://www.w3.org/2001/XMLSchema"
+  xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+  targetNamespace="http://schemas.xmlsoap.org/wsdl/"
+  elementFormDefault="qualified">
+
+  <!-- the original tOperation uses choice-of-groups which
+       is currently too complex for XML::Compile.
+    -->
+
+  <complexType name="tOperation">
+    <complexContent>
+      <extension base="wsdl:tExtensibleDocumented">
+        <choice minOccurs="0" maxOccurs="unbounded">
+          <element name="output" type="wsdl:tParam"/>
+          <element name="input"  type="wsdl:tParam"/>
+          <element name="fault"  type="wsdl:tFault"/>
+        </choice>
+        <attribute name="name"   type="NCName" use="required"/>
+        <attribute name="parameterOrder" type="NMTOKENS" use="optional"/>
+      </extension>
+    </complexContent>
+  </complexType>
+
+</schema>

@@ -65,7 +65,7 @@ knowledge of this object.
 sub add($)
 {   my ($self, $schema) = @_;
     my $tns = $schema->targetNamespace;
-    push @{$self->{tns}{$tns}}, $schema;
+    unshift @{$self->{tns}{$tns}}, $schema;
     $schema;
 }
 
