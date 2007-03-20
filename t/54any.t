@@ -9,9 +9,10 @@ use lib 'lib','t';
 use TestTools;
 
 use XML::Compile::Schema;
-use Test::More tests => 98;
+use Test::More tests => 101 + ($skip_dumper ? 0 : 9);
 
 my $NS2 = "http://test2/ns";
+
 my $doc = XML::LibXML::Document->new('test doc', 'utf-8');
 isa_ok($doc, 'XML::LibXML::Document');
 my $root = $doc->createElement('root');
@@ -94,7 +95,8 @@ push @run_opts
   , anyElement   => 'TAKE_ALL'   # warning!  order important for filter
   , anyAttribute => 'TAKE_ALL';
 
-my $h2b = reader($schema, test2 => "{$TestNS}test2" => <<__XML__);
+my $r2b = reader($schema, test2 => "{$TestNS}test2");
+my $h2b = $r2b->( <<__XML__);
 <test2 xmlns="$TestNS" xmlns:b="http://x" tns_a="11" b:tns_b="12">
   <tns_e>10</tns_e>
 </test2>
@@ -143,7 +145,8 @@ my %h2c = (tns_a => 21, tns_e => 22
   , $nat_el_type => $nat_el, $for_el_type => $for_el
   );
 
-my $h2c = writer($schema, $doc, test2 => "{$TestNS}test2" => \%h2c);
+my $w2c = writer($schema, test2 => "{$TestNS}test2");
+my $h2c = writer_test($w2c, \%h2c, $doc);
 compare_xml($h2c, <<__XML);
 <test2 xmlns="http://test-types" tns_a="21" nat_at="24">
   <tns_e>22</tns_e>
@@ -158,7 +161,8 @@ ok(!@errors);
 # Take only other namespace
 #
 
-my $h3b = reader($schema, test3 => "{$TestNS}test3" => <<__XML__);
+my $r3b = reader($schema, test3 => "{$TestNS}test3");
+my $h3b = $r3b->( <<__XML__);
 <test3 xmlns="$TestNS" xmlns:b="http://x" other_a="11" b:other_b="12">
   <other_e>10</other_e>
   <for_el xmlns="http://x">26</for_el>
@@ -190,7 +194,8 @@ my %h3c =
  , $nat_el_type => $nat_el, $for_el_type => $for_el
  );
 
-my $h3c = writer($schema, $doc, test3 => "{$TestNS}test3" => \%h3c);
+my $w3c = writer($schema, test3 => "{$TestNS}test3");
+my $h3c = writer_test($w3c, \%h3c, $doc);
 compare_xml($h3c, <<__XML);
 <test3 xmlns="http://test-types" other_a="10" b:for_at="23">
   <other_e>11</other_e>
@@ -205,7 +210,8 @@ ok(!@errors);
 # Take any namespace
 #
 
-my $h4b = reader($schema, test4 => "{$TestNS}test4" => <<__XML__);
+my $r4b = reader($schema, test4 => "{$TestNS}test4");
+my $h4b = $r4b->( <<__XML__);
 <test4 xmlns="$TestNS" xmlns:b="http://x" any_a="11" b:any_b="12">
   <any_e>10</any_e>
 </test4>
@@ -238,7 +244,8 @@ ok(!keys %$h4b);
 my %h4c = (any_a => 10, any_e => 11
   , $nat_at_type => $nat_at, $for_at_type => $for_at);
 
-my $h4c = writer($schema, $doc, test4 => "{$TestNS}test4" => \%h4c);
+my $w4c = writer($schema, test4 => "{$TestNS}test4");
+my $h4c = writer_test($w4c, \%h4c);
 compare_xml($h4c, <<__XML);
 <test4 xmlns="http://test-types" any_a="10" nat_at="24" b:for_at="23">
   <any_e>11</any_e>
@@ -260,7 +267,8 @@ $run_opts[-1] =
        $type =~ m/_a/ ? ($type, $flat) : ();
      };
 
-my $h5b = reader($schema, test4 => "{$TestNS}test4" => <<__XML__);
+my $r5b = reader($schema, test4 => "{$TestNS}test4");
+my $h5b = $r5b->( <<__XML__);
 <test4 xmlns="$TestNS" xmlns:b="http://x" any_a="11" b:any_b="12">
   <any_e>10</any_e>
 </test4>

@@ -10,7 +10,7 @@ use Data::Dumper;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 32;
+use Test::More tests => 37 + ($skip_dumper ? 0 : 9);
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -32,9 +32,6 @@ __SCHEMA__
 
 ok(defined $schema);
 
-my $doc = XML::LibXML->createDocument('test doc', 'utf-8');
-isa_ok($doc, 'XML::LibXML::Document');
-
 my @errors;
 push @run_opts, invalid => sub {no warnings; push @errors, "$_[2] ($_[1])"};
 
@@ -55,8 +52,8 @@ ok(!@errors);
 # try all selectors and hook types
 
 my (@out, @out2);
-my $h2 = writer
- ( $schema, $doc, test1 => "{$TestNS}test1" => \%f1
+my $w2 = writer
+ ( $schema, test1 => "{$TestNS}test1"
  , hook => { type   => 'string'
            , id     => 'my_id'
            , path   => qr/byPath/
@@ -64,6 +61,11 @@ my $h2 = writer
            , after  => sub { push @out2, $_[2]; $_[1] }
            }
  );
+ok(defined $w2);
+isa_ok($w2, 'CODE');
+
+my $h2 = writer_test($w2, \%f1);
+ok(defined $h2);
 
 cmp_ok(scalar @out,  '==', 3, '3 objects logged before');
 cmp_ok(scalar @out2, '==', 3, '3 objects logged after');
@@ -81,12 +83,13 @@ my $output;
 open BUF, '>', \$output;
 my $oldout = select BUF;
 
-my $h3 = writer
- ( $schema, $doc, test1 => "{$TestNS}test1" => \%f1
+my $w3 = writer
+ ( $schema, test1 => "{$TestNS}test1"
  , hook => { id    => 'top'
            , after => [ 'PRINT_PATH' ]
            }
  );
+my $h3 = writer_test($w3, \%f1);
 ok(defined $h3, 'multiple after predefined');
 
 select $oldout;
@@ -103,12 +106,13 @@ __EXPECT
 
 # test skip
 
-my $h4 = writer
- ( $schema, $doc, test1 => "{$TestNS}test1" => \%f1
+my $w4 = writer
+ ( $schema, test1 => "{$TestNS}test1"
  , hook => { id      => 'my_id'
            , replace => 'SKIP'
            }
  );
+my $h4 = writer_test($w4, \%f1);
 ok(defined $h4, 'test skip');
 compare_xml($h4, <<__EXPECT);
 <test1>

@@ -11,7 +11,7 @@ use TestTools;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 73;
+use Test::More tests => 73 + ($skip_dumper ? 0 : 72);
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"

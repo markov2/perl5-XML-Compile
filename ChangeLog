@@ -8,6 +8,16 @@ TODO:
   - improve template output, f.i. anyAttribute and any
   - the min/max calculation on nested choice/sequences can be done better
 
+version 0.17:
+
+	Improvements:
+
+	- added XML::Compile::Dumper and t/21dump.t.  Added automatic
+	  compatibility tests with non-dumped parsing.  However, this
+	  results in "PmmREFCNT_dec: REFCNT decremented below 0! during
+	  global destruction." errors in XML::LibXML, so is disabled by
+	  default (see $skip_dumper in t/TestTools.pm)
+
 version 0.16: Sun Feb 25 00:28:48 CET 2007
 
 	Changes:

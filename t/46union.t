@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# simpleType list
+# simpleType union
 
 use warnings;
 use strict;
@@ -9,7 +9,7 @@ use TestTools;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 61;
+use Test::More tests => 61 + ($skip_dumper ? 0 : 45);
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"

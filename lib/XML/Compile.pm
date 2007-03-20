@@ -34,26 +34,29 @@ XML::Compile - Compilation based XML processing
 
 =chapter DESCRIPTION
 
-Many professional applications which process data-centric XML do that
-based on a formal specification, expressed as XML Schema.  XML::Compile
-reads and writes XML data with the help of such schema's.  On the Perl
-side, the module uses a tree of nested hashes with the same structure.
+Many professional applications which process XML do that based on a formal
+specification, expressed as XML Schema.  XML::Compile processes
+<b>data-centric XML</b> with the help of such schema's.  On the Perl side,
+this module creates a tree of nested hashes with the same structure as
+the XML.
 
 Where other Perl modules, like M<SOAP::WSDL> help you using these schema's
-(often with a lot of run-time [XPath] searches), this module takes a
+(often with a lot of run-time [XPath] searches), XML::Compile takes a
 different approach: in stead of run-time processing of the specification,
-it will first compile the expected structure into real Perl, and then use
-that to process the data.
+it will first compile the expected structure into a pure Perl code
+reference, and then use that to process the data.
 
-There are many perl modules with the same intention as this one: translate
-between XML and nested hashes.  However, there are a few serious
-differences:  because the schema is used here (and not in the other
-modules), we can validate the data.  XML requires validation.  Next to
-this, data-types are formatted and processed correctly.  for instance,
-the specification prescribes that the C<integer> data-type must accept
-huge values of at least 18 digits.  Also more complex data-types like
-C<list>, C<union>, and C<substitutionGroup> (unions on complex type level)
-are supported, which is rarely the case in other modules.
+There are many perl modules with the same intention as this one:
+translate between XML and nested hashes.  However, there are a few
+serious differences:  because the schema is used here (and not in the
+other modules), we can validate the data.  XML requires validation but
+quite a number of modules simply ignore that.  Next to this, data-types
+are formatted and processed correctly; for instance, the specification
+prescribes that the C<Integer> data-type must accept values of at
+least 18 digits... not just longs.  Also more complex data-types like
+C<list>, C<union>, C<substitutionGroup> (unions on complex type level),
+and C<any>/C<anyAttribute> are supported, which is rarely the case for
+the other modules.
 
 In general two WARNINGS:
 
@@ -61,10 +64,7 @@ In general two WARNINGS:
 
 =item .
 
-The compiler is implemented in M<XML::Compile::Schema::Translate>,
-which is B<not finished>.  See that manual page about the specific behavior
-and its (current) limitations!  Please help to find missing pieces and
-mistakes.
+The compiler does not support non-namespace schema's and mixed elements.
 
 =item .
 
@@ -73,6 +73,22 @@ compile-time and run-time errors will be reported, but typically only
 in cases that the parser has no idea what to do with such a mistake.
 On the other hand, the processed B<data is validated>: the output will
 follow the specs closely.
+
+=back
+
+For end-users, the following packages are interesting (the other
+are support packages):
+
+=over 4
+
+=item M<XML::Compile::Schema>
+Interpret schema elements and types.
+
+=item M<XML::Compile::WSDL>
+Interpret WSDL files.
+
+=item M<XML::Compile::Dumper>
+Save pre-compiled converters in pure perl packages.
 
 =back
 

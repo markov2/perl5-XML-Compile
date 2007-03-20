@@ -8,7 +8,7 @@ use TestTools;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 49;
+use Test::More tests => 49 + ($skip_dumper ? 0 : 45);
 
 my $NS2 = "http://test2/ns";
 

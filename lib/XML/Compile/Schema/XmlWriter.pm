@@ -192,10 +192,10 @@ sub create_complex_element
           }
 
        ANY:
-          foreach my $tag (sort keys %data)
-          {   next unless $tag =~ m/^\{([^}]*)\}(.*)$/;
+          foreach my $elem (sort keys %data)
+          {   next unless $elem =~ m/^\{([^}]*)\}(.*)$/;
               my ($ns, $type) = ($1, $2);
-              my $value = delete $data{$tag};
+              my $value = delete $data{$elem};
               defined $value or next;
 
               my $any
@@ -211,13 +211,13 @@ sub create_complex_element
               }
 
               foreach my $try (@$any)
-              {   my $v = $try->($doc, $tag, $ns, $type, $value);
+              {   my $v = $try->($doc, $elem, $ns, $type, $value);
                   defined $v or next;
                   push @childs, $v;
                   next ANY;
               }
 
-              $err->($path, ref $value, "value for $tag not used");
+              $err->($path, ref $value, "value for $elem not used");
           }
 
           $err->($path, join(' ', sort keys %data), 'unused data')

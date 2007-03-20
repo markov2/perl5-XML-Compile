@@ -17,7 +17,7 @@ BEGIN {
    {   plan skip_all => "Math::BigInt not installed";
    }
    else
-   {   plan tests => 95;
+   {   plan tests => 95 + ($skip_dumper ? 0 : 81);
    }
 }
 

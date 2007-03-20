@@ -11,7 +11,7 @@ use Test::Deep   qw/cmp_deeply/;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 50;
+use Test::More tests => 54 + ($skip_dumper ? 0 : 9);
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -60,8 +60,8 @@ ok(!@errors);
 # try all selectors and hook types
 
 my (@out, @out2);
-my $h2 = reader
- ( $schema, test1 => "{$TestNS}test1" => $xml1
+my $r2 = reader
+ ( $schema, test1 => "{$TestNS}test1"
  , hook => { type   => 'string'
            , id     => 'my_id'
            , path   => qr/byPath/
@@ -69,6 +69,12 @@ my $h2 = reader
            , after  => sub { push @out2, $_[2]; $_[1] }
            }
  );
+
+ok(defined $r2, 'compile reader');
+isa_ok($r2, 'CODE');
+my $h2 = $r2->($xml1);
+ok(defined $h2, 'returned hash');
+isa_ok($h2, 'HASH');
 
 cmp_ok(scalar @out,  '==', 3, '3 objects logged before');
 cmp_ok(scalar @out2, '==', 3, '3 objects logged after');
@@ -79,12 +85,13 @@ my $output;
 open BUF, '>', \$output;
 my $oldout = select BUF;
 
-my $h3 = reader
- ( $schema, test1 => "{$TestNS}test1" => $xml1
+my $r3 = reader
+ ( $schema, test1 => "{$TestNS}test1"
  , hook => { id    => 'my_id'
            , after => [ qw/PRINT_PATH XML_NODE/ ]
            }
  );
+my $h3 = $r3->($xml1);
 ok(defined $h3, 'multiple after predefined');
 
 select $oldout;
@@ -102,12 +109,13 @@ compare_xml($node, '<byId>2</byId>');
 
 # test skip
 
-my $h4 = reader
- ( $schema, test1 => "{$TestNS}test1" => $xml1
+my $r4 = reader
+ ( $schema, test1 => "{$TestNS}test1"
  , hook => { id      => 'my_id'
            , replace => 'SKIP'
            }
  );
+my $h4 = $r4->($xml1);
 ok(defined $h4, 'test skip');
 cmp_ok(scalar keys %$h4, '==', 2);
 ok(defined $h4->{byType});
@@ -119,12 +127,13 @@ my $xml2 = <<__XML;
 <test2 attr1="5" attr2="6" />
 __XML
 
-my $h5 = reader
- ( $schema, test1 => "{$TestNS}test2" => $xml2
+my $r5 = reader
+ ( $schema, test1 => "{$TestNS}test2"
  , hook => { id    => 'top2'
            , after => [ qw/ELEMENT_ORDER ATTRIBUTE_ORDER/ ]
            }
  );
+my $h5 = $r5->($xml2);
 
 ok(defined $h5, "node order");
 ok(exists $h5->{_ELEMENT_ORDER});
@@ -139,12 +148,13 @@ cmp_deeply($order, [ qw/attr1 attr2/ ]);
 
 # test element order
 
-my $h6 = reader
- ( $schema, test1 => "{$TestNS}test1" => $xml1
+my $r6 = reader
+ ( $schema, test1 => "{$TestNS}test1"
  , hook => { id    => 'top'
            , after => [ qw/ELEMENT_ORDER ATTRIBUTE_ORDER/ ]
            }
  );
+my $h6 = $r6->($xml1);
 ok(defined $h6, 'element order');
 
 ok(defined $h6, "node order");
