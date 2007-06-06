@@ -150,7 +150,7 @@ cmp_ok($s, '==', $s2, 'twice same definition');
 
 #warn Dumper $s;
 
-$wsdl->addSchemas($xml_xsd);
+$wsdl->importDefinitions($xml_xsd);
 $wsdl->addWSDL($xml_wsdl);
 
 my $op = eval { $wsdl->operation('noot') };

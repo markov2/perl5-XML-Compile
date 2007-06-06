@@ -9,7 +9,7 @@ use lib 'lib', 't';
 use XML::Compile::Schema;
 use TestTools;
 
-use Test::More tests => 17;
+use Test::More tests => 21;
 
 our $xmlfile = File::Spec->rel2abs('xsd/2001-XMLSchema.xsd');
 
@@ -20,10 +20,10 @@ my $doc    = $parser->parse_file($xmlfile);
 ok(defined $doc, 'parsing schema');
 isa_ok($doc, 'XML::LibXML::Document');
 
-my $schema  = XML::Compile::Schema->new($doc);
-ok(defined $schema);
+my $defs  = XML::Compile::Schema->new($doc);
+ok(defined $defs);
 
-my $namespaces  = $schema->namespaces;
+my $namespaces  = $defs->namespaces;
 isa_ok($namespaces, 'XML::Compile::Schema::NameSpaces');
 
 my @ns      = $namespaces->list;
@@ -37,29 +37,32 @@ ok(scalar(@schemas), 'found ns');
 @schemas
    or die "no schemas, so no use to continue";
 
+cmp_ok(scalar(@schemas), '==', 1, "one schema");
+my $schema = $schemas[0];
+
 my $list = '';
 open OUT, '>', \$list or die $!;
 $_->printIndex(\*OUT) for @schemas;
 close OUT;
+#warn $list;
 
 my @types   = split /\n/, $list;
 is(shift(@types), "namespace: $SchemaNS");
-cmp_ok(scalar(@types), '==', 145);
+cmp_ok(scalar(@types), '==', 150);
 
 my $random = (sort @types)[42];
-is($random, '      element redefine');
+is($random, '    derivationControl');
 
-my %t;
-foreach (@types)
-{   my ($type, $name) = split;
-    $t{$type}++;
-}
+cmp_ok(scalar($schema->simpleTypes),     '==', 55);
+cmp_ok(scalar($schema->complexTypes),    '==', 35);
+cmp_ok(scalar($schema->groups),          '==', 12);
+cmp_ok(scalar($schema->attributeGroups), '==',  2);
+cmp_ok(scalar($schema->elements),        '==', 41);
+cmp_ok(scalar($schema->attributes),      '==',  0);
+#cmp_ok(scalar($schema->notations),      '==',  2);
 
-cmp_ok(scalar(keys %t),    '==', 5);
-
-cmp_ok($t{simpleType},     '==', 55);
-cmp_ok($t{complexType},    '==', 35);
-cmp_ok($t{group},          '==', 12);
-cmp_ok($t{attributeGroup}, '==',  2);
-cmp_ok($t{element},        '==', 41);
-#cmp_ok($t{notation},       '==',  2);
+my $testtype = '{http://www.w3.org/2001/XMLSchema}derivationControl';
+my $lookup = $schema->find(simpleType => $testtype);
+ok(defined $lookup, 'found simpleType');
+is(ref $lookup, 'HASH');
+ok(!$schema->find(complexType => $testtype));

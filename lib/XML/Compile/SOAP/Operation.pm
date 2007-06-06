@@ -61,7 +61,7 @@ sub init()
       = exists $self->port->{ "{$soap1}address" } ? $soap1
       : croak "ERROR: soap namespace not supported";
 
-    $self->schemas->importData($soapns);
+    $self->schemas->importDefinitions($soapns);
 
     # This should be detected while parsing the WSDL because the order of
     # input and output is significant (and lost), but WSDL 1.1 simplifies

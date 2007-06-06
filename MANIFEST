@@ -1,6 +1,5 @@
 ChangeLog
 MANIFEST
-META.yml                                 Module meta-data (added by MakeMaker)
 Makefile.PL
 html/manual/doclist.html
 html/manual/grouped.html
@@ -21,7 +20,10 @@ html/other/methods/index.html
 html/other/xml.css
 lib/XML/Compile.pm
 lib/XML/Compile/Dumper.pm
+lib/XML/Compile/SOAP.pm
 lib/XML/Compile/SOAP/Operation.pm
+lib/XML/Compile/SOAP/SOAP11.pm
+lib/XML/Compile/SOAP/SOAP12.pm
 lib/XML/Compile/Schema.pm
 lib/XML/Compile/Schema/BuiltInFacets.pm
 lib/XML/Compile/Schema/BuiltInTypes.pm
@@ -60,6 +62,7 @@ t/60hooks_r.t
 t/61hooks_w.t
 t/70templ.t
 t/80wsdl.t
+t/82soap11.t
 t/TestTools.pm
 xsd/1998-namespace.xsd
 xsd/1999-XMLSchema-part2.xsd
@@ -68,6 +71,9 @@ xsd/2000-XMLSchema.xsd
 xsd/2001-XMLSchema.dtd
 xsd/2001-XMLSchema.xsd
 xsd/2001-datatypes.dtd
+xsd/2003-soap-encoding.xsd
+xsd/2003-soap-envelope.xsd
+xsd/2003-soap-rpc.xsd
 xsd/soap-encoding.xsd
 xsd/soap-envelope.xsd
 xsd/wsdl-http.xsd

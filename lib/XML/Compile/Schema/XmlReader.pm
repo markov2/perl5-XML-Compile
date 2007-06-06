@@ -437,8 +437,8 @@ sub anyElement
 
 # any kind of hook
 
-sub create_hook($$$$$)
-{   my ($path, $args, $r, $before, $replace, $after) = @_;
+sub create_hook($$$$$$)
+{   my ($path, $args, $r, $tag, $before, $replace, $after) = @_;
     return $r unless $before || $replace || $after;
 
     return sub {()} if $replace && grep {$_ eq 'SKIP'} @$replace;
@@ -453,7 +453,9 @@ sub create_hook($$$$$)
        {   $xml = $_->($xml, $path);
            defined $xml or return ();
        }
-       my @h = @replace ? map {$_->($xml, $args, $path)} @replace : $r->($xml);
+       my @h = @replace
+             ? map {$_->($xml,$args,$path,$tag)} @replace
+             : $r->($xml);
        @h or return ();
        my $h = @h > 1 ? {@h} : $h[0];  # detect simpleType
        foreach (@after)
@@ -637,7 +639,8 @@ This hook offers a predefined C<PRINT_PATH>.
 
 =subsection hooks executed as replacement
 Your C<replace> hook should return a list of key-value pairs. To
-produce it, it will get the M<XML::LibXML::Node> and the path.
+produce it, it will get the M<XML::LibXML::Node>, the translator settings
+as HASH, the path, and the localname.
 
 This hook has a predefined C<SKIP>.
 

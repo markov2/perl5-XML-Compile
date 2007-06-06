@@ -94,8 +94,8 @@ sub wsdlNamespace(;$)
 
 =section Extension
 
-=method addWSDL XML
-Some XML, accepted by M<dataToXML()> is provided, which should represent
+=method addWSDL XMLDATA
+Some XMLDATA, accepted by M<dataToXML()> is provided, which should represent
 the top-level of a (partial) WSDL document.  The specification can be
 spread over multiple files, which each have a C<definition> root element.
 =cut
@@ -103,7 +103,8 @@ spread over multiple files, which each have a C<definition> root element.
 sub addWSDL($)
 {   my ($self, $data) = @_;
     defined $data or return;
-    my $node = $self->dataToXML($data);
+    my $node = $self->dataToXML($data)
+        or return $self;
 
     $node    = $node->documentElement
         if $node->isa('XML::LibXML::Document');
@@ -117,8 +118,8 @@ sub addWSDL($)
         if $corens ne $wsdlns;
 
     my $schemas = $self->schemas;
-    $schemas->importData($wsdlns);      # to understand WSDL
-    $schemas->importData("$wsdlns#patch");
+    $schemas->importDefinitions($wsdlns);      # to understand WSDL
+    $schemas->importDefinitions("$wsdlns#patch");
 
     croak "ERROR: don't known how to handle $wsdlns WSDL files"
         if $wsdlns ne $wsdl1;
@@ -140,7 +141,7 @@ sub addWSDL($)
     foreach my $type ( @{$spec->{types} || []} )
     {   foreach my $k (keys %$type)
         {   next unless $k =~ m/^\{[^}]*\}schema$/;
-            $schemas->addSchemas(@{$type->{$k}});
+            $schemas->importDefinitions(@{$type->{$k}});
         }
     }
 
@@ -161,12 +162,12 @@ sub addWSDL($)
    $self;
 }
 
-=method addSchemas XML
-Adds type-definitions to the knowledge of the WSDL environment.  Only
-use this method when the schema's are defined out-side the WSDL document.
+=method importDefinitions XMLDATA, OPTIONS
+Add schema information to the WSDL interface knowledge.  This should
+not be needed, because WSDL definitions must be self-contained.
 =cut
 
-sub addSchemas($) { shift->schemas->addSchemas(@_) }
+sub importDefinitions($@) { shift->schemas->importDefinitions(@_) }
 
 =method namesFor CLASS
 Returns the list of names available for a certain definition

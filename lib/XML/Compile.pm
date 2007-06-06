@@ -8,20 +8,31 @@ use XML::LibXML;
 use Carp;
 
 my %namespace_defs =
- ( 'http://www.w3.org/1999/XMLSchema'      => '1999-XMLSchema.xsd'
- , 'http://www.w3.org/1999/part2.xsd'      => '1999-XMLSchema-part2.xsd'
- , 'http://www.w3.org/2000/10/XMLSchema'   => '2000-XMLSchema.xsd'
- , 'http://www.w3.org/2001/XMLSchema'      => '2001-XMLSchema.xsd'
- , 'http://www.w3.org/XML/1998/namespace'  => '1998-namespace.xsd'
- , 'http://schemas.xmlsoap.org/wsdl/'      => 'wsdl.xsd'
- , 'http://schemas.xmlsoap.org/wsdl/soap/' => 'wsdl-soap.xsd'
- , 'http://schemas.xmlsoap.org/wsdl/http/' => 'wsdl-http.xsd'
- , 'http://schemas.xmlsoap.org/wsdl/mime/' => 'wsdl-mime.xsd'
+ ( 'http://www.w3.org/XML/1998/namespace'    => '1998-namespace.xsd'
+
+ # XML Schema's
+ , 'http://www.w3.org/1999/XMLSchema'        => '1999-XMLSchema.xsd'
+ , 'http://www.w3.org/1999/part2.xsd'        => '1999-XMLSchema-part2.xsd'
+ , 'http://www.w3.org/2000/10/XMLSchema'     => '2000-XMLSchema.xsd'
+ , 'http://www.w3.org/2001/XMLSchema'        => '2001-XMLSchema.xsd'
+
+ # WSDL 1.1
+ , 'http://schemas.xmlsoap.org/wsdl/'        => 'wsdl.xsd'
+ , 'http://schemas.xmlsoap.org/wsdl/soap/'   => 'wsdl-soap.xsd'
+ , 'http://schemas.xmlsoap.org/wsdl/http/'   => 'wsdl-http.xsd'
+ , 'http://schemas.xmlsoap.org/wsdl/mime/'   => 'wsdl-mime.xsd'
+
+ # SOAP 1.1
  , 'http://schemas.xmlsoap.org/soap/encoding/' => 'soap-encoding.xsd'
  , 'http://schemas.xmlsoap.org/soap/envelope/' => 'soap-envelope.xsd'
 
+ # SOAP 1.2
+ , 'http://www.w3.org/2003/05/soap-encoding' => '2003-soap-encoding.xsd'
+ , 'http://www.w3.org/2003/05/soap-envelope' => '2003-soap-envelope.xsd'
+ , 'http://www.w3.org/2003/05/soap-rpc'      => '2003-soap-rpc.xsd'
+
  # bug-fixes/mis-features/work-arounds
- , 'http://schemas.xmlsoap.org/wsdl/#patch'=> 'wsdl-patch.xsd'
+ , 'http://schemas.xmlsoap.org/wsdl/#patch'  => 'wsdl-patch.xsd'
  );
 
 =chapter NAME
@@ -189,9 +200,9 @@ sub findSchemaFile($)
 
 =section Read XML
 
-=method dataToXML NODE|REF-XML|XML|FILENAME|KNOWN
+=method dataToXML NODE|REF-XML-STRING|XML-STRING|FILENAME|KNOWN
 Collect XML data.  Either a preparsed NODE is provided, which
-is returned unchanged.  A ref of SCALAR is interpreted as reference
+is returned unchanged.  A SCALAR reference is interpreted as reference
 to XML as plain text (XML texts can be large, hence you can improve
 performance by passing it around as reference in stead of copy).
 Any value which starts with blanks followed by a "E<lt>" is interpreted
@@ -213,15 +224,17 @@ distribution package.
 
 sub dataToXML($)
 {   my ($self, $thing) = @_;
+    defined $thing
+        or return undef;
 
     return $thing
-       if ref $thing && UNIVERSAL::isa($thing, 'XML::LibXML::Node');
+        if ref $thing && UNIVERSAL::isa($thing, 'XML::LibXML::Node');
 
     return $self->parse($thing)
-       if ref $thing eq 'SCALAR'; # XML string as ref
+        if ref $thing eq 'SCALAR'; # XML string as ref
 
     return $self->parse(\$thing)
-       if $thing =~ m/^\s*\</;    # XML starts with '<', rare for files
+        if $thing =~ m/^\s*\</;    # XML starts with '<', rare for files
 
     if(my $known = $self->knownNamespace($thing))
     {   my $fn = $self->findSchemaFile($known)

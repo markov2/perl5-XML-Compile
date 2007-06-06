@@ -10,6 +10,10 @@ use XML::Compile::Schema::Specs;
 
 use Scalar::Util   qw/weaken/;
 
+my @defkinds = qw/element attribute simpleType complexType
+                  attributeGroup group/;
+my %defkinds = map { ($_ => 1) } @defkinds;
+
 =chapter NAME
 
 XML::Compile::Schema::Instance - Represents one schema
@@ -45,6 +49,8 @@ sub init($)
     defined $top && $top->isa('XML::LibXML::Node')
        or croak "ERROR: instance based on XML node.";
 
+    $self->{$_} = {} for @defkinds, 'sgs';
+
     $self->_collectTypes($top);
     $self;
 }
@@ -60,35 +66,54 @@ sub targetNamespace { shift->{tns} }
 sub schemaNamespace { shift->{xsd} }
 sub schemaInstance  { shift->{xsi} }
 
-=method ids
-Returns a list of all found ids.
-=cut
-
-sub ids() {keys %{shift->{ids}}}
-
-=method types
-Returns a list of all used names.
-=cut
-
-sub types() { keys %{shift->{types}} }
-
 =method type URI
 Returns the type definition with the specified name.
 =cut
 
 sub type($) { $_[0]->{types}{$_[1]} }
 
-=method elements
-Returns a list of all globally defined element names.
-=cut
-
-sub elements() { keys %{shift->{elements}} }
-
 =method element URI
 Returns one global element definition.
 =cut
 
 sub element($) { $_[0]->{elements}{$_[1]} }
+
+=method ids
+Returns a list of all found ids.
+
+=method elements
+Returns a list of all globally defined element names.
+
+=method attributes
+Returns a lost of all globally defined attribute names.
+
+=method attributeGroups
+Returns a list of all defined attribute groups.
+
+=method groups
+Returns a list of all defined model groups.
+
+=method simpleTypes
+Returns a list with all simpleType names.
+
+=method complexTypes
+Returns a list with all complexType names.
+
+=cut
+
+sub ids()             { keys %{shift->{ids}} }
+sub elements()        { keys %{shift->{element}} }
+sub attributes()      { keys %{shift->{attributes}} }
+sub attributeGroups() { keys %{shift->{attributeGroup}} }
+sub groups()          { keys %{shift->{group}} }
+sub simpleTypes()     { keys %{shift->{simpleType}} }
+sub complexTypes()    { keys %{shift->{complexType}} }
+
+=method types
+Returns a list of all simpleTypes and complexTypes
+=cut
+
+sub types()           { ($_[0]->simpleTypes, $_[0]->complexTypes) }
 
 =method substitutionGroups
 Returns a list of all named substitutionGroups.
@@ -109,12 +134,6 @@ sub substitutionGroupMembers($)
 
 =section Index
 =cut
-
-my %as_element = map { ($_ => 1) }
-   qw/element group attributeGroup attribute/;
-
-my %as_type    = map { ($_ => 1) }
-   qw/complexType simpleType attributeGroup group/;
 
 my %skip_toplevel = map { ($_ => 1) }
    qw/annotation import notation include redefine/;
@@ -180,17 +199,12 @@ sub _collectTypes($)
              $sg = "{$sgns}$sgname";
         }
 
-        my $class
-           = $as_element{$local} ? 'elements'
-           : $as_type{$local}    ? 'types'
-           :                       undef;
-
-        unless(defined $class)
-        {   warn "WARNING: skipping unknown top-level component `$local'\n";
+        unless($defkinds{$local})
+        {   carp "ignoring unknown definition-type $local";
             next;
         }
 
-        my $info  = $self->{$class}{$label}
+        my $info  = $self->{$local}{$label}
           = { type => $local, id => $id,   node => $node, full => "{$ns}$name"
             , ns   => $ns,  name => $name, prefix => $prefix
             , afd  => $afd, efd  => $efd,  schema => $self
@@ -220,9 +234,22 @@ sub printIndex(;$)
     my $fh    = shift || select;
 
     $fh->print("namespace: ", $self->targetNamespace, "\n");
-    $fh->printf("  %11s %s\n", $_->{type}, $_->{name})
-      for sort {$a->{name} cmp $b->{name}}
-             values %{$self->{types}}, values %{$self->{elements}}
+    foreach my $kind (@defkinds)
+    {   my $table = $self->{$kind};
+        keys %$table or next;
+        $fh->print("  definitions of $kind objects:\n");
+        $fh->print("    ", $_->{name}, "\n")
+            for sort {$a->{name} cmp $b->{name}}
+                  values %$table;
+    }
 }
+
+=method find KIND, LOCALNAME
+Returns the definition for the object of KIND, with LOCALNAME.
+=example of find
+ my $attr = $instance->find(attribute => 'myns#my_global_attr');
+=cut
+
+sub find($$) { $_[0]->{$_[1]}{$_[2]} }
 
 1;

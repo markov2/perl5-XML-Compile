@@ -47,7 +47,7 @@ __XML__
 like($@, qr/no substitution.*found/);
 ok(!@errors);
 
-$schema->addSchemas( <<__EXTRA__ );
+$schema->importDefinitions( <<__EXTRA__ );
 <!-- alternatives in same namespace -->
 <schemas>
 

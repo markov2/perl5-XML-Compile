@@ -343,15 +343,23 @@ and will be formatted as required.  When reading, the date string will
 not be parsed.
 =cut
 
+my $yearFrag     = qr/ \-? (?: [1-9]\d{3,} | 0\d\d\d ) /x;
+my $monthFrag    = qr/ 0[1-9] | 1[0-2] /x;
+my $dayFrag      = qr/ 0[1-9] | [12]\d | 3[01] /x;
+my $hourFrag     = qr/ [01]\d | 2[0-3] /x;
+my $minuteFrag   = qr/ [0-5]\d /x;
+my $secondFrag   = qr/ [0-5]\d (?: \.\d+)? /x;
+my $endOfDayFrag = qr/24\:00\:00 (?: \.\d+)? /x;
+my $timezoneFrag = qr/Z | [+-] (0\d | 1[0-4]) \: $minuteFrag/x;
+my $timeFrag     = qr/ (?: $hourFrag \: $minuteFrag \: $secondFrag )
+                     | $endOfDayFrag
+                     /x;
+
+my $date         = qr/^ $yearFrag \- $monthFrag \- $dayFrag $timezoneFrag? $/x;
 $builtin_types{date} =
  { parse   => \&collapse
  , format  => sub { $_[0] =~ /\D/ ? $_[0] : strftime("%Y-%m-%d", gmtime $_[0])}
- , check   => sub { my $val = $_[0]; $val =~ s/\s+//g; $val =~
-  /^[12]\d{3}                # year
-    \-(?:0?[1-9]|1[0-2])     # month
-    \-(?:0?[1-9]|[12][0-9]|3[01]) # day
-    (?:[+-]\d\d?\:\d\d)?     # time-zone
-    $/x }
+ , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $date }
  , example => '2006-10-06'
  };
 
@@ -365,77 +373,70 @@ and will be formatted as required.  When reading, the date string will
 not be parsed.
 =cut
 
+my $dateTime = qr/^ $yearFrag \- $monthFrag \- $dayFrag
+                    T $timeFrag $timezoneFrag? $/x;
+
 $builtin_types{dateTime} =
- { parse  => \&collapse
- , format => sub { $_[0] =~ /\D/ ? $_[0]
+ { parse   => \&collapse
+ , format  => sub { $_[0] =~ /\D/ ? $_[0]
      : strftime("%Y-%m-%dT%H:%S%MZ", gmtime($_[0])) }
- , check  => sub { my $val = $_[0]; $val =~ s/\s+//g; $val =~
-  /^[12]\d{3}                # year
-    \-(?:0?[1-9]|1[0-2])     # month
-    \-(?:0?[1-9]|[12][0-9]|3[01]) # day
-    T
-    (?:(?:[01]?[0-9]|2[0-3]) # hours
-       \:(?:[0-5]?[0-9])     # minutes
-       \:(?:[0-5]?[0-9])     # seconds
-    )?
-    (?:[+-]\d\d?\:\d\d|Z)?   # time-zone
-    $/x ? $_[0] : 0 }
+ , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $dateTime }
  , example => '2006-10-06T00:23:02'
  };
 
 =function gDay
-Format C<---12> or C<---12+9:00> (12 days, optional time-zone)
+Format C<---12> or C<---12+09:00> (12 days, optional time-zone)
 =cut
 
+my $gDay = qr/^ \- \- \- $dayFrag $timezoneFrag? $/x;
 $builtin_types{gDay} =
  { parse   => \&collapse
- , check   => sub { my $val = $_[0]; $val =~ s/\s+//g; $val =~
-      m/^\-\-\-\d+(?:[-+]\d+\:[0-5]\d)?$/ ? 1 : 0 }
- , example => '---12+9:00'
+ , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $gDay }
+ , example => '---12+09:00'
  };
 
 =function gMonth
-Format C<--9> or C<--9+7:00> (9 months, optional time-zone)
+Format C<--09> or C<--09+07:00> (9 months, optional time-zone)
 =cut
 
+my $gMonth = qr/^ \- \- $monthFrag $timezoneFrag? $/x;
 $builtin_types{gMonth} =
  { parse   => \&collapse
- , check   => sub { my $val = $_[0]; $val =~ s/\s+//g; $val =~
-      m/^\-\-\d+(?:[-+]\d+\:[0-5]\d)?$/ ? 1 : 0 }
- , example => '--9+7:00'
+ , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $gMonth }
+ , example => '--09+07:00'
  };
 
 =function gMonthDay
-Format C<--9-12> or C<--9-12+7:00> (9 months 12 days, optional time-zone)
+Format C<--09-12> or C<--09-12+07:00> (9 months 12 days, optional time-zone)
 =cut
 
+my $gMonthDay = qr/^ \- \- $monthFrag \- $dayFrag $timezoneFrag? /x;
 $builtin_types{gMonthDay} =
  { parse   => \&collapse
- , check   => sub { my $val = $_[0]; $val =~ s/\s+//g; $val =~
-      m/^\-\-\d+\-\d+(?:[-+]\d+\:[0-5]\d)?$/ ? 1 : 0 }
- , example => '--9-12+7:00'
+ , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $gMonthDay }
+ , example => '--09-12+07:00'
  };
 
 =function gYear
-Format C<2006> or C<2006+7:00> (year 2006, optional time-zone)
+Format C<2006> or C<2006+07:00> (year 2006, optional time-zone)
 =cut
 
+my $gYear = qr/^ $yearFrag \- $monthFrag $timezoneFrag? $/x;
 $builtin_types{gYear} =
  { parse   => \&collapse
- , check   => sub { my $val = $_[0]; $val =~ s/\s+//g; $val =~
-      m/^\d+(?:[-+]\d+\:[0-5]\d)?$/ ? 1 : 0 }
- , example => '2006+7:00'
+ , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $gYear }
+ , example => '2006+07:00'
  };
 
 =function gYearMonth
-Format C<2006-11> or C<2006-11+7:00> (november 2006, optional time-zone)
+Format C<2006-11> or C<2006-11+07:00> (november 2006, optional time-zone)
 =cut
 
+my $gYearMonth = qr/^ $yearFrag \- $monthFrag $timezoneFrag? $/x;
 $builtin_types{gYearMonth} =
  { parse   => \&collapse
- , check   => sub { my $val = $_[0]; $val =~ s/\s+//g; $val =~
-      m/^\d+\-(?:0?[1-9]|1[0-2])(?:[-+]\d+\:[0-5]\d)?$/ ? 1 : 0 }
- , example => '2006-11+7:00'
+ , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $gYearMonth }
+ , example => '2006-11+07:00'
  };
 
 =section Duration

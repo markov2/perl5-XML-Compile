@@ -205,7 +205,7 @@ sub test_rw($$$$;$$)
 
 sub compare_xml($$)
 {   my ($tree, $expect) = @_;
-    my $dump = $tree->toString;
+    my $dump = ref $tree ? $tree->toString : $tree;
 
     if($dump =~ m/\n|\s\s/)
     {   # output expects superfluous blanks

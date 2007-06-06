@@ -73,8 +73,9 @@ is(join("\n", join "\n", $schema->elements)."\n", <<__ELEMS__);
 __ELEMS__
 
 @run_opts =
- ( elements_qualified   => 1
+ ( elements_qualified   => 'ALL'
  , attributes_qualified => 1
+ , include_namespaces   => 1
  );
 
 #

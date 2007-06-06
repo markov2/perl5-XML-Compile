@@ -4,7 +4,7 @@ use warnings;
 use strict;
 
 use lib 'lib';
-use Test::More tests => 14;
+use Test::More tests => 17;
 
 # The versions of the following packages are reported to help understanding
 # the environment in which the tests are run.  This is certainly not a
@@ -39,5 +39,8 @@ require_ok('XML::Compile::Schema::XmlReader');
 require_ok('XML::Compile::Schema::XmlWriter');
 require_ok('XML::Compile::Schema::Template');
 require_ok('XML::Compile::WSDL');
+require_ok('XML::Compile::SOAP');
+require_ok('XML::Compile::SOAP::SOAP11');
+require_ok('XML::Compile::SOAP::SOAP12');
 require_ok('XML::Compile::SOAP::Operation');
 require_ok('XML::Compile::Dumper');

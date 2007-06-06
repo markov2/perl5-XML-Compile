@@ -7,8 +7,66 @@ Mark Overmeer.
 TODO:
   - improve template output, f.i. anyAttribute and any
   - the min/max calculation on nested choice/sequences can be done better
+  - <xs:group minOccurs="0" maxOccurs="unbounded" ref="bar:SoonRef"/>
+  - attributeGroup in seperate namespace?
 
-version 0.17:
+version 0.18: Wed Jun  6 22:46:44 CEST 2007
+
+	Changes:
+
+	- renamed XML::Compile::Schema::importData() into
+	  ::importDefinitions()
+
+	- renamed XML::Compile::WSDL::addSchemas() into
+	  ::importDefinitions()
+
+	- Schema::addSchema() will only add parsed XML.
+	  Use Schema::importDefinitions() to added any (other) kind
+	  of data.
+
+	- reworked Namespaces::findElement() and ::findType() into
+	  ::find(KIND, ...)
+
+	- upgraded XML::LibXML requirement to 1.63
+
+	Fixes:
+
+	- Added dependency for IO 1.22 (IO::File)
+
+	- Preference to address elements with a certain name, about
+	  types.
+
+	- Regular expression for all date types was not precise enough.
+	  Now following the specs more closely.
+	  Bug report from [Gerard Gerritsen]
+
+	- Namespace of schema now separates attributeGroup and group
+	  names from element, attributes and types.
+
+	- include_namespaces parameter to Schema::compile() was always
+	  set to 1.
+
+	Improvements:
+
+	- added xsd/2003-* for SOAP1.2
+
+	- initial implementation for SOAP in lib/XML/Compile/SOAP.pm
+	  and lib/XML/Compile/SOAP/SOAP1[12].pm
+
+	- hooks with type/id/path will be invoked on all nodes.
+
+	- removed Translate::reference(), in favour of a reference
+	  lookup per kind of object.
+
+	- ::Translate::element_by_node() renamed to ::element().
+
+	- ::Schema::compile() and ::template() do not check provided
+	  name anymore, but leave that to ::Translate::new()
+
+	- ::Schema::compile(elements_qualified) now can limit ns-qual
+	  to the TOP element only.
+
+version 0.17: Tue Mar 20 12:21:57 CET 2007
 
 	Improvements:
 

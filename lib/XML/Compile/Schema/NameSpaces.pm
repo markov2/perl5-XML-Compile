@@ -88,46 +88,26 @@ sub allSchemas()
     map {$self->schemas($_)} $self->list;
 }
 
-=method findElement ADDRESS|(URI,NAME)
-Lookup the definition for the specified element, which is constructed as
-C< {uri}name > or as seperate URI and NAME.
+=method find KIND, ADDRESS|(URI,NAME)
+Lookup the definition for the specified KIND of definition: the name
+of a gloabl element, gloabl attribute, attributeGroup or model group.
+The ADDRESS is constructed as C< {uri}name > or as seperate URI and NAME.
 =cut
 
-sub findElement($;$)
-{   my ($self, $ns, $name) = @_;
+sub find($$;$)
+{   my ($self, $kind, $ns, $name) = @_;
     my $label  = $ns;
     if(defined $name) { $label = "{$ns}$name" }
     elsif($label =~ m/^\s*\{(.*)\}(.*)/) { ($ns, $name) = ($1, $2) }
     else { return undef  } 
 
     foreach my $schema ($self->schemas($ns))
-    {   my $def = $schema->element($label);
+    {   my $def = $schema->find($kind, $label);
         return $def if defined $def;
     }
 
     undef;
 }
-
-=method findType ADDRESS|(URI,NAME)
-Lookup the definition for the specified type, which is constructed as
-C< {uri}name > or as seperate URI and NAME.
-=cut
-
-sub findType($;$)
-{   my ($self, $ns, $name) = @_;
-    my $label  = $ns;
-    if(defined $name) { $label = "{$ns}$name" }
-    elsif($label =~ m/^\s*\{(.*)\}(.*)/) { ($ns, $name) = ($1, $2) }
-    else { return undef  } 
-
-    foreach my $schema ($self->schemas($ns))
-    {   my $def = $schema->type($label);
-        return $def if defined $def;
-    }
-
-    undef;
-}
-
 
 =method findSgMembers ADDRESS|(URI,NAME)
 Lookup the substitutionGroup alternatives for a specific element,

@@ -158,7 +158,7 @@ sub create_tagged_element
            , struct  => "$tag is simple value with attributes"
            , tag     => $tag
            , attrs   => \@attrs
-           , example => $st->()
+           , example => ($st->() || '')
            };
        };
 }
@@ -263,12 +263,24 @@ sub attribute_optional
 
 sub attribute_fixed
 {   my ($path, $args, $ns, $tag, $do, $fixed) = @_;
-    $fixed   = $fixed->example ;
+    my $value = $fixed->value;
 
     sub { +{ kind    => 'attr'
            , tag     => $tag
            , occurs  => "attribute $tag is fixed"
-           , example => $fixed
+           , example => $value
+           };
+        };
+}
+
+sub attribute_fixed_optional
+{   my ($path, $args, $ns, $tag, $do, $fixed) = @_;
+    my $value = $fixed->value;
+
+    sub { +{ kind    => 'attr'
+           , tag     => $tag
+           , occurs  => "attribute $tag is fixed optional"
+           , example => $value
            };
         };
 }

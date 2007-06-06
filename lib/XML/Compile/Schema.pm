@@ -34,8 +34,8 @@ XML::Compile::Schema - Compile a schema
 
  # adding schemas
  $schema->addSchemas($tree);
- $schema->importData('http://www.w3.org/2001/XMLSchema');
- $schema->importData('2001-XMLSchema.xsd');
+ $schema->importDefinitions('http://www.w3.org/2001/XMLSchema');
+ $schema->importDefinitions('2001-XMLSchema.xsd');
 
  # create and use a reader
  my $read   = $schema->compile(READER => '{myns}mytype');
@@ -127,7 +127,7 @@ sub init($)
     $self->{namespaces} = XML::Compile::Schema::NameSpaces->new;
     $self->SUPER::init($args);
 
-    $self->addSchemas($args->{top});
+    $self->importDefinitions($args->{top});
 
     $self->{hooks} = [];
     if(my $h1 = $args->{hook})
@@ -149,18 +149,23 @@ to collect schemas.
 
 sub namespaces() { shift->{namespaces} }
 
-=method addSchemas XML
-Collect all the schemas defined in the XML data, which is something
-accepted by M<dataToXML()>.
+=method addSchemas XML, OPTIONS
+Collect all the schemas defined in the XML data.
+
+=error required is a XML::LibXML::Node
+Use M<importDefinitions()> to specify schema's in any (other) form, like
+as string.
 =cut
 
 sub addSchemas($)
-{   my ($self, $top) = @_;
-    defined $top or return;
+{   my $self = shift;
+    my $node = shift or return ();
 
-    my $node = $self->dataToXML($top);
-    $node    = $node->documentElement
-       if $node->isa('XML::LibXML::Document');
+    ref $node && $node->isa('XML::LibXML::Node')
+        or croak "ERROR: required is a XML::LibXML::Node\n";
+
+    $node = $node->documentElement
+        if $node->isa('XML::LibXML::Document');
 
     my $nss = $self->namespaces;
 
@@ -181,15 +186,16 @@ sub addSchemas($)
     );
 }
 
-=method importData XMLDATA
+=method importDefinitions XMLDATA, OPTIONS
 Import (include) the schema information included in the XMLDATA.  The
-XMLDATA must be acceptable for M<dataToXML()>.
+XMLDATA must be acceptable for M<dataToXML()>.  The OPTIONS are passed
+to M<addSchemas()>.
 =cut
 
-sub importData($)
-{   my ($self, $thing) = @_;
+sub importDefinitions($@)
+{   my ($self, $thing) = (shift, shift);
     my $tree = $self->dataToXML($thing) or return;
-    $self->addSchemas($tree);
+    $self->addSchemas($tree, @_);
 }
 
 =method addHook HOOKDATA|HOOK|undef
@@ -226,7 +232,8 @@ sub hooks() { @{shift->{hooks}} }
 =method compile ('READER'|'WRITER'), ELEMENT, OPTIONS
 
 Translate the specified ELEMENT into a CODE reference which is able to
-translate between XML-text and a HASH.
+translate between XML-text and a HASH.  When the ELEMENT is C<undef>,
+then an empty LIST is returned.
 
 The ELEMENT is the starting-point for processing in the data-structure.
 It can either be a global element, or a global type.  The NAME
@@ -278,11 +285,17 @@ set for a simpleType.
 Prepended to each error report, to indicate the location of the
 error in the XML-Scheme tree.
 
-=option  elements_qualified BOOLEAN
+=option  elements_qualified C<TOP>|C<ALL>|C<NONE>|BOOLEAN
 =default elements_qualified <undef>
 When defined, this will overrule the C<elementFormDefault> flags in
-all schema's.  When not qualified, the xml will not produce or
-process prefixes on the elements.
+all schema's.  When C<TOP> is specified, at least the top-element will
+be name-space qualified.  When C<ALL> or a true value is given, then all
+elements will be used qualified.  When C<NONE> or a false value is given,
+the XML will not produce or process prefixes on the elements.
+
+The C<form> attributes will be respected, except on the top element when
+C<TOP> is specified.  Use hooks when you need to fix name-space use in
+more subtile ways.
 
 =option  attributes_qualified BOOLEAN
 =default attributes_qualified <undef>
@@ -356,6 +369,7 @@ Alternative for option C<hook>.
 
 sub compile($$@)
 {   my ($self, $action, $type, %args) = @_;
+    defined $type or return ();
 
     exists $args{check_values}
        or $args{check_values} = 1;
@@ -374,22 +388,20 @@ sub compile($$@)
             if $@;
     }
 
-    $args{include_namespaces} ||= 1;
+    $args{include_namespaces} = 1
+        unless defined $args{include_namespaces};
+
     $args{output_namespaces}  ||= {};
 
     do { $_->{used} = 0 for values %{$args{output_namespaces}} }
-       if $args{namespace_reset};
+        if $args{namespace_reset};
 
     my $nss   = $self->namespaces;
-    my $top   = $nss->findType($type) || $nss->findElement($type)
-       or croak "ERROR: type $type is not defined";
 
     my ($h1, $h2) = (delete $args{hook}, delete $args{hooks});
     my @hooks = $self->hooks;
     push @hooks, ref $h1 eq 'ARRAY' ? @$h1 : $h1 if $h1;
     push @hooks, ref $h2 eq 'ARRAY' ? @$h2 : $h2 if $h2;
-
-    $args{path} ||= $top->{full};
 
     my $bricks = 'XML::Compile::Schema::' .
      ( $action eq 'READER' ? 'XmlReader'
@@ -401,7 +413,7 @@ sub compile($$@)
     die $@ if $@;
 
     XML::Compile::Schema::Translate->compileTree
-     ( $top->{full}, %args
+     ( $type, %args
      , bricks => $bricks
      , err    => $self->invalidsErrorHandler($args{invalid})
      , nss    => $self->namespaces
@@ -419,7 +431,7 @@ the specified TYPE as XML or Perl is organized in practice.
 Some OPTIONS are explained in M<XML::Compile::Schema::Translate>.
 There are some extra OPTIONS defined for the final output process.
 
-=option  elements_qualified BOOLEAN
+=option  elements_qualified C<ALL>|C<TOP>|C<NONE>|BOOLEAN
 =default elements_qualified <undef>
 
 =option  attributes_qualified BOOLEAN
@@ -451,8 +463,6 @@ sub template($@)
     my @comment = map { ("show_$_" => 1) } split m/\,/, $show;
 
     my $nss = $self->namespaces;
-    my $top = $nss->findType($type) || $nss->findElement($type)
-       or croak "ERROR: type $type is not defined";
 
     my $indent                  = $args{indent} || "  ";
     $args{check_occurs}         = 1;
@@ -463,7 +473,7 @@ sub template($@)
     die $@ if $@;
 
     my $compiled = XML::Compile::Schema::Translate->compileTree
-     ( $top->{full}
+     ( $type
      , bricks => $bricks
      , nss    => $self->namespaces
      , err    => $self->invalidsErrorHandler('IGNORE')
@@ -851,6 +861,7 @@ evaluated before the global hooks.
             , replace => 'SKIP'
             };
 
+ # path contains "(volume)" or id is 'aap' or id is 'noot'
  my $hook = { path    => qr/\(volume\)/
             , id      => [ 'aap', 'noot' ]
             , before  => [ sub {...}, sub { ... } ]
@@ -862,7 +873,8 @@ evaluated before the global hooks.
 Each hook has two kinds of parameters: selectors and processors.
 Selectors define the schema component of which the processing is modified.
 When one of the selectors matches, the processing information for the hook
-is used.  Available selectors (see below for details on each of them):
+is used.  When no selector is specified, then the hook will be used on all
+elements.  Available selectors (see below for details on each of them):
 
 =over 4
 =item . type
