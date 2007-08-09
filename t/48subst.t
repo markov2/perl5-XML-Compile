@@ -35,17 +35,13 @@ __SCHEMA__
 
 ok(defined $schema);
 
-my @errors;
-push @run_opts, invalid => sub {no warnings; push @errors, "$_[2] ($_[1])"};
-
-eval {
-test_rw($schema, "test1" => <<__XML__, [1]);
+eval { test_rw($schema, test1 => <<__XML__, undef) };
 <test1><t1>42</t1><t2>43</t2><t3>44</t3></test1>
 __XML__
-};
 
-like($@, qr/no substitution.*found/);
-ok(!@errors);
+ok($@, 'compile-time error');
+my $error = $@;
+is($error, "error: no substitutionGroups found for {http://test-types}head at {http://test-types}test1#subst\n");
 
 $schema->importDefinitions( <<__EXTRA__ );
 <!-- alternatives in same namespace -->

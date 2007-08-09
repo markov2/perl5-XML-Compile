@@ -9,7 +9,7 @@ use TestTools;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 97 + ($skip_dumper ? 0 : 81);
+use Test::More tests => 94;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -43,9 +43,6 @@ __SCHEMA__
 
 ok(defined $schema);
 
-my @errors;
-push @run_opts, invalid => sub {no warnings; push @errors, "$_[2] ($_[1])"};
-
 #
 # In range
 #
@@ -53,17 +50,14 @@ push @run_opts, invalid => sub {no warnings; push @errors, "$_[2] ($_[1])"};
 test_rw($schema, "test1" => <<__XML__, 12);
 <test1>12</test1>
 __XML__
-ok(!@errors);
 
 test_rw($schema, "test2" => <<__XML__, 13);
 <test2>13</test2>
 __XML__
-ok(!@errors);
 
 test_rw($schema, "test3" => <<__XML__, 14);
 <test3>14</test3>
 __XML__
-ok(!@errors);
 
 #
 # too small
@@ -72,26 +66,23 @@ ok(!@errors);
 test_rw($schema, "test1" => <<__XML__, 5);
 <test1>5</test1>
 __XML__
-ok(!@errors);
 
-test_rw($schema, "test2" => <<__XML__, 10, <<__XML__, 6);
+my $error = reader_error($schema, test2 => <<__XML__);
 <test2>6</test2>
 __XML__
-<test2>10</test2>
-__XML__
-is(shift @errors, "too small inclusive, min 10 (6)");
-is(shift @errors, "too small inclusive, min 10 (6)");
-ok(!@errors);
+is($error, 'too small inclusive 6, min 10 at {http://test-types}test2#facet');
+
+$error = writer_error($schema, test2 => 6);
+is($error, "too small inclusive 6, min 10 at {http://test-types}test2#facet");
 
 # inherited restriction
-test_rw($schema, "test3" => <<__XML__, 10, <<__XML__, 6);
+$error = reader_error($schema, test3 => <<__XML__);
 <test3>6</test3>
 __XML__
-<test3>10</test3>
-__XML__
-is(shift @errors, "too small inclusive, min 10 (6)");
-is(shift @errors, "too small inclusive, min 10 (6)");
-ok(!@errors);
+is($error, 'too small inclusive 6, min 10 at {http://test-types}test3#facet');
+
+$error = writer_error($schema, test3 => 6);
+is($error, "too small inclusive 6, min 10 at {http://test-types}test3#facet");
 
 #
 # too large
@@ -100,20 +91,15 @@ ok(!@errors);
 test_rw($schema, "test1" => <<__XML__, 55);
 <test1>55</test1>
 __XML__
-ok(!@errors);
 
 test_rw($schema, "test2" => <<__XML__, 56);
 <test2>56</test2>
 __XML__
-ok(!@errors);
 
-test_rw($schema, "test3" => <<__XML__, 20 , <<__XML__, 57);
+$error = reader_error($schema, test3 => <<__XML__);
 <test3>57</test3>
 __XML__
-<test3>20</test3>
-__XML__
-is(shift @errors, "too large inclusive, max 20 (57)");
-is(shift @errors, "too large inclusive, max 20 (57)");
-ok(!@errors);
+is($error, 'too large inclusive 57, max 20 at {http://test-types}test3#facet');
 
-#
+$error = writer_error($schema, test3 => 57);
+is($error, "too large inclusive 57, max 20 at {http://test-types}test3#facet");

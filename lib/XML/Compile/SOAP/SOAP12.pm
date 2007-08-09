@@ -4,6 +4,8 @@ use strict;
 package XML::Compile::SOAP::SOAP12;
 use base 'XML::Compile::SOAP';
 
+use Log::Report 'xml-compile', syntax => 'SHORT';
+
 my $base  = 'http://www.w3.org/2003/05';
 
 my $role  = "$base/soap-envelope/role";
@@ -72,7 +74,7 @@ sub rpcNS() {shift->{rpc}}
 sub _writer($)
 {   my ($self, $args) = @_;
 
-    die "ERROR: headerfault does only exist in SOAP1.1\n"
+    error __x"headerfault does only exist in SOAP1.1"
         if $args->{header_fault};
 
 }

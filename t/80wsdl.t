@@ -31,6 +31,7 @@ my $xml_xsd = <<'__STOCKQUOTE_XSD';
             </all>
         </complexType>
     </element>
+
     <element name="TradePrice">
         <complexType>
             <all>
@@ -44,15 +45,14 @@ __STOCKQUOTE_XSD
 my $xml_wsdl = <<'__STOCKQUOTE_WSDL';
 <?xml version="1.0"?>
 <definitions name="StockQuote"
+    targetNamespace="http://example.com/stockquote/definitions"
+    xmlns:tns="http://example.com/stockquote/definitions"
+    xmlns:xsd1="http://example.com/stockquote/schemas"
+    xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+    xmlns="http://schemas.xmlsoap.org/wsdl/">
 
-targetNamespace="http://example.com/stockquote/definitions"
-          xmlns:tns="http://example.com/stockquote/definitions"
-          xmlns:xsd1="http://example.com/stockquote/schemas"
-          xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
-          xmlns="http://schemas.xmlsoap.org/wsdl/">
-
-   <import namespace="http://example.com/stockquote/schemas"
-           location="http://example.com/stockquote/stockquote.xsd"/>
+    <import namespace="http://example.com/stockquote/schemas"
+        location="http://example.com/stockquote/stockquote.xsd"/>
 
     <message name="GetLastTradePriceInput">
         <part name="body" element="xsd1:TradePriceRequest"/>
@@ -78,15 +78,14 @@ my $servname  = "{$servns}$servlocal";
 my $xml_service = <<'__STOCKQUOTESERVICE_WSDL';
 <?xml version="1.0"?>
 <definitions name="StockQuote"
+    targetNamespace="http://example.com/stockquote/service"
+    xmlns:tns="http://example.com/stockquote/service"
+    xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+    xmlns:defs="http://example.com/stockquote/definitions"
+    xmlns="http://schemas.xmlsoap.org/wsdl/">
 
-targetNamespace="http://example.com/stockquote/service"
-          xmlns:tns="http://example.com/stockquote/service"
-          xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
-          xmlns:defs="http://example.com/stockquote/definitions"
-          xmlns="http://schemas.xmlsoap.org/wsdl/">
-
-   <import namespace="http://example.com/stockquote/definitions"
-           location="http://example.com/stockquote/stockquote.wsdl"/>
+    <import namespace="http://example.com/stockquote/definitions"
+        location="http://example.com/stockquote/stockquote.wsdl"/>
 
     <binding name="StockQuoteSoapBinding" type="defs:StockQuotePortType">
         <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
@@ -132,7 +131,7 @@ my $err = $@; $err =~ s! at t/80.*\n$!!;
 ok(!defined $s, 'find non-existing service');
 
 is($err, <<'__ERR');
-ERROR: no definition for 'aap' as service.  Defined is
+error: no definition for `aap' as service, pick from:
     {http://example.com/stockquote/service}StockQuoteService
 __ERR
 
@@ -157,7 +156,7 @@ my $op = eval { $wsdl->operation('noot') };
 $err = $@; $err =~ s!\sat t/80.*\n$!\n!;
 ok(!defined $op, "non-existing operation");
 is($err, <<'__ERR');
-ERROR: no operation 'noot' for portType '{http://example.com/stockquote/definitions}StockQuotePortType', pick from
+error: no operation `noot' for portType {http://example.com/stockquote/definitions}StockQuotePortType, pick from
     GetLastTradePrice
 __ERR
 

@@ -3,31 +3,39 @@ use strict;
 
 package XML::Compile::SOAP;
 
-use Carp  qw/confess croak/;
+use Log::Report 'xml-compile', syntax => 'SHORT';
+use XML::Compile::Util  qw/pack_type/;
 
 =chapter NAME
 XML::Compile::SOAP - base-class for SOAP implementations
 
 =chapter SYNOPSIS
 
- # There are quite some differences between SOAP1.1 and 1.2
- my $soap = XML::Compile::SOAP::SOAP11->new;
+ use XML::Compile::SOAP::SOAP11;
+ use XML::Compile::Util qw/pack_type/;
 
- $soap->schemas->importDefinitions(...);   # load extra schema's
+ # There are quite some differences between SOAP1.1 and 1.2
+ my $soap   = XML::Compile::SOAP::SOAP11->new;
+
+ # load extra schemas always explicitly
+ $soap->schemas->importDefinitions(...);
+
+ my $h1type = pack_type $myns, $sometype;
+ my $b1type = "{$myns}$othertype";  # less clean
 
  # Request, answer, and call usually created via WSDL
  my $request = $soap->compile
    ('CLIENT', 'INPUT'               # client to server
-   , header   => [ h1 => 'h1type' ]
-   , body     => [ b1 => 'b1type' ]
+   , header   => [ h1 => $h1type ]
+   , body     => [ b1 => $b1type ]
    , destination    => [ h1 => 'NEXT' ]
    , mustUnderstand => 'h1'
    );
 
  my $answer = $soap->compile
    ('CLIENT', 'OUTPUT'              # server to client
-   , header   => [ h2 => 'h2type' ]
-   , body     => [ b2 => 'b2type' ]
+   , header   => [ h2 => $h2type ]
+   , body     => [ b2 => $b2type ]
    , headerfault => [ ... ]
    , fault    => [ ... ]
    );
@@ -73,7 +81,7 @@ Only document/literal use is supported, not XML-RPC.
 =option   media_type MIMETYPE
 =default  media_type C<application/soap+xml>
 
-=option   schemas    M<XML::Compile::Schema> object
+=option   schemas    C<XML::Compile::Schema> object
 =default  schemas    created internally
 Use this when you have already processed some schema definitions.  Otherwise,
 you can add schemas later with C<< $soap->schames->importDefinitions() >>
@@ -86,8 +94,8 @@ sub new($@)
 
 sub init($)
 {   my ($self, $args) = @_;
-    $self->{env}     = $args->{envelope_ns} || confess;
-    $self->{enc}     = $args->{encoding_ns} || confess;
+    $self->{env}     = $args->{envelope_ns} || panic "no envelope namespace";
+    $self->{enc}     = $args->{encoding_ns} || panic "no encoding namespace";
     $self->{mime}    = $args->{media_type}  || 'application/soap+xml';
     $self->{schemas} = $args->{schemas}     || XML::Compile::Schema->new;
     $self;
@@ -252,11 +260,13 @@ sub _writer($)
              , delete $understand{$label}, delete $destination{$label});
     }
 
-    croak "ERROR: mustUnderstand for unknown header @{[ keys %understand ]}"
-        if keys %understand;
+    keys %understand
+        and error __x"mustUnderstand for unknown header {headers}"
+                , headers => [keys %understand];
 
-    croak "ERROR: actor for unknown header @{[ keys %destination]}"
-        if keys %destination;
+    keys %destination
+        and error __x"actor for unknown header {headers}"
+                , headers => [keys %destination];
 
     my $headerhook = $self->_writer_hook($envns, 'Header', @header);
 
@@ -288,7 +298,7 @@ sub _writer($)
     my $encstyle = $self->_writer_encstyle_hook(\%allns);
 
     my $envelope = $self->schemas->compile
-     ( WRITER => "{$envns}Envelope"
+     ( WRITER => pack_type($envns, 'Envelope')
      , hooks  => [ $encstyle, $headerhook, $bodyhook ]
      , output_namespaces    => \%allns
      , elements_qualified   => 1
@@ -304,7 +314,7 @@ sub _writer($)
 sub _writer_hook($$@)
 {   my ($self, $ns, $local, @do) = @_;
  
-   +{ type  => "{$ns}$local"
+   +{ type    => pack_type($ns, $local)
     , replace =>
          sub { my ($doc, $data, $path, $tag) = @_;
                my %data = %$data;
@@ -332,7 +342,7 @@ sub _writer_encstyle_hook($)
 {   my ($self, $allns) = @_;
     my $envns   = $self->envelopeNS;
     my $style_w = $self->schemas->compile
-     ( WRITER => "{$envns}encodingStyle"
+     ( WRITER => pack_type($envns, 'encodingStyle')
      , output_namespaces    => $allns
      , include_namespaces   => 0
      , attributes_qualified => 1
@@ -340,14 +350,14 @@ sub _writer_encstyle_hook($)
     my $style;
 
     my $before  = sub {
-	my ($doc, $values) = @_;
+	my ($doc, $values, $path) = @_;
         ref $values eq 'HASH' or return $values;
         $style = $style_w->($doc, delete $values->{encodingStyle});
         $values;
       };
 
     my $after = sub {
-        my ($doc, $node) = @_;
+        my ($doc, $node, $path) = @_;
         $node->addChild($style) if defined $style;
         $node;
       };
@@ -407,7 +417,7 @@ sub _reader($)
     my $encstyle = $self->_reader_encstyle_hook;
 
     my $envelope = $self->schemas->compile
-     ( READER => "{$envns}Envelope"
+     ( READER => pack_type($envns, 'Envelope')
      , hooks  => [ $encstyle, $headerhook, $bodyhook ]
      );
 
@@ -418,14 +428,14 @@ sub _reader_hook($$@)
 {   my ($self, $ns, $local, @do) = @_;
     my %trans = map { ($_->[1] => [ $_->[0], $_->[2] ]) } @do; # we need copies
  
-   +{ type  => "{$ns}$local"
+   +{ type    => pack_type($ns, $local)
     , replace =>
         sub
           { my ($xml, $trans, $path, $label) = @_;
             my %h;
             foreach my $child ($xml->childNodes)
             {   next unless $child->isa('XML::LibXML::Element');
-                my $type = '{'.$child->namespaceURI.'}'.$child->localName;
+                my $type = pack_type $child->namespaceURI, $child->localName;
                 if(my $t = $trans{$type})
                 {   my $v = $t->[1]->($child);
                     $h{$t->[0]} = $v if defined $v;
@@ -434,7 +444,7 @@ sub _reader_hook($$@)
                 {   $h{$type} = $child;
                 }
             }
-            \%h;
+            ($label => \%h);
           }
     };
 }
@@ -442,7 +452,9 @@ sub _reader_hook($$@)
 sub _reader_encstyle_hook()
 {   my $self     = shift;
     my $envns    = $self->envelopeNS;
-    my $style_r = $self->schemas->compile(READER => "{$envns}encodingStyle");
+    my $style_r = $self->schemas->compile
+      ( READER => pack_type($envns, 'encodingStyle')
+      );
     my $encstyle;
 
     my $before = sub
@@ -495,7 +507,7 @@ be abbreviated for readibility.  Returns the unmodified STRING in
 all other cases.
 =cut
 
-sub roleAbbreviation($) { confess "ERROR: not implemented" }
+sub roleAbbreviation($) { panic "not implemented" }
 
 =chapter DETAILS
 
@@ -536,13 +548,16 @@ can be quite hard to create correctly) is in file C<myschema.xsd>
 
 Ok, now the program you create the request:
 
+ use XML::Compile::SOAP::SOAP11;
+ use XML::Compile::Util  qw/pack_type/;
+
  my $soap   = XML::Compile::SOAP::SOAP11->new;
  $soap->schemas->importDefinitions('myschema.xsd');
 
  my $get_price = $soap->compile
   ( 'CLIENT', 'INPUT'
-  , header => [ transaction => "{$TestNS}Transaction" ]
-  , body =>   [ request => "{$TestNS}GetLastTradePrice" ]
+  , header => [ transaction => pack_type($TestNS, 'Transaction') ]
+  , body =>   [ request => pack_type($TestNS, 'GetLastTradePrice') ]
   , mustUnderstand => 'transaction'
   , destination => [ 'transaction' => 'NEXT http://actor' ]
   );
@@ -593,8 +608,8 @@ contains the XML.  The program looks like this:
 
  my $server = $soap->compile       # create once
   ( 'SERVER', 'INPUT'
-  , header => [ transaction => "{$TestNS}Transaction" ]
-  , body =>   [ request => "{$TestNS}GetLastTradePrice" ]
+  , header => [ transaction => pack_type($TestNS, 'Transaction') ]
+  , body =>   [ request => pack_type($TestNS, 'GetLastTradePrice') ]
   );
 
  my $data_out = $server->($soap);  # call often

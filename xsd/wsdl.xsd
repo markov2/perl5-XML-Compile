@@ -107,7 +107,7 @@ No other rights are granted by implication, estoppel or otherwise.
     </xs:annotation>
     <xs:choice>
       <xs:element name="import" type="wsdl:tImport"/>
-      <xs:element name="types" type="wsdl:tTypes"/>                     
+      <xs:element name="types" type="wsdl:tTypes"/>
       <xs:element name="message" type="wsdl:tMessage">
         <xs:unique name="part">
           <xs:selector xpath="wsdl:part"/>

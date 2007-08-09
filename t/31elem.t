@@ -115,7 +115,7 @@ __XML__
 # for test6 see above
 
 #
-# Test default
+# Test default: should not be set automatically
 #
 
 test_rw($schema, test7 => <<__XML__, {ct_1 => 41, ct_2 => 42}, <<__XML__, {ct_1 => 41});

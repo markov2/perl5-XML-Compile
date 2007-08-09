@@ -70,7 +70,7 @@ __XML__
 
 my %t3 = (_ => 30, a2_a => 31, a4 => 32);
 test_rw($schema, "test3" => <<__XML__, \%t3);
-<test3 a2_a="31" a4="32">30</test3>
+<test3 a4="32" a2_a="31">30</test3>
 __XML__
 
 

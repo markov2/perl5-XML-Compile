@@ -4,9 +4,9 @@ use strict;
 
 package XML::Compile::Dumper;
 
+use Log::Report 'xml-compile', syntax => 'SHORT';
 use Data::Dump::Streamer;
-use POSIX 'asctime';
-use Carp;
+use POSIX     qw/asctime/;
 use IO::File;
 
 # I have no idea why the next is needed, but without it, the
@@ -39,7 +39,7 @@ XML::Compile::Dumper - Translate Schema or WSDL to code
 This module simplifies the task of saving and loading pre-compiled
 translators.  Schema's can get huge, and when you are not creating a
 daemon to do the XML communication, you may end-up compiling and
-interpreting these large schema's often, just to be able to process
+interpreting these large schemas often, just to be able to process
 simple data-structures.
 
 Based on the excellent module M<Data::Dump::Streamer>, this module
@@ -63,7 +63,7 @@ Create an object which will collect the information for the output
 file.  You have to specify either a C<filehandle> or a C<filename>.
 A filehandle will be closed after processing.
 
-=option  filehandle M<IO::Handle>
+=option  filehandle C<IO::Handle>
 =default filehandle C<undef>
 
 =option  filename FILENAME
@@ -96,15 +96,15 @@ sub init($)
     my $fh      = $opts->{filehandle};
     unless($fh)
     {   my $fn  = $opts->{filename}
-            or croak "ERROR: either filename or filehandle required";
+            or error __x"either filename or filehandle required";
 
         $fh     = IO::File->new($fn, '>:utf8')
-            or die "ERROR: cannot write to $fn: $!";
+            or fault __x"cannot write to {filename}", filename => $fn;
     }
     $self->{XCD_fh} = $fh;
 
     my $package = $opts->{package}
-        or croak "ERROR: package name required";
+        or error __x"package name required";
 
     $self->header($fh, $package);
     $self;
@@ -188,10 +188,10 @@ need to be dumped in one go.
 sub freeze(@)
 {   my $self = shift;
 
-    croak "ERROR: freeze needs PAIRS or a HASH"
+    error "freeze needs PAIRS or a HASH"
         if (@_==1 && ref $_[0] ne 'HASH') || @_ % 2;
 
-    croak "ERROR: freeze can only be called once"
+    error "freeze can only be called once"
         if $self->{XCD_freeze}++;
 
     my (@names, @data);
@@ -215,7 +215,9 @@ sub freeze(@)
 
     for(my $i = 0; $i < @names; $i++)
     {   ref $data[$i] eq 'CODE'
-            or croak "ERROR: value with '$names[$i]' is not a code reference";
+            or error __x"value with '{label}' is not a code reference"
+                   , label => $names[$i];
+
         my $code  = '$CODE'.($i+1);
         $fh->print("*${names[$i]} = $code;\n");
     }

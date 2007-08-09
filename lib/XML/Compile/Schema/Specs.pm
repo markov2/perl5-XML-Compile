@@ -4,8 +4,9 @@ use strict;
 
 package XML::Compile::Schema::Specs;
 
+use Log::Report 'xml-compile', syntax => 'SHORT';
+
 use XML::Compile::Schema::BuiltInTypes   qw/%builtin_types/;
-use Carp;
 
 =chapter NAME
 
@@ -19,7 +20,7 @@ XML::Compile::Schema::Specs - Predefined Schema Information
 =chapter DESCRIPTION
 This package defines the various schema-specifications, however
 currently only supports the last one: L<http://www.w3.org/2001/XMLSchema>.
-It is simple to extend the list of supported schema's, but someone has
+It is simple to extend the list of supported schemas, but someone has
 to do it.  Feel invited.
 
 =chapter METHODS
@@ -127,7 +128,7 @@ my %schemas = map { ($_->{uri_xsd} => $_) }
  \%schema_1999, \%schema_2000, \%schema_2001;
 
 =c_method predefinedSchemas
-Returns the uri of all predefined schema's.
+Returns the uri of all predefined schemas.
 
 =cut
 
@@ -160,7 +161,10 @@ sub builtInType($$;$@)
     my $name = @_ % 1 ? shift : undef;
     unless(defined $name)
     {   if($ns =~ m/^\s*\{(.*)\}(.*)/ ) { ($ns, $name) = ($1, $2) }
-        else { croak "ERROR: incomplete type $ns" }
+        else
+        {   error __x"incomplete type {namespace}"
+                , namespace => $ns;
+        }
     }
 
     my $schema = $schemas{$ns}

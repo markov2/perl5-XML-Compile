@@ -5,6 +5,7 @@ use strict;
 package XML::Compile::Schema;
 use base 'XML::Compile';
 
+use Log::Report 'xml-compile', syntax => 'SHORT';
 use Carp;
 use List::Util   qw/first/;
 use XML::LibXML  ();
@@ -49,6 +50,11 @@ XML::Compile::Schema - Compile a schema
  # show result
  print $xml->toString;
 
+ # to create the type nicely
+ use XML::Compile::Util qw/pack_type/;
+ my $type   = pack_type 'myns', 'mytype';
+ print $type;  # shows  {myns}mytype
+
 =chapter DESCRIPTION
 
 This module collects knowledge about one or more schemas.  The most
@@ -72,6 +78,7 @@ accepted by M<dataToXML()>.
 
 =example create an XML reader
  my $msgin  = $rules->compile(READER => '{myns}mytype');
+ # or  ...  = $rules->compile(READER => pack_type('myns', 'mytype'));
  my $xml    = $parser->parse("some-xml.xml");
  my $hash   = $msgin->($xml);
 
@@ -99,7 +106,7 @@ alternative
 =back
 
 Be warned that the schema itself is NOT VALIDATED; you can easily
-construct schema's which do work with this module, but are not
+construct schemas which do work with this module, but are not
 valid according to W3C.  Only in some cases, the translater will
 refuse to accept mistakes: mainly because it cannot produce valid
 code.
@@ -152,9 +159,6 @@ sub namespaces() { shift->{namespaces} }
 =method addSchemas XML, OPTIONS
 Collect all the schemas defined in the XML data.
 
-=error required is a XML::LibXML::Node
-Use M<importDefinitions()> to specify schema's in any (other) form, like
-as string.
 =cut
 
 sub addSchemas($)
@@ -162,7 +166,7 @@ sub addSchemas($)
     my $node = shift or return ();
 
     ref $node && $node->isa('XML::LibXML::Node')
-        or croak "ERROR: required is a XML::LibXML::Node\n";
+        or error __x"required is a XML::LibXML::Node";
 
     $node = $node->documentElement
         if $node->isa('XML::LibXML::Document');
@@ -269,11 +273,6 @@ should or should not appear, and is between bounds or not.
 Elements which may have more than 1 occurence will still always
 be represented by an ARRAY.
 
-=option  invalid 'IGNORE','WARN','DIE',CODE
-=default invalid DIE
-What to do in invalid values (ignored when not checking). See
-M<invalidsErrorHandler()> who initiates this handler.
-
 =option  ignore_facets BOOLEAN
 =default ignore_facets <false>
 Facets influence the formatting and range of values. This does
@@ -288,7 +287,7 @@ error in the XML-Scheme tree.
 =option  elements_qualified C<TOP>|C<ALL>|C<NONE>|BOOLEAN
 =default elements_qualified <undef>
 When defined, this will overrule the C<elementFormDefault> flags in
-all schema's.  When C<TOP> is specified, at least the top-element will
+all schemas.  When C<TOP> is specified, at least the top-element will
 be name-space qualified.  When C<ALL> or a true value is given, then all
 elements will be used qualified.  When C<NONE> or a false value is given,
 the XML will not produce or process prefixes on the elements.
@@ -300,7 +299,7 @@ more subtile ways.
 =option  attributes_qualified BOOLEAN
 =default attributes_qualified <undef>
 When defined, this will overrule the C<attributeFormDefault> flags in
-all schema's.  When not qualified, the xml will not produce nor
+all schemas.  When not qualified, the xml will not produce nor
 process prefixes on attributes.
 
 =option  output_namespaces HASH
@@ -380,11 +379,11 @@ sub compile($$@)
     $args{sloppy_integers}   ||= 0;
     unless($args{sloppy_integers})
     {   eval "require Math::BigInt";
-        die "ERROR: require Math::BigInt or sloppy_integers:\n$@"
+        fault "require Math::BigInt or sloppy_integers:\n$@"
             if $@;
 
         eval "require Math::BigFloat";
-        die "ERROR: require Math::BigFloat or sloppy_integers:\n$@"
+        fault "require Math::BigFloat or sloppy_integers:\n$@"
             if $@;
     }
 
@@ -403,21 +402,22 @@ sub compile($$@)
     push @hooks, ref $h1 eq 'ARRAY' ? @$h1 : $h1 if $h1;
     push @hooks, ref $h2 eq 'ARRAY' ? @$h2 : $h2 if $h2;
 
-    my $bricks = 'XML::Compile::Schema::' .
-     ( $action eq 'READER' ? 'XmlReader'
+    my $impl
+     = $action eq 'READER' ? 'XmlReader'
      : $action eq 'WRITER' ? 'XmlWriter'
-     : croak "ERROR: create only READER, WRITER, not '$action'."
-     );
+     : error __x"create only READER, WRITER, not '{action}'"
+           , action => $action;
 
+    my $bricks = "XML::Compile::Schema::$impl";
     eval "require $bricks";
-    die $@ if $@;
+    fault $@ if $@;
 
     XML::Compile::Schema::Translate->compileTree
      ( $type, %args
      , bricks => $bricks
-     , err    => $self->invalidsErrorHandler($args{invalid})
      , nss    => $self->namespaces
      , hooks  => \@hooks
+     , action => $action
      );
 }
 
@@ -470,14 +470,14 @@ sub template($@)
 
     my $bricks = 'XML::Compile::Schema::Template';
     eval "require $bricks";
-    die $@ if $@;
+    fault $@ if $@;
 
     my $compiled = XML::Compile::Schema::Translate->compileTree
      ( $type
      , bricks => $bricks
      , nss    => $self->namespaces
-     , err    => $self->invalidsErrorHandler('IGNORE')
      , hooks  => []
+     , action => 'READER'
      , %args
      );
 
@@ -496,42 +496,8 @@ sub template($@)
     {   return $bricks->toPerl($ast, @comment, indent => $indent);
     }
 
-    die "ERROR: template output is either in XML or PERL layout, not '$action'\n";
-}
-
-=method invalidsErrorHandler 'IGNORE','USE'.'WARN','DIE',CODE
-
-What to do when a validation error appears during validation?  This method
-translates all string options into a single code reference which is
-returned.  Please use the C<invalid> options of M<compile()>
-which will call this method indirectly.
-
-When C<IGNORE> is specified, the process will ignore the specified
-value as if it was not specified at all.  C<USE> will not complain,
-and use the value found. With C<WARN>, it will continue with the value
-but a warning is printed first.  On C<DIE> it will stop processing,
-as will the program (catch it with C<eval>).
-
-When a CODE reference is specified, that will be called specifying
-the type path, actual type expected (expanded name), the errorneous
-value, and an error string.
-
-=cut
-
-sub invalidsErrorHandler($)
-{   my $key = $_[1] || 'DIE';
-
-      ref $key eq 'CODE'? $key
-    : $key eq 'IGNORE'  ? sub { undef }
-    : $key eq 'USE'     ? sub { $_[1] }
-    : $key eq 'WARN'
-    ? sub {warn "$_[2] ("
-              . (defined $_[1]? $_[1] : 'undef')
-              . ") for $_[0]\n"; $_[1]}
-    : $key eq 'DIE'
-    ? sub {die  "$_[2] (".(defined $_[1] ? $_[1] : 'undef').") for $_[0]\n"}
-    : die "ERROR: error handler expects CODE, 'IGNORE',"
-        . "'USE','WARN', or 'DIE', not $key";
+    error __x"template output is either in XML or PERL layout, not '{action}'"
+        , action => $action;
 }
 
 =method types
@@ -561,7 +527,7 @@ sub elements()
 =section Addressing components
 
 Normally, external users can only address elements within a schema,
-and types are hidden to be used by other schema's only.  For this
+and types are hidden to be used by other schemas only.  For this
 reason, it is permitted to create an element and a type with the
 same name.
 
@@ -673,10 +639,10 @@ Represented as HASH, this looks like
 
 =back
 
-=section Processing elements
+=section Processing
 
 A second factor which determines the data-structure is the element
-occurence.  Usually, elements have to appear once and exactly once
+occurrence.  Usually, elements have to appear once and exactly once
 on a certain location in the XML data structure.  This order is
 automatically produced by this module. But elements may appear multiple
 times.
@@ -690,24 +656,33 @@ appear exactly once.  When missing, this is an error.
 
 =item maxOccurs larger than 1
 
-In this case, the element can appear multiple times.  Multiple values will
-be kept in an ARRAY within the HASH.  Non-schema based XML processors
-will not return a single value as an ARRAY, which makes that code more
-complicated.
+In this case, the element or particle block can appear multiple times.
+Multiple values will be kept in an ARRAY within the HASH.  Non-schema
+based XML processors will not return a single value as an ARRAY, which
+makes that code more complicated.
 
-An error will be produced when the number of elements found is
-less than C<minOccurs> or more than C<maxOccurs>, unless
-M<compile(check_occurs)> is C<false>.
+When the maxOccurs larger than 1 is specified for an element, an ARRAY
+of those elements is produced.  When it is specified for a block (sequence,
+choice, all, group), then an ARRAY of HASHes is returned.  The complication,
+in this case, is that the block needs a name, where it hasn't one in the
+schema.  As name, the first element in the construct is used.
 
-=example two values for C<a>
+An error will be produced when the number of elements found is less than
+C<minOccurs> or more than C<maxOccurs>, unless M<compile(check_occurs)>
+is C<false>.
 
- <test4><a>12</a><a>13</a><b>14</b></test4>
+=example elements with maxOccurs E<gt> 1
+In the schema:
+ <element name="a" type="int" maxOccurs="unbounded" />
+ <element name="b" type="int" />
 
-will become
+In the XML message:
+ <a>12</a><a>13</a><b>14</b>
 
- test4 => { a => [12, 13], b => 14 };
+In the Perl representation:
+ a => [12, 13], b => 14
 
-=example always an array
+=example always an array with maxOccurs E<gt> 1
 
 Even when there is only one element found, it will be returned as
 ARRAY (of one element).  Therefore, you can write
@@ -715,6 +690,23 @@ ARRAY (of one element).  Therefore, you can write
  my $data = $reader->($xml);
  foreach my $a ( @{$data->{a}} ) {...}
 
+=example blocks with maxOccurs E<gt> 1
+In the schema:
+ <sequence maxOccurs="5">
+   <element name="a" type="int" />
+   <element name="b" type="int" />
+ </sequence>
+
+In the XML message:
+ <a>15</a><b>16</b><a>17</a><b>18</b>
+
+In Perl representation:
+ a => [ {a => 15, b => 16}, {a => 17, b => 18} ]
+
+=item value is C<NIL>
+
+When an element is nillable, that is explicitly represented as a C<NIL>
+constant string.
 
 =item use="optional" or minOccurs="0"
 
@@ -798,7 +790,7 @@ they specify groups of elements and attributes which can be used, in
 stead of being explicit.
 
 The author of this module advices B<against the use of wildcards>
-in schema's, because the purpose of schema's is to be explicit and that
+in schemas, because the purpose of schemas is to be explicit and that
 basic idea is simply thrown away by these wildcards.  Let people cleanly
 extend the schema with inheritance!  If you use a standard schema
 which facilitates these wildcards, then please do not use them!
@@ -911,6 +903,9 @@ pattern archors.
  type => '{http://www.w3.org/2000/10/XMLSchema}int'
  type => qr/\}xml_/   # type start with xml_
  type => [ qw/int float/ ];
+
+ use XML::Compile::Util qw/pack_type/;
+ type => pack_type('http://www.w3.org/2000/10/XMLSchema', 'int')
 
 =subsection hooks on matching ids
 

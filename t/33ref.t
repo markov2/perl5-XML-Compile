@@ -8,7 +8,7 @@ use TestTools;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 21 + ($skip_dumper ? 0 : 18);
+use Test::More tests => 28;
 
 my $TestNS2 = "http://second-ns";
 
@@ -44,13 +44,29 @@ my $schema  = XML::Compile::Schema->new( <<__SCHEMA__ );
     </sequence>
   </complexType>
 </element>
+
+<element name="test3">
+  <complexType>
+    <sequence>
+      <group ref="me:g3" minOccurs="0" maxOccurs="unbounded" />
+    </sequence>
+  </complexType>
+</element>
+
+<group name="g3">
+  <choice>
+    <element name="g3_a" type="int"/>
+    <element name="g3_b" type="int"/>
+  </choice>
+</group>
+
 </schema>
 
 <schema targetNamespace="$TestNS2"
         xmlns="$SchemaNS"
         xmlns:first="$TestNS">
 
-<element name="test3">
+<element name="test4">
   <complexType>
     <sequence>
       <element ref="first:test1" />
@@ -69,25 +85,40 @@ ok(defined $schema);
 # element as reference to an element
 #
 
-ok(1, "** Testing element ref ");
-
 my %r1_a = (a1_a => 10, e1_a => 11, e1_b => 12);
-test_rw($schema, "{$TestNS2}test3" => <<__XML__, {test1 => \%r1_a});
-<test3><test1 a1_a="10"><e1_a>11</e1_a><e1_b>12</e1_b></test1></test3>
-__XML__
+test_rw($schema, "{$TestNS2}test4" => <<__XML, {test1 => \%r1_a});
+<test4>
+   <test1 a1_a="10">
+      <e1_a>11</e1_a>
+      <e1_b>12</e1_b>
+   </test1>
+</test4>
+__XML
 
 #
 # element groups
 #
 
-ok(1, "** Testing element group ");
-
 my %r2_a = (e2_a => 20, g2_a => 22, g2_b => 23, e2_b => 21);
-test_rw($schema, test2 => <<__XML__, \%r2_a);
+test_rw($schema, test2 => <<__XML, \%r2_a);
 <test2>
   <e2_a>20</e2_a>
   <g2_a>22</g2_a>
   <g2_b>23</g2_b>
   <e2_b>21</e2_b>
 </test2>
-__XML__
+__XML
+
+#
+# ref to choice
+#
+
+my %r3_a = (g3_a => [ {g3_a => 30}, {g3_a => 31}, {g3_b => 32}, {g3_a => 33} ]);
+test_rw($schema, test3 => <<__XML, \%r3_a);
+<test3>
+  <g3_a>30</g3_a>
+  <g3_a>31</g3_a>
+  <g3_b>32</g3_b>
+  <g3_a>33</g3_a>
+</test3>
+__XML

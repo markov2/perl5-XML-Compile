@@ -9,7 +9,7 @@ use lib 'lib','t';
 use TestTools;
 
 use XML::Compile::Schema;
-use Test::More tests => 101 + ($skip_dumper ? 0 : 9);
+use Test::More tests => 89;
 
 my $NS2 = "http://test2/ns";
 
@@ -35,7 +35,8 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <xs:complexType name="tns">
   <xs:sequence>
     <xs:element name="tns_e" type="xs:int" />
-    <xs:any namespace="##targetNamespace" processContents="lax" />
+    <xs:any namespace="##targetNamespace" processContents="lax"
+       minOccurs="0" maxOccurs="unbounded" />
   </xs:sequence>
   <xs:attribute name="tns_a" type="xs:int" />
   <xs:anyAttribute namespace="##targetNamespace" processContents="lax" />
@@ -45,7 +46,8 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <xs:complexType name="other">
   <xs:sequence>
     <xs:element name="other_e" type="xs:int" />
-    <xs:any namespace="##other" processContents="lax" />
+    <xs:any namespace="##other" processContents="lax"
+       minOccurs="0" maxOccurs="unbounded" />
   </xs:sequence>
   <xs:attribute name="other_a" type="xs:int" />
   <xs:anyAttribute namespace="##other" processContents="lax" />
@@ -55,7 +57,8 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <xs:complexType name="any">
   <xs:sequence>
     <xs:element name="any_e" type="xs:int" />
-    <xs:any namespace="##any" processContents="lax" />
+    <xs:any namespace="##any" processContents="lax"
+       minOccurs="0" maxOccurs="unbounded" />
   </xs:sequence>
   <xs:attribute name="any_a" type="xs:int" />
   <xs:anyAttribute namespace="##any" processContents="lax" />
@@ -76,10 +79,9 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 __SCHEMA__
 
 ok(defined $schema);
+my $error;
 
-my @errors;
 push @run_opts
-  , invalid            => sub {no warnings; push @errors, "$_[2] ($_[1])"}
   , include_namespaces => 1;
 
 my %t2a = (tns_e => 10, tns_a => 11);
@@ -98,11 +100,12 @@ push @run_opts
 my $r2b = reader($schema, test2 => "{$TestNS}test2");
 my $h2b = $r2b->( <<__XML__);
 <test2 xmlns="$TestNS" xmlns:b="http://x" tns_a="11" b:tns_b="12">
+  <tns_e>9</tns_e>
   <tns_e>10</tns_e>
 </test2>
 __XML__
 
-is(delete $h2b->{tns_e}, 10);
+is(delete $h2b->{tns_e},  9);
 is(delete $h2b->{tns_a}, 11);
 my $x2ba = delete $h2b->{"{$TestNS}tns_a"};
 my $x2be = delete $h2b->{"{$TestNS}tns_e"};
@@ -145,17 +148,8 @@ my %h2c = (tns_a => 21, tns_e => 22
   , $nat_el_type => $nat_el, $for_el_type => $for_el
   );
 
-my $w2c = writer($schema, test2 => "{$TestNS}test2");
-my $h2c = writer_test($w2c, \%h2c, $doc);
-compare_xml($h2c, <<__XML);
-<test2 xmlns="http://test-types" tns_a="21" nat_at="24">
-  <tns_e>22</tns_e>
-  <nat_el xmlns="http://test-types">25</nat_el>
-</test2>
-__XML
-is(shift @errors, "value for $for_at_type not used (XML::LibXML::Attr)");
-is(shift @errors, "value for $for_el_type not used (XML::LibXML::Element)");
-ok(!@errors);
+$error = writer_error($schema, "{$TestNS}test2" => \%h2c);
+is($error, "unused tags {http://x}for_at {http://x}for_el at {http://test-types}test2#el(test2)");
 
 #
 # Take only other namespace
@@ -194,17 +188,8 @@ my %h3c =
  , $nat_el_type => $nat_el, $for_el_type => $for_el
  );
 
-my $w3c = writer($schema, test3 => "{$TestNS}test3");
-my $h3c = writer_test($w3c, \%h3c, $doc);
-compare_xml($h3c, <<__XML);
-<test3 xmlns="http://test-types" other_a="10" b:for_at="23">
-  <other_e>11</other_e>
-  <for_el xmlns="http://x">26</for_el>
-</test3>
-__XML
-is(shift @errors, "value for $nat_at_type not used (XML::LibXML::Attr)");
-is(shift @errors, "value for $nat_el_type not used (XML::LibXML::Element)");
-ok(!@errors);
+$error = writer_error($schema, "{$TestNS}test3" => \%h3c);
+is($error, "unused tags {http://test-types}nat_at {http://test-types}nat_el at {http://test-types}test3#el(test3)");
 
 #
 # Take any namespace
@@ -230,13 +215,6 @@ ok(defined $x4b2);
 isa_ok($x4b2, 'XML::LibXML::Attr');
 is($x4b2->toString, ' b:any_b="12"');
 
-my $x4b3 = delete $h4b->{"{$TestNS}any_e"};
-ok(defined $x4b3);
-isa_ok($x4b3, 'ARRAY');
-cmp_ok(scalar(@$x4b3), '==', 1);
-isa_ok($x4b3->[0], 'XML::LibXML::Element');
-is($x4b3->[0]->toString, '<any_e>10</any_e>');
-
 ok(!keys %$h4b);
 
 # writer
@@ -251,7 +229,6 @@ compare_xml($h4c, <<__XML);
   <any_e>11</any_e>
 </test4>
 __XML
-ok(!@errors);
 
 #
 # Test filter
@@ -282,12 +259,6 @@ is($x5b, ' any_a="11"');
 
 my $x5b2 = delete $h5b->{"{http://x}any_b"};
 ok(!defined $x5b2);
-
-my $x5b3 = delete $h5b->{"{$TestNS}any_e"};
-isa_ok($x5b3, 'ARRAY');
-cmp_ok(scalar(@$x5b3), '==', 1);
-isa_ok($x5b3->[0], 'XML::LibXML::Element');
-is($x5b3->[0]->toString, '<any_e>10</any_e>');
 
 ok(!keys %$h5b);
 

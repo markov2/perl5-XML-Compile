@@ -9,7 +9,7 @@ use TestTools;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 26 + ($skip_dumper ? 0 : 18);
+use Test::More tests => 32;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -28,23 +28,20 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 __SCHEMA__
 
 ok(defined $schema);
+my $error;
 
-my @errors;
-push @run_opts, invalid => sub {no warnings; push @errors, "$_[2] ($_[1])"};
-
-test_rw($schema, "test1" => <<__XML__, "abc");
+test_rw($schema, "test1" => <<__XML, "abc");
 <test1>abc</test1>
-__XML__
-ok(!@errors);
+__XML
 
-test_rw($schema, "test1" => <<__XML__, undef, <<__XML__, 'abbc');
+$error = reader_error($schema, test1 => <<__XML);
 <test1>abbc</test1>
-__XML__
-__XML__
-is(shift @errors, 'does not match pattern (?-xism:a.c) (abbc)');
-ok(!@errors);
+__XML
+is($error, "string `abbc' does not match pattern (?-xism:a.c) at {http://test-types}test1#facet");
 
-test_rw($schema, "test1" => <<__XML__, 'abaaBcdef');
+$error = writer_error($schema, test1 => 'abbc');
+is($error, "string `abbc' does not match pattern (?-xism:a.c) at {http://test-types}test1#facet");
+
+test_rw($schema, "test1" => <<__XML, 'abaaBcdef');
 <test1>abaaBcdef</test1>
-__XML__
-ok(!@errors);
+__XML

@@ -8,7 +8,7 @@ use TestTools;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 61 + ($skip_dumper ? 0 : 54);
+use Test::More tests => 64;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -31,7 +31,7 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <complexType name="t2">
   <sequence>
     <element name="t2_a" type="int" minOccurs="0" />
-    <element name="t2_b" type="int" minOccurs="0" />
+    <element name="t2_b" type="int" />
   </sequence>
   <attribute name="a2_a" type="int" />
   <attributeGroup ref="me:a2" />
@@ -53,8 +53,6 @@ ok(defined $schema);
 # simple attributes
 #
 
-ok(1, "** Testing attributes");
-
 my %t1 = (t1_a => 10, t1_b => 9, a1_a => 11, a1_b => 12);
 test_rw($schema, test1 => <<__XML__, \%t1);
 <test1 a1_a="11" a1_b="12">
@@ -71,57 +69,41 @@ test_rw($schema, test1 => <<__XML__, \%t1_b);
 </test1>
 __XML__
 
-{   my $error;
-    @run_opts =
-     ( invalid => sub {no warnings;$error = "@_"; 24}
-     );
-
-my %t1_c = (a1_b => 24, t1_a => 25, t1_b => 26);
-test_rw($schema, test1 => <<__XML__, \%t1_c, <<__XML__);
+my $error = reader_error($schema, test1 => <<__XML__);
 <test1>
   <t1_a>25</t1_a>
   <t1_b>26</t1_b>
 </test1>
 __XML__
-<test1 a1_b="24">
-  <t1_a>25</t1_a>
-  <t1_b>26</t1_b>
-</test1>
-__XML__
+is($error, "attribute `a1_b' is required at {http://test-types}test1/at(a1_b)");
 
-   like($error, qr/ required$/);
-
-   @run_opts = ();
-}
+my %t1_c = (a1_b => 24, t1_a => 25);
+$error = writer_error($schema, test1 => \%t1_c);
+is($error, "required value for `t1_b' missing at {http://test-types}test1");
 
 ok(1, "** Testing attributeGroups");
 
-my %t2_a = (a2_a => 30, a2_b => 31, a2_c => 29);
+my %t2_a = (a2_a => 30, a2_b => 31, a2_c => 29, t2_b => 100);
 test_rw($schema, test2 => <<__XML__, \%t2_a);
-<test2 a2_a="30" a2_c="29" a2_b="31"/>
+<test2 a2_a="30" a2_c="29" a2_b="31">
+  <t2_b>100</t2_b>
+</test2>
 __XML__
 
-my %t2_b = (a2_a => 32, a2_b => 33, a2_c => 34, a2_d => 35);
+my %t2_b = (a2_a => 32, a2_b => 33, a2_c => 34, a2_d => 35
+  , t2_a => 99, t2_b => 101);
 test_rw($schema, test2 => <<__XML__, \%t2_b);
-<test2 a2_a="32" a2_c="34" a2_d="35" a2_b="33"/>
+<test2 a2_a="32" a2_c="34" a2_d="35" a2_b="33">
+  <t2_a>99</t2_a><t2_b>101</t2_b>
+</test2>
 __XML__
 
-{   my @errors;
-    @run_opts =
-     ( invalid => sub {no warnings;push @errors, "$_[2] ($_[1])"; 24}
-     );
-
-   my %t2_a = (a2_c => 29);
-   my %t2_b = (a2_c => 29, a2_e => 666);
-   test_rw($schema, test2 => <<__XML__, \%t2_a, <<__XML__, \%t2_b);
-<test2 a2_c="29" a2_e="666" />
-__XML__
-<test2 a2_c="29"/>
+$error = reader_error($schema, test2 => <<__XML__);
+<test2 a2_c="29" a2_e="666"><t2_b>102</t2_b></test2>
 __XML__
 
-   is(shift @errors, "attribute a2_e prohibited (666)");
-   is(shift @errors, "attribute a2_e prohibited (666)");
-   ok(!@errors);
+is($error, "attribute `a2_e' is prohibited at {http://test-types}test2/at(a2_e)");
 
-   @run_opts = ();
-}
+
+$error = writer_error($schema, test2 => {a2_c => 29, a2_e => 666, t2_b => 77} );
+is($error, "attribute `a2_e' is prohibited at {http://test-types}test2/at(a2_e)");

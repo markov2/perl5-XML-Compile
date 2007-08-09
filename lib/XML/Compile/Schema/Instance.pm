@@ -4,11 +4,11 @@ use strict;
 
 package XML::Compile::Schema::Instance;
 
-use Carp;
-
+use Log::Report 'xml-compile', syntax => 'SHORT';
 use XML::Compile::Schema::Specs;
+use XML::Compile::Util qw/pack_type/;
 
-use Scalar::Util   qw/weaken/;
+use Scalar::Util       qw/weaken/;
 
 my @defkinds = qw/element attribute simpleType complexType
                   attributeGroup group/;
@@ -47,7 +47,7 @@ sub init($)
 {   my ($self, $args) = @_;
     my $top = $args->{top};
     defined $top && $top->isa('XML::LibXML::Node')
-       or croak "ERROR: instance based on XML node.";
+        or panic "instance is based on XML node";
 
     $self->{$_} = {} for @defkinds, 'sgs';
 
@@ -141,13 +141,14 @@ my %skip_toplevel = map { ($_ => 1) }
 sub _collectTypes($)
 {   my ($self, $schema) = @_;
 
-    $schema->localname eq 'schema'
-       or croak "ERROR: requires schema element";
+    $schema->localName eq 'schema'
+        or panic "requires schema element";
 
     my $xsd = $self->{xsd} = $schema->namespaceURI;
     my $def = $self->{def} =
        XML::Compile::Schema::Specs->predefinedSchema($xsd)
-         or croak "ERROR: schema namespace $xsd not (yet) supported";
+         or error __x"schema namespace {namespace} not (yet) supported"
+                , namespace => $xsd;
 
     my $xsi = $self->{xsi} = $def->{uri_xsi};
     my $tns = $self->{tns} = $schema->getAttribute('targetNamespace') || '';
@@ -163,7 +164,7 @@ sub _collectTypes($)
 
     foreach my $node ($schema->childNodes)
     {   next unless $node->isa('XML::LibXML::Element');
-        my $local = $node->localname;
+        my $local = $node->localName;
 
         next if $skip_toplevel{$local};
 
@@ -171,12 +172,14 @@ sub _collectTypes($)
         my $ref;
         unless(defined $tag && length $tag)
         {   $ref = $tag = $node->getAttribute('ref')
-               or croak "ERROR: schema component $local without name or ref";
+               or error __x"schema component {local} without name or ref"
+                      , local => $local;
             $tag =~ s/.*?\://;
         }
 
         $node->namespaceURI eq $xsd
-           or croak "ERROR: schema component $tag shall be in $xsd";
+           or error __x"schema component {name} must be in {namespace}"
+                  , name => $tag, namespace => $xsd;
 
         my $id    = $schema->getAttribute('id');
 
@@ -185,7 +188,7 @@ sub _collectTypes($)
 
         # prefix existence enforced by xml parser
         my $ns    = length $prefix ? $node->lookupNamespaceURI($prefix) : $tns;
-        my $label = "{$ns}$name";
+        my $label = pack_type $ns, $name;
 
         my $sg;
         if(my $subst = $node->getAttribute('substitutionGroup'))
@@ -193,23 +196,24 @@ sub _collectTypes($)
               = index($subst, ':') >= 0 ? split(/\:/,$subst,2) : ('', $subst);
              my $sgns = length $sgpref ? $node->lookupNamespaceURI($sgpref) : $tns;
              defined $sgns
-                or croak "ERROR: no namespace for "
-                       . (length $sgpref ? "'$sgpref'" : 'target')
-                       . " in substitutionGroup of $tag\n";
-             $sg = "{$sgns}$sgname";
+                or error __x"no namespace for {what} in substitutionGroup {group}"
+                       , what => (length $sgpref ? "'$sgpref'" : 'target')
+                       , group => $tag;
+             $sg = pack_type $sgns, $sgname;
         }
 
         unless($defkinds{$local})
-        {   carp "ignoring unknown definition-type $local";
+        {   mistake __x"ignoring unknown definition-type {local}", type => $local;
             next;
         }
 
-        my $info  = $self->{$local}{$label}
-          = { type => $local, id => $id,   node => $node, full => "{$ns}$name"
-            , ns   => $ns,  name => $name, prefix => $prefix
-            , afd  => $afd, efd  => $efd,  schema => $self
-            , ref  => $ref, sg   => $sg
-            };
+        my $info  = $self->{$local}{$label} =
+          { type => $local, id => $id,   node => $node
+          , full => pack_type($ns, $name)
+          , ns   => $ns,  name => $name, prefix => $prefix
+          , afd  => $afd, efd  => $efd,  schema => $self
+          , ref  => $ref, sg   => $sg
+          };
         weaken($self->{schema});
 
         # Id's can also be set on nested items, but these are ignored

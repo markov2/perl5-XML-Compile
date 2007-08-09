@@ -4,7 +4,9 @@ use strict;
 
 package XML::Compile::Schema::NameSpaces;
 
-use Carp;
+use Log::Report 'xml-compile', syntax => 'SHORT';
+
+use XML::Compile::Util qw/pack_type unpack_type pack_id unpack_id/;
 
 =chapter NAME
 
@@ -18,7 +20,7 @@ XML::Compile::Schema::NameSpaces - Connect name-spaces from schemas
 
 =chapter DESCRIPTION
 
-This module keeps overview on a set of schema's.
+This module keeps overview on a set of schemas.
 
 =chapter METHODS
 
@@ -95,11 +97,11 @@ The ADDRESS is constructed as C< {uri}name > or as seperate URI and NAME.
 =cut
 
 sub find($$;$)
-{   my ($self, $kind, $ns, $name) = @_;
-    my $label  = $ns;
-    if(defined $name) { $label = "{$ns}$name" }
-    elsif($label =~ m/^\s*\{(.*)\}(.*)/) { ($ns, $name) = ($1, $2) }
-    else { return undef  } 
+{   my ($self, $kind) = (shift, shift);
+    my ($label, $ns, $name)
+      = @_==1 ? ($_[0], unpack_type $_[0]) : (pack_type($_[0], $_[1]), @_);
+
+    defined $ns or return undef;
 
     foreach my $schema ($self->schemas($ns))
     {   my $def = $schema->find($kind, $label);
@@ -116,11 +118,10 @@ Returned is a list of parse nodes (HASHes)
 =cut
 
 sub findSgMembers($;$)
-{   my ($self, $ns, $name) = @_;
-    my $label  = $ns;
-    if(defined $name) { $label = "{$ns}$name" }
-    elsif($label =~ m/^\s*\{(.*)\}(.*)/) { ($ns, $name) = ($1, $2) }
-    else { return undef  } 
+{   my $self = shift;
+    my ($label, $ns, $name)
+      = @_==1 ? ($_[0], unpack_type $_[0]) : (pack_type($_[0], $_[1]), @_);
+    defined $ns or return undef;
 
     map {$_->substitutionGroupMembers($label)}
         $self->allSchemas;
@@ -132,11 +133,10 @@ C< uri#id > or as seperate URI and ID.
 =cut
 
 sub findID($;$)
-{   my ($self, $ns, $name) = @_;
-    my $label  = $ns;
-    if(defined $name) { $label = "$ns#$name" }
-    elsif($label =~ m/\#/) { ($ns, $name) = split /\#/,$label,2 }
-    else { return undef  } 
+{   my $self = shift;
+    my ($label, $ns, $id)
+      = @_==1 ? ($_[0], unpack_id $_[0]) : (pack_id($_[0], $_[1]), @_);
+    defined $ns or return undef;
 
     foreach my $schema ($self->schemas($ns))
     {   my $def = $schema->id($label);

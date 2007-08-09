@@ -4,11 +4,12 @@ use strict;
 package XML::Compile::WSDL;
 use base 'XML::Compile';
 
-use Carp;
-use List::Util     qw/first/;
+use Log::Report 'xml-compile', syntax => 'SHORT';
+use List::Util  qw/first/;
 
 use XML::Compile::Schema          ();
 use XML::Compile::SOAP::Operation ();
+use XML::Compile::Util            qw/pack_type/;
 
 my $wsdl1 = 'http://schemas.xmlsoap.org/wsdl/';
 
@@ -30,7 +31,7 @@ help.  Please contact the author when you have something to contribute.
 On the moment, the development is primarily targeted to support the
 CPAN6 development.  You can change that with money or time.  ###
 
-An WSDL file defines a set of schema's and how to use the defined
+An WSDL file defines a set of schemas and how to use the defined
 types using SOAP connections.  The parsing is based on the WSDL
 schema.  The WSDL definition can get constructed from multiple
 XML trees, each added with M<addWSDL()>.
@@ -109,25 +110,30 @@ sub addWSDL($)
     $node    = $node->documentElement
         if $node->isa('XML::LibXML::Document');
 
-    croak "ERROR: root element for WSDL is not 'definitions'"
-        if $node->localName ne 'definitions';
+    $node->localName eq 'definitions'
+        or error __x"root element for WSDL is not 'definitions'";
 
     my $wsdlns  = $node->namespaceURI;
     my $corens  = $self->wsdlNamespace || $self->wsdlNamespace($wsdlns);
-    croak "ERROR: wsdl in namespace $wsdlns, where already using $corens"
-        if $corens ne $wsdlns;
+
+    $corens eq $wsdlns
+        or error __x"wsdl in namespace {wsdlns}, where already using {ns}"
+               , wsdlns => $wsdlns, ns => $corens;
 
     my $schemas = $self->schemas;
-    $schemas->importDefinitions($wsdlns);      # to understand WSDL
-    $schemas->importDefinitions("$wsdlns#patch");
+    $schemas->importDefinitions($wsdlns);  # to understand WSDL
 
-    croak "ERROR: don't known how to handle $wsdlns WSDL files"
-        if $wsdlns ne $wsdl1;
+    $wsdlns eq $wsdl1
+        or error __x"don't known how to handle {wsdlns} WSDL files"
+               , wsdlns => $wsdlns;
 
-    my %hook_kind = (type => "{$wsdlns}tOperation", after => 'ELEMENT_ORDER');
+    my %hook_kind =
+     ( type         => pack_type($wsdlns, 'tOperation')
+     , after        => 'ELEMENT_ORDER'
+     );
 
-    my $reader  = $schemas->compile     # to parse the WSDL
-     ( READER => "{$wsdlns}definitions"
+    my $reader  = $schemas->compile        # to parse the WSDL
+     ( READER       => pack_type($wsdlns, 'definitions')
      , anyElement   => 'TAKE_ALL'
      , anyAttribute => 'TAKE_ALL'
      , hook         => \%hook_kind
@@ -135,7 +141,7 @@ sub addWSDL($)
 
     my $spec = $reader->($node);
     my $tns  = $spec->{targetNamespace}
-        or croak "ERROR: WSDL sets no targetNamespace";
+        or error __x"WSDL sets no targetNamespace";
 
     # there can be multiple <types>, which each a list of <schema>'s
     foreach my $type ( @{$spec->{types} || []} )
@@ -147,15 +153,17 @@ sub addWSDL($)
 
     # WSDL 1.1 par 2.1.1 says: WSDL defs all in own name-space
     my $index = $self->{index};
-    foreach my $def ( qw/service message binding portType/ )
-    {   foreach my $toplevel ( @{$spec->{$def} || []} )
-        {   $index->{$def}{"{$tns}$toplevel->{name}"} = $toplevel;
-        }
+    my $toplevels = $spec->{import} || [];  # silly WSDL structure
+    foreach my $toplevel (@$toplevels)
+    {   my $which = (keys %$toplevel)[0];   # only one
+        next unless $which =~ m/^(?:service|message|binding|portType)$/;
+        my $def   = $toplevel->{$which};
+        $index->{$which}{pack_type $tns, $def->{name}} = $def;
     }
 
    foreach my $service ( @{$spec->{service} || []} )
    {   foreach my $port ( @{$service->{port} || []} )
-       {   $index->{port}{"{$tns}$port->{name}"} = $port;
+       {   $index->{port}{pack_type $tns, $port->{name}} = $port;
        }
    }
 
@@ -218,45 +226,52 @@ sub operation(@)
     my @portnames = map {$_->{name}} @ports;
     if(my $portname = delete $args{port})
     {   $port = first {$_->{name} eq $portname} @ports;
-        croak "ERROR: cannot find port '$portname', pick from"
-            . join("\n    ", '', @portnames)
+        error __x"cannot find port `{portname}', pick from {ports}"
+            , portname => $portname, ports => join("\n    ", '', @portnames)
            unless $port;
     }
     elsif(@ports==1)
     {   $port = shift @ports;
     }
     else
-    {   croak "ERROR: specify port explicitly, pick from"
-            . join("\n    ", '', @portnames);
+    {   error __x"specify port explicitly, pick from {portnames}"
+            , portnames => join("\n    ", '', @portnames);
     }
 
     my $bindname  = $port->{binding}
-        or croak "ERROR: no binding defined in port $port->{name}";
+        or error __x"no binding defined in port '{name}'"
+               , name => $port->{name};
 
     my $binding   = $self->find(binding => $bindname);
 
     my $type      = $binding->{type}
-        or croak "ERROR: no type defined with binding '$bindname'";
+        or error __x"no type defined with binding `{name}'"
+               , name => $bindname;
 
     my $portType  = $self->find(portType => $type);
     my $types     = $portType->{operation}
-        or croak "ERROR: no operations defined for portType '$type'";
+        or error __x"no operations defined for portType `{name}'"
+               , name => $type;
+
     my @port_ops  = map {$_->{name}} @$types;
 
     $name       ||= delete $args{operation};
     my $port_op;
     if(defined $name)
     {   $port_op = first {$_->{name} eq $name} @$types;
-        croak "ERROR: no operation '$name' for portType '$type', pick from"
-            . join("\n    ", '', @port_ops)
+        error __x"no operation `{operation}' for portType {porttype}, pick from{ops}"
+            , operation => $name
+            , porttype => $type
+            , ops => join("\n    ", '', @port_ops)
             unless $port_op;
     }
     elsif(@port_ops==1)
     {   $port_op = shift @port_ops;
     }
     else
-    {   croak "ERROR: multiple operations in portType '$type', select from"
-            . join("\n    ", '', @port_ops)
+    {   error __x"multiple operations in portType `{porttype}', pick from {ops}"
+            , porttype => $type
+            , ops => join("\n    ", '', @port_ops)
     }
 
     my @bindops = @{$binding->{operation} || []};
@@ -323,13 +338,13 @@ in CLASS are returned.
 sub find($;$)
 {   my ($self, $class, $name) = @_;
     my $group = $self->index($class)
-        or croak "ERROR: no definitions for ${class}s found\n";
+        or error __x"no definitions for `{class}' found", class => $class;
 
     if(defined $name)
     {   return $group->{$name} if exists $group->{$name};
-        croak "ERROR: no definition for '$name' as $class.  Defined "
-            . (keys %$group==1 ? 'is' : 'are')
-            . join("\n    ", '', sort keys %$group) . "\n";
+        error __x"no definition for `{name}' as {class}, pick from:{groups}"
+            , name => $name, class => $class
+            , groups => join("\n    ", '', sort keys %$group);
     }
 
     return values %$group
@@ -338,8 +353,8 @@ sub find($;$)
     return (values %$group)[0]
         if keys %$group==1;
 
-    croak "ERROR: explicit selection required: pick one $class from"
-        . join("\n    ", '', sort keys %$group) . "\n";
+    error __x"explicit selection required: pick one {class} from {groups}"
+        , class => $class, groups => join("\n    ", '', sort keys %$group);
 }
 
 1;

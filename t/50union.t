@@ -9,7 +9,7 @@ use TestTools;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 61 + ($skip_dumper ? 0 : 45);
+use Test::More tests => 72;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -53,46 +53,40 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 __SCHEMA__
 
 ok(defined $schema);
-
-my @errors;
-push @run_opts,
-     invalid => sub {no warnings; push @errors, "$_[2] ($_[1])"; undef};
+my $error;
 
 test_rw($schema, "test1" => <<__XML__, 1 );
 <test1>1</test1>
 __XML__
-ok(!@errors);
 
 test_rw($schema, "test1" => <<__XML__, 'unbounded');
 <test1>unbounded</test1>
 __XML__
-ok(!@errors);
 
-test_rw($schema, "test1" => <<__XML__, undef, '', 'other');
+$error = reader_error($schema, test1 => <<__XML__);
 <test1>other</test1>
 __XML__
+is($error, "no match for `other' in union at {http://test-types}test1#union");
 
-is(shift @errors, 'no match in union (other)');
-ok(!@errors);
+$error = writer_error($schema, test1 => 'other');
+is($error, "no match for `other' in union at {http://test-types}test1#union");
 
 test_rw($schema, "test3" => <<__XML__, 1 );
 <test3>1</test3>
 __XML__
-ok(!@errors);
 
 test_rw($schema, "test3" => <<__XML__, 'any');
 <test3>any</test3>
 __XML__
-ok(!@errors);
 
 test_rw($schema, "test3" => <<__XML__, 'none');
 <test3>none</test3>
 __XML__
-ok(!@errors);
 
-test_rw($schema, "test3" => <<__XML__, undef, '', 'other');
+$error = reader_error($schema, test3 => <<__XML__);
 <test3>other</test3>
 __XML__
+is($error, "no match for `other' in union at {http://test-types}test3#union");
 
-is(shift @errors, 'no match in union (other)');
-ok(!@errors);
+$error = writer_error($schema, test3 => 'other');
+is($error, "no match for `other' in union at {http://test-types}test3#union");

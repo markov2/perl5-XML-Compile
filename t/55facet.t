@@ -9,7 +9,7 @@ use TestTools;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 167 + ($skip_dumper ? 0 : 126);
+use Test::More tests => 179;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -86,10 +86,6 @@ __SCHEMA__
 
 ok(defined $schema);
 
-my @errors;
-push @run_opts,
-    invalid => sub {no warnings; push @errors, "$_[2] ($_[1])"; undef};
-
 ##
 ### Integers
 ##
@@ -97,54 +93,50 @@ push @run_opts,
 test_rw($schema, "test1" => <<__XML__, 12);
 <test1>12</test1>
 __XML__
-ok(!@errors);
 
 test_rw($schema, "test2" => <<__XML__, 13);
 <test2>13</test2>
 __XML__
-ok(!@errors);
 
 test_rw($schema, "test2" => <<__XML__, 42);
 <test2>42</test2>
 __XML__
-ok(!@errors);
 
-# correct to ceiling
-test_rw($schema, "test2" => <<__XML__, 42, <<__XML__);
+my $error = reader_error($schema, test2 => <<__XML__);
 <test2>43</test2>
 __XML__
-<test2>42</test2>
-__XML__
-is(shift @errors, "too large inclusive, max 42 (43)");
-ok(!@errors);
+is($error, "too large inclusive 43, max 42 at {http://test-types}test2#facet");
 
-# correct to floor
-test_rw($schema, "test2" => <<__XML__, 12, <<__XML__);
+$error = writer_error($schema, test2 => 43);
+is($error, "too large inclusive 43, max 42 at {http://test-types}test2#facet");
+
+$error = reader_error($schema, test2 => <<__XML__);
 <test2>11</test2>
 __XML__
-<test2>12</test2>
-__XML__
-is(shift @errors, "too small inclusive, min 12 (11)");
-ok(!@errors);
+is($error, "too small inclusive 11, min 12 at {http://test-types}test2#facet");
+
+$error = writer_error($schema, test2 => 11);
+is($error, "too small inclusive 11, min 12 at {http://test-types}test2#facet");
 
 test_rw($schema, "test3" => <<__XML__, 44);
 <test3>44</test3>
 __XML__
-ok(!@errors);
 
-# correct to ceiling
-test_rw($schema, "test3" => <<__XML__, 45, undef);
+$error = reader_error($schema, test3 => <<__XML__);
 <test3>45</test3>
 __XML__
-is(shift @errors, "too large exclusive, smaller 45 (45)");
-ok(!@errors);
+is($error, "too large exclusive 45, smaller 45 at {http://test-types}test3#facet");
 
-# correct to floor
-test_rw($schema, "test3" => <<__XML__, 13, undef);
+$error = writer_error($schema, test3 => 45);
+is($error, "too large exclusive 45, smaller 45 at {http://test-types}test3#facet");
+
+$error = reader_error($schema, "test3" => <<__XML__);
 <test3>13</test3>
 __XML__
-is(shift @errors, "too small exclusive, larger 13 (13)");
-ok(!@errors);
+is($error, "too small exclusive 13, larger 13 at {http://test-types}test3#facet");
+
+$error = writer_error($schema, test3 => 13);
+is($error, "too small exclusive 13, larger 13 at {http://test-types}test3#facet");
 
 ##
 ### strings
@@ -153,31 +145,28 @@ ok(!@errors);
 test_rw($schema, "test4" => <<__XML__, "aap");
 <test4>aap</test4>
 __XML__
-ok(!@errors);
 
-test_rw($schema, "test4" => <<__XML__, "noo", <<__XML__, 'noot');
+$error = reader_error($schema, "test4" => <<__XML__);
 <test4>noot</test4>
 __XML__
-<test4>noo</test4>
-__XML__
-is(shift @errors, "required length 3 (noot)");
-is(shift @errors, "required length 3 (noot)");
-ok(!@errors);
 
-test_rw($schema, "test4" => <<__XML__, "ikX", <<__XML__, 'ik');
+is($error, "string `noot' does not have required length 3 at {http://test-types}test4\#facet");
+
+$error = writer_error($schema, test4 => 'noot');
+is($error, "string `noot' does not have required length 3 at {http://test-types}test4\#facet");
+
+$error = reader_error($schema, test4 => <<__XML__);
 <test4>ik</test4>
 __XML__
-<test4>ikX</test4>
-__XML__
-is(shift @errors, "required length 3 (ik)");
-is(shift @errors, "required length 3 (ik)");
-ok(!@errors);
+is($error, "string `ik' does not have required length 3 at {http://test-types}test4#facet");
+
+$error = writer_error($schema, test4 => "ik");
+is($error,  "string `ik' does not have required length 3 at {http://test-types}test4#facet");
 
 test_rw($schema, "test5" => <<__XML__, "\ \ \t\n\tmies \t");
 <test5>\ \ \t
 \tmies \t</test5>
 __XML__
-ok(!@errors);
 
 test_rw($schema, "test6" => <<__XML__, "     mies  ", <<__XML__, "\ \ \t \tmies \t");
 <test6>\ \ \t
@@ -185,7 +174,6 @@ test_rw($schema, "test6" => <<__XML__, "     mies  ", <<__XML__, "\ \ \t \tmies 
 __XML__
 <test6>     mies  </test6>
 __XML__
-ok(!@errors);
 
 test_rw($schema, "test7" => <<__XML__, 'mies', <<__XML__, "\ \ \t \tmies \t");
 <test7>\ \ \t
@@ -193,26 +181,23 @@ test_rw($schema, "test7" => <<__XML__, 'mies', <<__XML__, "\ \ \t \tmies \t");
 __XML__
 <test7>mies</test7>
 __XML__
-ok(!@errors);
 
 test_rw($schema, "test8" => <<__XML__, 'one');
 <test8>one</test8>
 __XML__
-ok(!@errors);
 
 test_rw($schema, "test8" => <<__XML__, 'two');
 <test8>two</test8>
 __XML__
-ok(!@errors);
 
-test_rw($schema, "test8" => <<__XML__, "three", '', 'three');
+$error = reader_error($schema, test8 => <<__XML__);
 <test8>three</test8>
 __XML__
-is(shift @errors, "invalid enum (three)");
-ok(!@errors);
+is($error, "invalid enumerate `three' at {http://test-types}test8#facet");
 
-test_rw($schema, "test8" => <<__XML__, "", '', '');
+$error = reader_error($schema, test8 => <<__XML__);
 <test8/>
 __XML__
-is(shift @errors, "invalid enum ()");
-ok(!@errors);
+is($error, "invalid enumerate `' at {http://test-types}test8#facet");
+
+

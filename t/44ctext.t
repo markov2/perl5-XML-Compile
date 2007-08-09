@@ -29,7 +29,7 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
   <complexContent>
     <extension base="me:t1">
       <sequence>
-       <element name="t2_a" type="int" />
+        <element name="t2_a" type="int" />
       </sequence>
       <attribute name="a2_a" type="int" />
     </extension>

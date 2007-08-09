@@ -9,6 +9,9 @@ no warnings 'once';
 
 use Carp;
 
+use XML::Compile::Util qw/odd_elements/;
+use Log::Report 'xml-compile', syntax => 'SHORT';
+
 =chapter NAME
 
 XML::Compile::Schema::Template - bricks to create an XML or PERL example
@@ -21,7 +24,7 @@ XML::Compile::Schema::Template - bricks to create an XML or PERL example
 
 =chapter DESCRIPTION
 
-The translator understands schema's, but does not encode that into
+The translator understands schemas, but does not encode that into
 actions.  This module interprets the parse results of the translator,
 and creates a kind of abstract syntax tree from it, which can be used
 for documentational purposes.  Then, it implements to ways to represent
@@ -36,103 +39,90 @@ BEGIN {
       for qw/tag_qualified tag_unqualified wrapper_ns/;
 }
 
-sub wrapper() { my $proc = shift; sub { $proc->() } }
+sub wrapper
+{   my ($path, $args, $processor) = @_;
+    sub { $processor->() };
+}
 
-#
-## Element
-#
-
-sub element_repeated
-{   my ($path, $args, $ns, $childname, $do, $min, $max) = @_;
-    my $err  = $args->{err};
-    sub { ( occur => "$childname $min <= # <= $max times"
-          ,  $do->()
-          );
+sub _block($@)
+{   my ($block, $path, $args, @pairs) = @_;
+    sub { my @elems = map { $_->() } odd_elements @pairs;
+          my @tags  = map { $_->{tag} } @elems;
+          local $" = ', ';
+          bless
+           { tag    => $block
+           , elems  => \@elems
+           , struct => "$block of @tags"
+           }, 'BLOCK';
         };
 }
 
-sub element_array
-{   my ($path, $args, $ns, $childname, $do) = @_;
-    sub { ( occur => "$childname any number"
-          ,  $do->()
-          );
+sub sequence { _block(sequence => @_) }
+sub choice   { _block(choice   => @_) }
+sub all      { _block(all      => @_) }
+
+sub element_handler
+{   my ($path, $args, $label, $min, $max, $req, $opt) = @_;
+    sub { my $data = $opt->();
+          my $occur
+           = $max eq 'unbounded' && $min==0 ? 'occurs any number of times'
+           : $max ne 'unbounded' && $max==1 && $min==0 ? 'is optional' 
+           : $max ne 'unbounded' && $max==1 && $min==1 ? ''  # the usual case
+           :                                  "occurs $min <= # <= $max times";
+          $data->{occur}   = $occur if $occur;
+          $data->{flatten} = $max ne 'unbounded' && $max==1;
+          $data;
         };
 }
 
-sub element_obligatory
+sub block_handler
+{   my ($path, $args, $label, $min, $max, $proc) = @_;
+    element_handler($path, $args, $label, $min, $max, undef, $proc);
+}
+
+sub required
+{   my ($path, $args, $label, $do) = @_;
+    sub { $do->() };
+}
+
+sub element
 {   my ($path, $args, $ns, $childname, $do) = @_;
-    my $err  = $args->{err};
-    sub { ( occur => "$childname is required"
-          ,  $do->()
-          )
-        };
+    sub { $do->() };
 }
 
 sub element_fixed
-{   my ($path, $args, $ns, $childname, $do, $min, $max, $fixed) = @_;
-    my $err  = $args->{err};
-    $fixed   = $fixed->example ;
-
-    sub { ( occur => "$childname fixed to example $fixed"
-          ,  $do->()
-          );
-        };
+{   my ($path, $args, $ns, $childname, $do, $fixed) = @_;
+    $fixed   = $fixed->example;
+    sub { (occur => "$childname fixed to example $fixed", $do->()) };
 }
 
 sub element_nillable
 {   my ($path, $args, $ns, $childname, $do) = @_;
-    my $err  = $args->{err};
-    sub { ( occur => "$childname is nillable"
-          ,  $do->()
-          );
-        };
+    sub { (occur => "$childname is nillable", $do->()) };
 }
 
 sub element_default
-{   my ($path, $args, $ns, $childname, $do, $min, $max, $default) = @_;
-    sub { ( occur => "$childname defaults to example $default"
-          ,  $do->()
-          );
-        }
-}
-
-sub element_optional
-{   my ($path, $args, $ns, $childname, $do) = @_;
-    my $err  = $args->{err};
-    sub { ( occur => "$childname is optional"
-          ,  $do->()
-          );
-        };
+{   my ($path, $args, $ns, $childname, $do, $default) = @_;
+    sub { (occur => "$childname defaults to example $default",  $do->()) };
 }
 
 #
 # complexType/ComplexContent
 #
 
-sub create_complex_element
-{   my ($path, $args, $tag, $childs, $any_elem, $any_attr) = @_;
+sub complex_element
+{   my ($path, $args, $tag, $elems, $attrs, $any_attr) = @_;
+    my @parts = (odd_elements(@$elems, @$attrs), @$any_attr);
 
-    my @childs = @$childs;
-    my @do;
-    while(@childs) {shift @childs; push @do, shift @childs}
-    push @do, @$any_elem if $any_elem;
-    push @do, @$any_attr if $any_attr;
-
-    sub { my @parts = @do;
-          my (@attrs, @elems);
-
-          while(@parts)
-          {   my $child     = (shift @parts)->();
-              if($child->{attr})
-              {   push @attrs, $child;
-              }
-              else
-              {   push @elems, $child;
-              }
+    sub { my (@attrs, @elems);
+          foreach my $part (@parts)
+          {   my $child = $part->();
+              if($child->{attr}) { push @attrs, $child }
+              else               { push @elems, $child }
           }
 
           +{ kind    => 'complex'
-           , struct  => "$tag is complex"
+#          , struct  => "$tag is complex"  # too simple to mention
            , tag     => $tag
            , attrs   => \@attrs
            , elems   => \@elems
@@ -144,16 +134,11 @@ sub create_complex_element
 # complexType/simpleContent
 #
 
-sub create_tagged_element
-{   my ($path, $args, $tag, $st, $attrs) = @_;
-    my @do  = @$attrs;
-    sub { my @attrs;
-          my @parts   = @do;
-          while(@parts)
-          {   my $childname = shift @parts;
-              push @attrs, (shift @parts)->();
-          }
+sub tagged_element
+{   my ($path, $args, $tag, $st, $attrs, $attrs_any) = @_;
+    my @parts = (odd_elements(@$attrs), @$attrs_any);
 
+    sub { my @attrs = map {$_->()} @parts;
           +{ kind    => 'tagged'
            , struct  => "$tag is simple value with attributes"
            , tag     => $tag
@@ -167,55 +152,41 @@ sub create_tagged_element
 # simpleType
 #
 
-sub create_simple_element
+sub simple_element
 {   my ($path, $args, $tag, $st) = @_;
     sub { +{ kind    => 'simple'
-           , struct  => "$tag is a single value"
+#          , struct  => "$tag is a single value"  # normal case
            , tag     => $tag
            , $st->()
            };
         };
 }
 
-sub builtin_checked
-{   my ($path, $args, $node, $type, $def) = @_;
+sub builtin
+{   my ($path, $args, $node, $type, $def, $check_values) = @_;
     my $example = $def->{example};
-    sub { ( type    => $type
-          , example => $example
-          );
-        };
+    sub { (type => $type, example => $example) };
 }
-
-sub builtin_unchecked(@) { &builtin_checked };
 
 # simpleType
 
 sub list
 {   my ($path, $args, $st) = @_;
-    sub { ( struct => "a (blank separated) list of elements"
-          , $st->()
-          );
-        };
+    sub { (struct => "a (blank separated) list of elements", $st->()) };
 }
 
 sub facets_list
 {   my ($path, $args, $st, $early, $late) = @_;
-    sub { ( facets => "with some limits on the list"
-          , $st->()
-          );
-        };
+    sub { (facets => "with some limits on the list", $st->()) };
 }
 
 sub facets
 {   my ($path, $args, $st, @do) = @_;
-    sub { ( facets => "with some limits"
-          , $st->()
-          );
-        };
+    sub { (facets => "with some limits", $st->()) };
 }
 
 sub union
-{   my ($path, $args, $err, @types) = @_;
+{   my ($path, $args, @types) = @_;
     sub { +{ kind   => 'union'
            , struct => "one of the following (union)"
            , choice => [ map { $_->() } @types ]
@@ -285,14 +256,14 @@ sub attribute_fixed_optional
         };
 }
 
-sub create_hook($$$$$)
+sub hook($$$$$)
 {   my ($path, $args, $r, $before, $produce, $after) = @_;
     return $r if $r;
-
-    croak "ERROR: replace hook doesn't work with templates";
+    warning __x"hooks are not shown in templates";
+    ();
 }
 
-# anyAttribute
+# any
 
 sub anyAttribute
 {   my ($path, $args, $handler, $yes, $no, $process) = @_;
@@ -302,6 +273,26 @@ sub anyAttribute
            , struct  => "anyAttribute $occurs"
            };
         };
+}
+
+sub anyElement
+{   my ($path, $args, $handler, $yes, $no, $process, $min, $max) = @_;
+    my $occurs = @$yes ? "in @$yes" : @$no ? "not in @$no" : 'any type';
+    sub { +{ kind    => 'element'
+           , struct  => 'anyElement'
+           };
+        };
+}
+
+# SubstitutionGroups
+
+sub substgroup
+{   my ($path, $args, $type, %do) = @_;
+    sub { +{ kind    => 'substitution group'
+           , struct  => "one of the following, which extend $type"
+           , map { $_->() } values %do
+           }
+        }
 }
 
 ###
@@ -318,14 +309,15 @@ sub perl_any($$)
 {   my ($ast, $args) = @_;
 
     my @lines;
-    push @lines, "# $ast->{struct}" if $ast->{struct} && $args->{show_struct};
+    push @lines, "# $ast->{struct}"  if $ast->{struct} && $args->{show_struct};
     push @lines, "# is a $ast->{type}" if $ast->{type} && $args->{show_type};
-    push @lines, "# $ast->{occur}"  if $ast->{occur}  && $args->{show_occur};
-    push @lines, "# $ast->{facets}" if $ast->{facets} && $args->{show_facets};
+    push @lines, "# $ast->{occur}"   if $ast->{occur}  && $args->{show_occur};
+    push @lines, "# $ast->{facets}"  if $ast->{facets} && $args->{show_facets};
 
     my @childs;
-    push @childs, @{$ast->{attrs}} if $ast->{attrs};
-    push @childs, @{$ast->{elems}} if $ast->{elems};
+    push @childs, @{$ast->{attrs}}   if $ast->{attrs};
+    push @childs, @{$ast->{elems}}   if $ast->{elems};
+    push @childs,   $ast->{body}     if $ast->{body};
 
     my @subs;
     foreach my $child (@childs)
@@ -336,13 +328,21 @@ sub perl_any($$)
         unshift @sub, '' if @subs && $sub[0] =~ m/^\# /;
 
         # last line is code and gets comma
-        $sub[-1] .= ',';
+        $sub[-1] =~ s/\,?$/,/;
 
-        # all lines get indented
-        push @subs, map {length($_) ? "$args->{indent}$_" : ''} @sub;
+        # all lines get indented, unless flattening block
+        push @subs, ref $ast eq 'BLOCK' ? @sub
+          : map {length($_) ? "$args->{indent}$_" : ''} @sub;
     }
 
-    if(@subs)
+    if(ref $ast eq 'BLOCK')
+    {   if($ast->{flatten}) { push @lines, @subs }
+        elsif( @{$ast->{elems}} )
+        {  $subs[0] =~ s/^ /{/;
+           push @lines, $ast->{elems}[0]->tag. ' => ['. @subs . ']';
+        }
+    }
+    elsif(@subs)
     {   $subs[0] =~ s/^ /{/;
         push @lines, "$ast->{tag} =>", @subs, '}';
     }
@@ -361,25 +361,25 @@ sub perl_any($$)
 
 sub toXML($$%)
 {   my ($class, $doc, $ast, %args) = @_;
-    xml_any($doc, $ast, "\n", \%args);
+    xml_any($doc, $ast, "\n$args{indent}", \%args);
 }
 
 sub xml_any($$$$);
 sub xml_any($$$$)
 {   my ($doc, $ast, $indent, $args) = @_;
+    my @res;
 
-    my $node = $doc->createElement($ast->{tag});
-    my $nest = $indent . $args->{indent};
+    my @comment;
+    push @comment, $ast->{struct} if $ast->{struct} && $args->{show_struct};
+    push @comment, $ast->{occur}  if $ast->{occur}  && $args->{show_occur};
+    push @comment, $ast->{facets} if $ast->{facets} && $args->{show_facets};
 
-    my @anno;
-    push @anno, $ast->{struct}      if $ast->{struct} && $args->{show_struct};
-    push @anno, $ast->{occur}       if $ast->{occur}  && $args->{show_occur};
-    push @anno, $ast->{facets}      if $ast->{facets} && $args->{show_facets};
-
-    if(@anno)
-    {   $node->appendText($nest);
-        my $anno = $node->addNewChild(undef, 'annotation');
-        $anno->appendText(join("$nest$args->{indent}", '', @anno).$nest);
+    my $nest_indent = $indent.$args->{indent};
+    if(@comment)
+    {   my $comment = join($nest_indent, '', @comment).$indent;
+        push @res
+          , $doc->createTextNode($indent)
+          , $doc->createComment($comment);
     }
 
     my @childs;
@@ -387,28 +387,36 @@ sub xml_any($$$$)
     push @childs, @{$ast->{elems}} if $ast->{elems};
 
     foreach my $child (@childs)
-    {   my $sub = xml_any($doc, $child, $nest, $args);
-        $node->appendText($nest);
-        $node->addChild($sub);
+    {   #push @res,
+        if(ref $child eq 'BLOCK')
+        {   push @res, xml_any($doc, $child, $indent, $args);
+        }
+        else
+        {   push @res, $doc->createTextNode($indent)
+              , scalar xml_any($doc, $child, $nest_indent, $args);
+        }
     }
 
-    my $example = $ast->{example};
-    if(@anno && defined $example)
-    {   $node->appendText("$nest$example$indent");
-    }
-    elsif(defined $example)
-    {   $node->appendText($example);
-    }
-    else
-    {   $node->appendText($indent);
+    (my $outdent = $indent) =~ s/$args->{indent}$//;  # sorry
+
+    if(my $example = $ast->{example})
+    {  push @res, $doc->createTextNode
+          (@comment ? "$indent$example$outdent" : $example)
     }
 
     if($ast->{type} && $args->{show_type})
     {   my $full = $ast->{type};
         my ($ns, $type) = $full =~ m/^\{([^}]*)\}(.*)/ ? ($1,$2) : ('',$full);
         # Don't known how to encode the namespace (yet)
-        $node->setAttribute(type => $type);
+        push @res, $doc->createAttribute(type => $type);
     }
+
+    return @res
+        if wantarray;
+
+    my $node = $doc->createElement($ast->{tag});
+    $node->addChild($_) for @res;
+    $node->appendText($outdent) if @childs;
     $node;
 }
 

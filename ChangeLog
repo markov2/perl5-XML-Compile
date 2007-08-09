@@ -10,6 +10,63 @@ TODO:
   - <xs:group minOccurs="0" maxOccurs="unbounded" ref="bar:SoonRef"/>
   - attributeGroup in seperate namespace?
 
+version 0.50: Thu Aug  9 23:19:19 CEST 2007
+
+	MAJOR REWRITE of the schema parser and code generators.
+
+	Changes:
+
+	- any maxOccurs >1 will produce/require an ARRAY.  Until now,
+	  the sequence, all, choice, and group didn't work correctly.
+
+	- removed a way to catch the errors produced while processing
+	  a message: an error is an error (or use hooks).
+
+	- convert error handling to Log::Report, which allows translations
+	  and clean processing.
+
+	- much improved error messages.
+
+	- hooks are called differently, to be more useful.
+
+	Fixes:
+
+	- the reader now requires the correct order of the elements
+	  inside the message.
+
+	- "any" can appear everywhere, not only at the end of blocks.
+
+	- "any" now correctly defaults as minOccur==maxOccur==1
+
+	- accept attributes for complexType/simpleContent
+
+	- floating-point restriction (facet) did not process well.
+
+	- an empty XML container will be produced when an {} was
+	  given: it will not be ignored.
+
+	- improved template output
+
+	Improvements:
+
+	- added t/pod.t, which flagged some (produced) pod errors
+
+	- added XML::Compile::Iterator, to ease the implementation of
+	  XML::Compile::Schema::Translate
+
+	- more checks whether the schema is sound.
+
+	- added XML::Compile::Util
+
+	- removed XML::Compile::parse() and parseFile() from the
+	  public interface.
+
+	- in doc: schema's should be schemas [Sven Neuhaus]
+
+	- many more tests
+
+	- no need for wsdl-patch.xsd anymore.
+
 version 0.18: Wed Jun  6 22:46:44 CEST 2007
 
 	Changes:

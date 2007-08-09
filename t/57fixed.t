@@ -9,7 +9,7 @@ use TestTools;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 57 + ($skip_dumper ? 0 : 45);
+use Test::More tests => 62;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -37,11 +37,6 @@ __SCHEMA__
 
 ok(defined $schema);
 
-my @errors;
-push @run_opts
- , invalid => sub {no warnings; push @errors, "$_[2] ($_[1])"; undef}
- ;
-
 ##
 ### Fixed Integers
 ##  Big-ints are checked in 49big.t
@@ -49,20 +44,19 @@ push @run_opts
 test_rw($schema, test1 => <<__XML__, {t1a => 'not-changeable', t1c => 42});
 <test1 t1c="42"><t1a>not-changeable</t1a></test1>
 __XML__
-ok(!@errors);
 
-my %t1b = (t1a => 'not-changeable', t1b => 12, t1c => 42);
-test_rw($schema, test1 => <<__XML__, \%t1b, <<__EXPECT__, {t1b => 13});
+my $error = reader_error($schema, test1 => <<__XML__);
 <test1><t1b>12</t1b></test1>
 __XML__
-<test1 t1c="42"><t1a>not-changeable</t1a><t1b>13</t1b></test1>
-__EXPECT__
+is($error, "element `t1a' with fixed value `not-changeable' missing at {http://test-types}test1/el(t1a)");
 
-is(shift @errors, "value fixed to 'not-changeable' ()");
-is(shift @errors, "attr value fixed to '42' ()");
-is(shift @errors, "value fixed to 'not-changeable' ()");
-is(shift @errors, "attr value fixed to '42' ()");
-ok(!@errors);
+my %t1b = (t1b => 12, t1c => 42);
+$error = writer_error($schema, test1 => \%t1b);
+is($error, "required value for `t1a' missing at {http://test-types}test1");
+
+my %t1c = (t1a => 'wrong', t1b => 12, t1c => 42);
+$error = writer_error($schema, test1 => \%t1c);
+is($error, "element `t1a' has value fixed to `not-changeable', got `wrong' at {http://test-types}test1/el(t1a)");
 
 #
 # Optional fixed integers
@@ -72,21 +66,17 @@ my %t2a = (t2a => 14, t2b => 13);
 test_rw($schema, test2 => <<__XML__, \%t2a);
 <test2 t2a="14" t2b="13"/>
 __XML__
-ok(!@errors);
 
-my %t2b     = (t2a => 15, t2b => 13);
-my %t2b_err = (t2a => 16, t2b => 12);
-test_rw($schema, test2 => <<__XML__, \%t2b, <<__EXPECT__, \%t2b_err);
+$error = reader_error($schema, test2 => <<__XML__);
 <test2 t2a="15" t2b="12"/>
 __XML__
-<test2 t2a="16" t2b="13"/>
-__EXPECT__
-is(shift @errors, "attr value fixed to '13' (12)");
-is(shift @errors, "attr value fixed to '13' (12)");
-ok(!@errors);
+is($error, "value of attribute `t2b' is fixed to `13', not `12' at {http://test-types}test2/at(t2b)");
 
-my %t2c     = (t2a => 17);
+my %t2b     = (t2a => 15, t2b => 12);
+$error = writer_error($schema, test2 => \%t2b);
+is($error, "value of attribute `t2b' is fixed to `13', not `12' at {http://test-types}test2/at(t2b)");
+
+my %t2c     = (t2a => 17, t2b => 13);
 test_rw($schema, test2 => <<__XML__, \%t2c);
-<test2 t2a="17"/>
+<test2 t2a="17" t2b="13"/>
 __XML__
-ok(!@errors);

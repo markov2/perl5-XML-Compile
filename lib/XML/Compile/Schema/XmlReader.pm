@@ -4,8 +4,11 @@ use strict;
 use warnings;
 no warnings 'once';
 
-use List::Util  qw/first/;
-use Carp        qw/croak/;
+use Log::Report 'xml-compile', syntax => 'SHORT';
+use List::Util qw/first/;
+
+use XML::Compile::Util     qw/pack_type odd_elements/;
+use XML::Compile::Iterator ();
 
 =chapter NAME
 
@@ -17,7 +20,7 @@ XML::Compile::Schema::XmlReader - bricks to translate XML to HASH
  my $code   = $schema->compile(READER => ...);
 
 =chapter DESCRIPTION
-The translator understands schema's, but does not encode that into
+The translator understands schemas, but does not encode that into
 actions.  This module implements those actions to translate from XML
 into a (nested) Perl HASH structure.
 
@@ -29,7 +32,7 @@ into a (nested) Perl HASH structure.
 # before you attempt to change anything.
 #
 # The returned reader subroutines will always be called
-#       $reader->($xml_node) 
+#      my @pairs = $reader->($tree) 
 
 sub tag_unqualified
 {   my $name = $_[3];
@@ -39,11 +42,22 @@ sub tag_unqualified
 *tag_qualified = \&tag_unqualified;
 
 sub wrapper
-{   my $processor = shift;
-    sub { my $xml = XML::Compile->dataToXML($_[0]);
-          defined $xml or return ();
-          $xml = $xml->documentElement if $xml->isa('XML::LibXML::Document');
-          $processor->($xml);
+{   my ($path, $args, $processor) = @_;
+    # no copy of $_[0], because it may be a large string
+    sub { my $tree;
+          if(ref $_[0] && $_[0]->isa('XML::LibXML::Iterator'))
+          {   $tree = $_[0];
+          }
+          else
+          {   my $xml = XML::Compile->dataToXML($_[0])
+                  or return ();
+              $xml    = $xml->documentElement
+                  if $xml->isa('XML::LibXML::Document');
+              $tree   = XML::Compile::Iterator->new($xml, 'top',
+                  sub { $_[0]->isa('XML::LibXML::Element') } );
+          }
+
+          $processor->($tree);
         };
 }
 
@@ -56,130 +70,313 @@ sub wrapper_ns        # no namespaces in the HASH
 ## Element
 #
 
-sub element_repeated
-{   my ($path, $args, $ns, $childname, $do, $min, $max) = @_;
-    my $err  = $args->{err};
-    sub { my @nodes = $_[0]->getChildrenByLocalName($childname);
-          $err->($path,scalar @nodes,"too few values (need $min)")
-             if @nodes < $min;
-          $err->($path,scalar @nodes,"too many values (max $max)")
-             if $max ne 'unbounded' && @nodes > $max;
-          my @r = map { $do->($_) } @nodes;
-          @r ? ($childname => \@r) : (); 
+sub sequence($@)
+{   my ($path, $args, @pairs) = @_;
+    bless
+    sub { my $tree = shift;
+          my @res;
+          my @do = @pairs;
+          while(@do)
+          {   my ($take, $do) = (shift @do, shift @do);
+              push @res
+                , ref $do eq 'BLOCK'           ? $do->($tree)
+                : ref $do eq 'ANY'             ? $do->($tree)
+                : ! defined $tree              ? $do->($tree)
+                : $tree->currentLocal eq $take ? $do->($tree)
+                :                                $do->(undef);
+                # is missing permitted? otherwise crash
+          }
+
+          @res;
+        }, 'BLOCK';
+}
+
+sub choice($@)
+{   my ($path, $args, %do) = @_;
+
+    bless
+    sub { my $tree  = shift;
+          my $local = $tree->currentLocal
+              or error __x"no elements left for choice at {path}"
+                   , path => $path, _class => 'misfit';
+
+          my $do = $do{$local}
+              or error __x"no alternative for choice before `{tag}' at {path}"
+                   , tag => $local, path => $path, _class => 'misfit';
+
+          $do->($tree);
+        }, 'BLOCK';
+}
+
+sub all($@)
+{   my ($path, $args, @pairs) = @_;
+
+    bless
+    sub { my $tree = shift;
+          my %do   = @pairs;
+          my @res;
+          while(1)
+          {   my $local = $tree->currentLocal or last;
+              my $do    = delete $do{$local}  or last; # already seen?
+              push @res, $do->($tree);
+          }
+
+          # saw all of all?
+          push @res, $_->(undef)
+              for values %do;
+
+          @res;
+        }, 'BLOCK';
+}
+
+sub block_handler
+{   my ($path, $args, $label, $min, $max, $process) = @_;
+
+    # flatten the HASH: when a block appears only once, there will
+    # not be an additional nesting in the output tree.
+    if($max ne 'unbounded' && $max==1)
+    {   return $process if $min==1;
+        return bless     # $min==0
+        sub { my $tree    = shift or return ();
+              my $starter = $tree->currentChild or last;
+              my @pairs   = try { $process->($tree) };
+              if($@->wasFatal(class => 'misfit'))
+              {   # error is ok, if nothing consumed
+                  my $ending = $tree->currentChild;
+                  $@->reportAll if !$ending || $ending!=$starter;
+                  return ();
+              }
+              elsif($@) {$@->reportAll};
+
+              @pairs;
+            }, 'BLOCK';
+    }
+
+    if($max ne 'unbounded' && $min>=$max)
+    {   return bless
+        sub { my $tree = shift;
+              my @res;
+              while(@res < $min)
+              {   my @pairs = $process->($tree);
+                  push @res, {@pairs};
+              }
+              ($label => \@res);
+            }, 'BLOCK';
+    }
+
+    if($min==0)
+    {   return bless
+        sub { my $tree = shift or return ();
+              my @res;
+              while($max eq 'unbounded' || @res < $max)
+              {   my $starter = $tree->currentChild or last;
+                  my @pairs   = try { $process->($tree) };
+                  if($@->wasFatal(class => 'misfit'))
+                  {   # misfit error is ok, if nothing consumed
+                      my $ending = $tree->currentChild;
+                      $@->reportAll if !$ending || $ending!=$starter;
+                      last;
+                  }
+                  elsif($@) {$@->reportAll}
+
+                  @pairs or last;
+                  push @res, {@pairs};
+              }
+
+              @res ? ($label => \@res) : ();
+            }, 'BLOCK';
+    }
+
+    bless
+    sub { my $tree = shift or error __xn
+             "block with `{name}' is required at least once at {path}"
+           , "block with `{name}' is required at least {_count} times at {path}"
+           , $min, name => $label, path => $path;
+
+          my @res;
+          while(@res < $min)
+          {   my @pairs = $process->($tree);
+              push @res, {@pairs};
+          }
+          while($max eq 'unbounded' || @res < $max)
+          {   my $starter = $tree->currentChild or last;
+              my @pairs   = try { $process->($tree) };
+              if($@->wasFatal(class => 'misfit'))
+              {   # misfit error is ok, if nothing consumed
+                  my $ending = $tree->currentChild;
+                  $@->reportAll if !$ending || $ending!=$starter;
+                  last;
+              }
+              elsif($@) {$@->reportAll};
+
+              @pairs or last;
+              push @res, {@pairs};
+          }
+          ($label => \@res);
+        }, 'BLOCK';
+}
+
+sub element_handler
+{   my ($path, $args, $label, $min, $max, $required, $optional) = @_;
+
+    if($max ne 'unbounded' && $max==1)
+    {   return $min==1
+        ? sub { my $tree  = shift;
+                my @pairs = $required->(defined $tree ? $tree->descend :undef);
+                $tree->nextChild if defined $tree;
+                ($label => $pairs[1]);
+              }
+        : sub { my $tree  = shift or return ();
+                $tree->currentChild or return ();
+                my @pairs = $optional->($tree->descend);
+                @pairs or return ();
+                $tree->nextChild;
+                ($label => $pairs[1]);
+              };
+    }
+        
+    if($max ne 'unbounded' && $min>=$max)
+    {   return
+        sub { my $tree = shift;
+              my @res;
+              while(@res < $min)
+              {   my @pairs = $required->(defined $tree ? $tree->descend:undef);
+                  push @res, $pairs[1];
+                  $tree->nextChild if defined $tree;
+              }
+              @res ? ($label => \@res) : ();
+            };
+    }
+
+    if(!defined $required)
+    {   return
+        sub { my $tree = shift or return ();
+              my @res;
+              while($max eq 'unbounded' || @res < $max)
+              {   $tree->currentChild or last;
+                  my @pairs = $optional->($tree->descend);
+                  @pairs or last;
+                  push @res, $pairs[1];
+                  $tree->nextChild;
+              }
+              @res ? ($label => \@res) : ();
+            };
+    }
+
+    sub { my $tree = shift;
+          my @res;
+          while(@res < $min)
+          {   my @pairs = $required->(defined $tree ? $tree->descend : undef);
+              push @res, $pairs[1];
+              $tree->nextChild if defined $tree;
+          }
+          while(defined $tree && ($max eq 'unbounded' || @res < $max))
+          {   $tree->currentChild or last;
+              my @pairs = $optional->($tree->descend);
+              @pairs or last;
+              push @res, $pairs[1];
+              $tree->nextChild;
+          }
+          ($label => \@res);
         };
 }
 
-sub element_array
-{   my ($path, $args, $ns, $childname, $do) = @_;
-    sub { my @r = map { $do->($_) } $_[0]->getChildrenByLocalName($childname);
-          @r ? ($childname => \@r) : ();
+sub required
+{   my ($path, $args, $label, $do) = @_;
+    my $req =
+    sub { my $tree  = shift;  # can be undef
+          my @pairs = $do->($tree);
+          @pairs
+              or error __x"data for `{tag}' missing at {path}"
+                     , tag => $label, path => $path, _class => 'misfit';
+          @pairs;
         };
+    bless $req, 'BLOCK' if ref $do eq 'BLOCK';
+    $req;
 }
 
-sub element_obligatory
+sub element
 {   my ($path, $args, $ns, $childname, $do) = @_;
-    my $err  = $args->{err};
-    sub {
-# This should work with namespaces (but doesn't yet)
-# because the wrong namespace is passed in $ns
-# my @nodes = $_[0]->getChildrenByTagNameNS($ns,$childname);
-          my @nodes = $_[0]->getChildrenByLocalName($childname);
-          my $node
-           = (@nodes==0 || !defined $nodes[0])
-           ? $err->($path, undef, "one value required")
-           : shift @nodes;
-          $node = $err->($path, 'found '.@nodes, "only one value expected")
-             if @nodes;
-          defined $node ? ($childname => $do->($node)) : ();
+    sub { my $tree  = shift;
+          my $value = defined $tree && $tree->nodeLocal eq $childname
+            ? $do->($tree) : $do->(undef);
+          defined $value ? ($childname => $value) : ();
         };
 }
 
 sub element_default
-{   my ($path, $args, $ns, $childname, $do, $min, $max, $default) = @_;
-    my $err  = $args->{err};
+{   my ($path, $args, $ns, $childname, $do, $default) = @_;
     my $def  = $do->($default);
 
-    sub { my @nodes = $_[0]->getChildrenByLocalName($childname);
-          my $node = shift @nodes;
-          $node = $err->($path, 'found '.@nodes, "only one value expected")
-             if @nodes;
-          ( $childname => (defined $node ? $do->($node) : $def) );
+    sub { my $tree = shift;
+          defined $tree && $tree->nodeLocal eq $childname
+              or return ($childname => $def);
+          $do->($tree);
         };
 }
 
 sub element_fixed
-{   my ($path, $args, $ns, $childname, $do, $min, $max, $fixed) = @_;
-    my $err = $args->{err};
-    my $def  = $do->($fixed);
+{   my ($path, $args, $ns, $childname, $do, $fixed) = @_;
+    my $fix  = $do->($fixed);
 
-    sub { my @nodes = $_[0]->getChildrenByLocalName($childname);
-          my $node = shift @nodes;
-          $node = $err->($path, 'found '.@nodes, "only one value expected")
-              if @nodes;
-          my $value = defined $node ? $do->($node) : undef;
-          $err->($path, $value,"value fixed to '".$fixed->value."'")
-              if !defined $value || $value ne $def;
-          ($childname => $def);
-        };
-}
+    sub { my $tree = shift;
+          my ($label, $value)
+            = $tree && $tree->nodeLocal eq $childname ? $do->($tree) : ();
 
-sub element_fixed_optional
-{   my ($path, $args, $ns, $childname, $do, $min, $max, $fixed) = @_;
-    my $err = $args->{err};
-    my $def  = $do->($fixed);
+          defined $value
+              or error __x"element `{name}' with fixed value `{fixed}' missing at {path}"
+                     , name => $childname, fixed => $fix, path => $path;
 
-    sub { my @nodes = $_[0]->getChildrenByLocalName($childname);
-          my $node  = shift @nodes or return ();
-          $node = $err->($path, 'found '.@nodes, "only one value expected")
-              if @nodes;
-          my $value = defined $node ? $do->($node) : undef;
-          $err->($path, $value,"value fixed to '".$fixed->value."'")
-              if !defined $value || $value ne $def;
-          ($childname => $def);
+          $value eq $fix
+              or error __x"element `{name}' must have fixed value `{fixed}', got `{value}' at {path}"
+                     , name => $childname, fixed => $fix, value => $value
+                     , path => $path;
+
+          ($label => $value);
         };
 }
 
 sub element_nillable
 {   my ($path, $args, $ns, $childname, $do) = @_;
-    my $err  = $args->{err};
-    sub { my @nodes = $_[0]->getChildrenByLocalName($childname);
-          my $node
-           = (@nodes==0 || !defined $nodes[0])
-           ? $err->($path, undef, "one value required")
-           : shift @nodes;
-          $err->($path, 'found '.@nodes, "only one value expected")
-             if @nodes;
-          my $nil = $node->getAttribute('nil') || 'false';
-          $childname => ($nil eq 'true' ? undef : $do->($node));
-        };
-}
 
-sub element_optional
-{   my ($path, $args, $ns, $childname, $do) = @_;
-    my $err  = $args->{err};
-    sub { my @nodes = $_[0]->getChildrenByLocalName($childname)
-             or return ();
-          $err->($path, scalar @nodes, "only one value expected")
-             if @nodes > 1;
-          my $val = $do->($nodes[0]);
-          defined $val ? ($childname => $val) : ();
+    sub { my $tree = shift;
+          my $value;
+          if(defined $tree && $tree->nodeLocal eq $childname)
+          {   my $nil  = $tree->node->getAttribute('nil') || 'false';
+              return ($childname => 'NIL')
+                  if $nil eq 'true' || $nil eq '1';
+              $value = $do->($tree);
+          }
+          else
+          {   $value = $do->(undef);
+          }
+
+          defined $value ? ($childname => $value) : ();
         };
 }
 
 #
-# complexType/ComplexContent
+# complexType and complexType/ComplexContent
 #
 
-sub create_complex_element
-{   my ($path, $args, $tag, $childs, $any_elem, $any_attr) = @_;
+sub complex_element
+{   my ($path, $args, $tag, $elems, $attrs, $attrs_any) = @_;
+    my @elems = odd_elements @$elems;
+    my @attrs = (odd_elements(@$attrs), @$attrs_any);
 
-    my @childs = @$childs;
-    my @do;
-    while(@childs) {shift @childs; push @do, shift @childs}
-    push @do, @$any_elem, @$any_attr;
+    sub { my $tree    = shift; # or return ();
+          my $node    = $tree->node;
+          my %complex
+           = ( (map {$_->($tree)} @elems)
+             , (map {$_->($node)} @attrs)
+             );
 
-    sub { my @pairs = map {$_->(@_)} @do;
-          @pairs ? {@pairs} : ();
+          defined $tree->currentChild
+              and error __x"element `{name}' not processed at {path}"
+                      , name => $tree->currentLocal, path => $path
+                      , _class => 'misfit';
+
+          ($tag => \%complex);
         };
 }
 
@@ -187,19 +384,17 @@ sub create_complex_element
 # complexType/simpleContent
 #
 
-sub create_tagged_element
+sub tagged_element
 {   my ($path, $args, $tag, $st, $attrs, $attrs_any) = @_;
-    my @attrs = @$attrs;
-    my @do;
-    while(@attrs) {shift @attrs; push @do, shift @attrs}
-    push @do, @$attrs_any;
+    my @attrs = (odd_elements(@$attrs), @$attrs_any);
 
-    sub { my @a = @do;
-          my $simple = $st->(@_);
-          my @pairs = map {$_->(@_)} @do;
+    sub { my $tree   = shift or return ();
+          my $simple = $st->($tree);
+          my $node   = $tree->node;
+          my @pairs  = map {$_->($node)} @attrs;
           defined $simple or @pairs or return ();
           defined $simple or $simple = 'undef';
-          {_ => $simple, @pairs};
+          ($tag => {_ => $simple, @pairs});
         };
 }
 
@@ -207,50 +402,51 @@ sub create_tagged_element
 # simpleType
 #
 
-sub create_simple_element
+sub simple_element
 {   my ($path, $args, $tag, $st) = @_;
     sub { my $value = $st->(@_);
-          defined $value ? $value : undef;
+          defined $value ? ($tag => $value) : ();
         };
 }
 
-sub builtin_checked
-{   my ($path, $args, $node, $type, $def) = @_;
-    my $check = $def->{check};
-    defined $check
-       or return builtin_unchecked(@_); 
+sub builtin
+{   my ($path, $args, $node, $type, $def, $check_values) = @_;
+    my $check = $check_values ? $def->{check} : undef;
     my $parse = $def->{parse};
-    my $err   = $args->{err};
+    my $err   = $path eq $type
+      ? N__"illegal value `{value}' for type {type}"
+      : N__"illegal value `{value}' for type {type} at {path}";
 
-      defined $parse
-    ? sub { my $value = ref $_[0] ? $_[0]->textContent : $_[0];
-            defined $value or return undef;
-              $check->($value)
-            ? $parse->($value, $_[0])
-            : $err->($path, $value, "illegal value for $type");
-          }
-    : sub { my $value = ref $_[0] ? $_[0]->textContent : $_[0];
-            defined $value or return undef;
-              $check->($value)
-            ? $value
-            : $err->($path, $value, "illegal value for $type");
-          };
-}
+    $check
+    ? ( defined $parse
+      ? sub { my $value = ref $_[0] ? $_[0]->textContent : $_[0];
+              defined $value or return undef;
+              return $parse->($value, $_[0])
+                  if $check->($value);
+              error __x$err, value => $value, type => $type, path => $path;
+            }
+      : sub { my $value = ref $_[0] ? $_[0]->textContent : $_[0];
+              defined $value or return undef;
+              return $value if $check->($value);
+              error __x$err, value => $value, type => $type, path => $path;
+            }
+      )
 
-sub builtin_unchecked
-{   my $parse = $_[4]->{parse};
-
-      defined $parse
-    ? sub { my $v = $_[0]->textContent; defined $v ? $parse->($v,$_[0]) :undef}
-    : sub { $_[0]->textContent }
+    : ( defined $parse
+      ? sub { my $value = ref $_[0] ? shift->textContent : $_[0];
+              defined $value or return undef;
+              $parse->($value);
+            }
+      : sub { ref $_[0] ? shift->textContent : $_[0] }
+      );
 }
 
 # simpleType
 
 sub list
 {   my ($path, $args, $st) = @_;
-    sub { defined $_[0] or return undef;
-          my $v = $_[0]->textContent;
+    sub { my $tree = shift or return undef;
+          my $v = $tree->textContent;
           my @v = grep {defined} map {$st->($_) } split(" ",$v);
           \@v;
         };
@@ -281,12 +477,14 @@ sub facets
 }
 
 sub union
-{   my ($path, $args, $err, @types) = @_;
-    sub { defined $_[0] or return undef;
-          for(@types) {my $v = $_->($_[0]); defined $v and return $v }
-          my $text = $_[0]->textContent;
-          substr $text, 10, -1, '...' if length($text) > 13;
-          $err->($path, $text, "no match in union");
+{   my ($path, $args, @types) = @_;
+    sub { my $tree = shift or return undef;
+          for(@types) { my $v = try { $_->($tree) }; $@ or return $v }
+          my $text = $tree->textContent;
+
+          substr $text, 20, -1, '...' if length($text) > 73;
+          error __x"no match for `{text}' in union at {path}"
+             , text => $text, path => $path;
         };
 }
 
@@ -294,9 +492,11 @@ sub union
 
 sub attribute_required
 {   my ($path, $args, $ns, $tag, $do) = @_;
-    my $err  = $args->{err};
-    sub { my $node = $_[0]->getAttributeNodeNS($ns, $tag)
-             || $err->($path, undef, "attribute $tag required");
+    sub { my $node = $_[0]->getAttributeNodeNS($ns, $tag);
+          defined $node
+             or error __x"attribute `{name}' is required at {path}"
+                    , name => $tag, path => $path;
+
           defined $node or return ();
           my $value = $do->($node);
           defined $value ? ($tag => $value) : ();
@@ -305,19 +505,18 @@ sub attribute_required
 
 sub attribute_prohibited
 {   my ($path, $args, $ns, $tag, $do) = @_;
-    my $err  = $args->{err};
     sub { my $node = $_[0]->getAttributeNodeNS($ns, $tag);
           defined $node or return ();
-          $err->($path, $node->textContent, "attribute $tag prohibited");
+          error __x"attribute `{name}' is prohibited at {path}"
+              , name => $tag, path => $path;
           ();
         };
 }
 
-sub attribute_optional
+sub attribute
 {   my ($path, $args, $ns, $tag, $do) = @_;
-    my $err  = $args->{err};
-    sub { my $node = $_[0]->getAttributeNodeNS($ns, $tag)
-             or return ();
+    sub { my $node = $_[0]->getAttributeNodeNS($ns, $tag);
+          defined $node or return ();;
           my $val = $do->($node);
           defined $val ? ($tag => $val) : ();
         };
@@ -325,53 +524,63 @@ sub attribute_optional
 
 sub attribute_default
 {   my ($path, $args, $ns, $tag, $do, $default) = @_;
-    my $err  = $args->{err};
     my $def  = $do->($default);
 
     sub { my $node = $_[0]->getAttributeNodeNS($ns, $tag);
-          ($tag => defined $node ? $do->($node) : $def);
+          ($tag => (defined $node ? $do->($node) : $def))
         };
 }
 
 sub attribute_fixed
 {   my ($path, $args, $ns, $tag, $do, $fixed) = @_;
-    my $err = $args->{err};
     my $def  = $do->($fixed);
 
-    sub { my $node  = $_[0]->getAttributeNodeNS($ns, $tag);
+    sub { my $node = $_[0]->getAttributeNodeNS($ns, $tag);
           my $value = defined $node ? $do->($node) : undef;
-          $err->($path, $value, "attr value fixed to '".$fixed->value."'")
-              if !defined $value || $value ne $def;
+
+          defined $value && $value eq $def
+              or error __x"value of attribute `{tag}' is fixed to `{fixed}', not `{value}' at {path}"
+                  , tag => $tag, fixed => $def, value => $value, path => $path;
+
           ($tag => $def);
         };
 }
 
 sub attribute_fixed_optional
 {   my ($path, $args, $ns, $tag, $do, $fixed) = @_;
-    my $err = $args->{err};
     my $def  = $do->($fixed);
 
-    sub { my $node  = $_[0]->getAttributeNodeNS($ns, $tag) or return ();
+    sub { my $node  = $_[0]->getAttributeNodeNS($ns, $tag)
+              or return ($tag => $def);
+
           my $value = $do->($node);
-          $err->($path, $value, "attr value fixed to '".$fixed->value."'")
-              if !defined $value || $value ne $def;
+          defined $value && $value eq $def
+              or error __x"value of attribute `{tag}' is fixed to `{fixed}', not `{value}' at {path}"
+                  , tag => $tag, fixed => $def, value => $value, path => $path;
+
           ($tag => $def);
         };
 }
 
-
 # SubstitutionGroups
 
-sub element_substgroup
-{   my ($path, $args, $name, $defs) = @_;
-    my $err  = $args->{err};
-    sub { foreach my $def (@$defs)
-          {   my $node = $_[0]->getChildrenByLocalName($def->[1])
-                 or next;
-              return $def->[2]->(@_);
-          }
-          $err->($path, $name, "none of the substitution alternatives found.");
-        };
+sub substgroup
+{   my ($path, $args, $type, %do) = @_;
+
+    bless
+    sub { my $tree  = shift;
+          my $local = ($tree ? $tree->currentLocal : undef)
+              or error __x"no data for substitution group {type} at {path}"
+                    , type => $type, path => $path;
+
+          my $do    = $do{$local}
+              or error __x"no substitute for {type} found at {path}"
+                    , type => $type, path => $path;
+
+          my @subst = $do->($tree->descend);
+          $tree->nextChild;
+          @subst;
+        }, 'BLOCK';
 }
 
 # anyAttribute
@@ -392,13 +601,14 @@ sub anyAttribute
               next if keys %yes && !$yes{$ns};
               next if keys %no  &&   $no{$ns};
               my $local = $attr->localName;
-              push @result, "{$ns}$local" => $attr;
+              push @result, pack_type($ns, $local) => $attr;
           }
           @result;
         };
 
     # Create filter if requested
-    $handler eq 'TAKE_ALL' ? $all
+    my $run = $handler eq 'TAKE_ALL'
+    ? $all
     : sub { my @attrs = $all->(@_);
             my @result;
             while(@attrs)
@@ -408,56 +618,86 @@ sub anyAttribute
             }
             @result;
           };
+
+     bless $run, 'BLOCK';
 }
 
 # anyElement
 
 sub anyElement
 {   my ($path, $args, $handler, $yes, $no, $process, $min, $max) = @_;
-    defined $handler or return sub { () };
-    $handler = sub { @_ } if $handler eq 'TAKE_ALL';
+
+    $handler ||= 'SKIP_ALL';
 
     my %yes = map { ($_ => 1) } @{$yes || []};
     my %no  = map { ($_ => 1) } @{$no  || []};
 
     # Takes all, before filtering
-    my $all =
-    sub { my %result;
-          my @elems = grep {$_->isa('XML::LibXML::Element')} $_[0]->childNodes;
-          foreach my $elem (@elems)
-          {   my $ns = $elem->namespaceURI || $_[0]->namespaceURI;
-              next if keys %yes && !$yes{$ns};
-              next if keys %no  &&   $no{$ns};
-              my ($k, $v) = $handler->("{$ns}".$elem->localName => $elem);
+    my $all = bless
+    sub { my $tree  = shift or return ();
+          my $count = 0;
+          my %result;
+          while(   (my $child = $tree->currentChild)
+                && ($max eq 'unbounded' || $count < $max))
+          {   my $ns = $child->namespaceURI;
+              $yes{$ns} or last if keys %yes;
+              $no{$ns} and last if keys %no;
+
+              my ($k, $v) = (pack_type($ns, $child->localName) => $child);
+              $count++;
               push @{$result{$k}}, $v;
+              $tree->nextChild;
           }
+
+          $count >= $min
+              or error __x"too few any elements, requires {min} and got {found}"
+                    , min => $min, found => $count;
+
           %result;
-        };
+        }, 'ANY';
+
+    # Create filter if requested
+    my $run
+     = $handler eq 'TAKE_ALL' ? $all
+     : $handler eq 'SKIP_ALL' ? sub { $all->(@_); () }
+     : sub { my @elems = $all->(@_);
+             my @result;
+             while(@elems)
+             {   my ($type, $data) = (shift @elems, shift @elems);
+                 my ($label, $out) = $handler->($type, $data, $path, $args);
+                 push @result, $label, $out if defined $label;
+             }
+             @result;
+           };
+
+     bless $run, 'ANY';
 }
 
 # any kind of hook
 
-sub create_hook($$$$$$)
+sub hook($$$$$$)
 {   my ($path, $args, $r, $tag, $before, $replace, $after) = @_;
     return $r unless $before || $replace || $after;
 
-    return sub {()} if $replace && grep {$_ eq 'SKIP'} @$replace;
+    return sub { ($_[0]->node->localName => 'SKIPPED') }
+        if $replace && grep {$_ eq 'SKIP'} @$replace;
 
     my @replace = $replace ? map {_decode_replace($path,$_)} @$replace : ();
     my @before  = $before  ? map {_decode_before($path,$_) } @$before  : ();
     my @after   = $after   ? map {_decode_after($path,$_)  } @$after   : ();
 
     sub
-     { my $xml = shift;
+     { my $tree = shift or return ();
+       my $xml  = $tree->node;
        foreach (@before)
        {   $xml = $_->($xml, $path);
            defined $xml or return ();
        }
        my @h = @replace
              ? map {$_->($xml,$args,$path,$tag)} @replace
-             : $r->($xml);
+             : $r->($tree->descend($xml));
        @h or return ();
-       my $h = @h > 1 ? {@h} : $h[0];  # detect simpleType
+       my $h = @h==1 ? {_ => $h[0]} : $h[1];  # detect simpleType
        foreach (@after)
        {   $h = $_->($xml, $h, $path);
            defined $h or return ();
@@ -471,14 +711,14 @@ sub _decode_before($$)
     return $call if ref $call eq 'CODE';
 
       $call eq 'PRINT_PATH' ? sub {print "$_[1]\n"; $_[0] }
-    : croak "ERROR: labeled hook '$call' undefined.";
+    : error __x"labeled before hook `{call}' undefined", call => $call;
 }
 
 sub _decode_replace($$)
 {   my ($path, $call) = @_;
     return $call if ref $call eq 'CODE';
 
-    croak "ERROR: labeled hook '$call' undefined.";
+    error __x"labeled replace hook `{call}' undefined", call => $call;
 }
 
 sub _decode_after($$)
@@ -487,28 +727,28 @@ sub _decode_after($$)
 
       $call eq 'PRINT_PATH' ? sub {print "$_[2]\n"; $_[1] }
     : $call eq 'XML_NODE'  ?
-      sub { my $values = $_[1];
-            $values = { _ => $values } if ref $values ne 'HASH';
-            $values->{_XML_NODE} = $_[0];
-            $values;
+      sub { my $h = $_[1];
+            ref $h eq 'HASH' or $h = { _ => $h };
+            $h->{_XML_NODE} = $_[0];
+            $h;
           }
     : $call eq 'ELEMENT_ORDER' ?
-      sub { my ($xml, $values) = @_;
-            $values = { _ => $values } if ref $values ne 'HASH';
+      sub { my ($xml, $h) = @_;
+            ref $h eq 'HASH' or $h = { _ => $h };
             my @order = map {$_->nodeName}
-                grep {$_->isa('XML::LibXML::Element')}
-                   $xml->childNodes;
-            $values->{_ELEMENT_ORDER} = \@order;
-            $values;
+               grep { $_->isa('XML::LibXML::Element') }
+                  $xml->childNodes;
+            $h->{_ELEMENT_ORDER} = \@order;
+            $h;
           }
     : $call eq 'ATTRIBUTE_ORDER' ?
-      sub { my ($xml, $values) = @_;
-            $values = { _ => $values } if ref $values ne 'HASH';
+      sub { my ($xml, $h) = @_;
+            ref $h eq 'HASH' or $h = { _ => $h };
             my @order = map {$_->nodeName} $xml->attributes;
-            $values->{_ATTRIBUTE_ORDER} = \@order;
-            $values;
+            $h->{_ATTRIBUTE_ORDER} = \@order;
+            $h;
           }
-    : croak "ERROR: labeled hook '$call' undefined.";
+    : error __x"labeled after hook `{call}' undefined", call => $call;
 }
 
 =chapter DETAILS
@@ -551,15 +791,17 @@ Say your schema looks like this:
      </complexType>
    </element>
    <simpleType name="non-empty">
-     <restriction base="xs:NCName" />
+     <restriction base="NCName" />
    </simpleType>
  </schema>
 
 Then, in an application, you write:
 
- my $r = $schema->compile(READER => '{http://mine}el'
+ my $r = $schema->compile
+  ( READER => pack_type('http://mine', 'el')
   , anyAttribute => 'ALL'
   );
+ # or lazy: READER => '{http://mine}el'
 
  my $h = $r->( <<'__XML' );
    <el xmlns:me="http://mine">
@@ -616,8 +858,9 @@ case.  You can implement any kind of complex processing in the filter.
 =subsection any element
 
 By default, the C<any> definition in a schema will ignore all elements
-from the container which are not used.  Also in this case C<TAKE_ANY>
-is required to enable C<any> processing.
+from the container which are not used.  Also in this case C<TAKE_ALL>
+is required to produce C<any> results.  C<SKIP_ALL> will ignore all
+results, although this are being processed for validation needs.
 
 The C<minOccurs> and C<maxOccurs> of C<any> are ignored: the amount of
 elements is always unbounded.  Therefore, you will get an array of
@@ -642,7 +885,9 @@ Your C<replace> hook should return a list of key-value pairs. To
 produce it, it will get the M<XML::LibXML::Node>, the translator settings
 as HASH, the path, and the localname.
 
-This hook has a predefined C<SKIP>.
+This hook has a predefined C<SKIP>, which will not process the
+found element, but simply return the string C<SKIPPED> as value.
+This way, a whole tree of unneeded translations can be avoided.
 
 =subsection hooks for post-processing, after the data is collected
 
@@ -659,4 +904,3 @@ The keys start with an underscore C<_>.
 =cut
 
 1;
-

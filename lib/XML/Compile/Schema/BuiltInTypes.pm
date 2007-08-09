@@ -8,11 +8,12 @@ our @EXPORT = qw/%builtin_types/;
 
 our %builtin_types;
 
+use Log::Report 'xml-compile', syntax => 'SHORT';
 use MIME::Base64;
-use POSIX            qw/strftime/;
-use Carp             qw/croak/;
-
+use POSIX              qw/strftime/;
 # use XML::RegExp;  ### can we use this?
+
+use XML::Compile::Util qw/pack_type/;
 
 =chapter NAME
 
@@ -50,10 +51,30 @@ You B<cannot call> these functions yourself.
 #     check(format(value)) or check_write(format(value))
 
 sub identity { $_[0] };
-sub str2int  { use warnings FATAL => 'all'; eval {$_[0] + 0} };
-sub int2str  { use warnings FATAL => 'all'; eval {sprintf "%ld", $_[0]} };
-sub str2num  { use warnings FATAL => 'all'; eval {$_[0] + 0.0} };
-sub num2str  { use warnings FATAL => 'all'; eval {sprintf "%lf", $_[0]} };
+sub str2int
+{   my $v = eval { use warnings FATAL => 'all'; $_[0] + 0};
+    $@ && error __x $@;
+    $v;
+}
+
+sub int2str
+{   my $v = eval { use warnings FATAL => 'all'; sprintf "%ld", $_[0]};
+    $@ && error __x $@;
+    $v;
+}
+
+sub str2num
+{   my $v = eval { use warnings FATAL => 'all'; $_[0] + 0.0};
+    $@ && error __x $@;
+    $v;
+}
+
+sub num2str
+{   my $v = eval { use warnings FATAL => 'all'; sprintf "%lf", $_[0]};
+    $@ && error __x $@;
+    $v;
+}
+
 sub str      { "$_[0]" };
 sub collapse { $_[0] =~ s/\s+//g; $_[0]}
 sub preserve { for($_[0]) {s/\s+/ /g; s/^ //; s/ $//}; $_[0]}
@@ -602,8 +623,9 @@ $builtin_types{QName} =
      sub { my ($qname, $node) = @_;
            my $prefix = $qname =~ s/^([^:]*)\:// ? $1 : '';
            my $ns = $node->lookupNamespaceURI($prefix)
-               or croak "ERROR: cannot find prefix $prefix for QNAME $qname";
-           "{$ns}$qname";
+               or error __x"cannot find prefix `{prefix}' for QNAME `{qname}'"
+                     , prefix => $prefix, qname => $qname;
+           pack_type($ns, $qname);
          }
  , check   => \&_valid_qname
  , example => 'myns:name'

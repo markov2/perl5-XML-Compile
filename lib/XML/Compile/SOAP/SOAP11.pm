@@ -4,6 +4,9 @@ use strict;
 package XML::Compile::SOAP::SOAP11;
 use base 'XML::Compile::SOAP';
 
+use Log::Report 'xml-compile', syntax => 'SHORT';
+use XML::Compile::Util  qw/pack_type/;
+
 my $base       = 'http://schemas.xmlsoap.org/soap';
 my $actor_next = "$base/actor/next";
 
@@ -72,7 +75,7 @@ sub _writer_header_env($$$$)
     if($understand)
     {   my $u_w = $self->{soap11_u_w} ||=
           $schema->compile
-            ( WRITER => "{$envns}mustUnderstand"
+            ( WRITER => pack_type($envns, 'mustUnderstand')
             , output_namespaces    => $allns
             , include_namespaces   => 0
             );
@@ -91,7 +94,7 @@ sub _writer_header_env($$$$)
 
         my $a_w = $self->{soap11_a_w} ||=
           $schema->compile
-            ( WRITER => "{$envns}actor"
+            ( WRITER => pack_type($envns, 'actor')
             , output_namespaces    => $allns
             , include_namespaces   => 0
             );

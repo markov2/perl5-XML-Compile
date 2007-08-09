@@ -6,12 +6,11 @@ use strict;
 
 use lib 'lib','t';
 use TestTools;
-use Data::Dumper;
 use Test::Deep   qw/cmp_deeply/;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 54 + ($skip_dumper ? 0 : 9);
+use Test::More tests => 56;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -40,9 +39,6 @@ __SCHEMA__
 
 ok(defined $schema);
 
-my @errors;
-push @run_opts, invalid => sub {no warnings; push @errors, "$_[2] ($_[1])"};
-
 my $xml1 = <<__XML;
 <test1>
   <byType>aap</byType>
@@ -55,7 +51,6 @@ __XML
 
 my %f1 = (byType => 'aap', byId => 2, byPath => 3);
 test_rw($schema, test1 => $xml1, \%f1);
-ok(!@errors);
 
 # try all selectors and hook types
 
@@ -72,6 +67,7 @@ my $r2 = reader
 
 ok(defined $r2, 'compile reader');
 isa_ok($r2, 'CODE');
+
 my $h2 = $r2->($xml1);
 ok(defined $h2, 'returned hash');
 isa_ok($h2, 'HASH');
@@ -98,7 +94,7 @@ select $oldout;
 close BUF;
 
 like($output, qr/^[^\n]*\(byId\)\n$/, 'PRINT_PATH');
-is(ref $h3->{byId}, 'HASH', 'simpleType expanded');
+is(ref($h3->{byId}), 'HASH', 'simpleType expanded');
 ok(exists $h3->{byId}{_});
 cmp_ok($h3->{byId}{_}, '==', 2);
 
@@ -115,11 +111,14 @@ my $r4 = reader
            , replace => 'SKIP'
            }
  );
+ok(defined $r4, "replace SKIP");
+
 my $h4 = $r4->($xml1);
 ok(defined $h4, 'test skip');
-cmp_ok(scalar keys %$h4, '==', 2);
+cmp_ok(scalar keys %$h4, '==', 3);
 ok(defined $h4->{byType});
 ok(defined $h4->{byPath});
+is($h4->{byId}, 'SKIPPED');
 
 # test node order discovery
 
@@ -133,6 +132,7 @@ my $r5 = reader
            , after => [ qw/ELEMENT_ORDER ATTRIBUTE_ORDER/ ]
            }
  );
+ok(defined $r5, 'read ORDER');
 my $h5 = $r5->($xml2);
 
 ok(defined $h5, "node order");

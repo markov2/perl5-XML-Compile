@@ -13,7 +13,7 @@ $Data::Dumper::Indent = 1;
 
 use XML::Compile::SOAP::SOAP11;
 
-use Test::More tests => 7;
+use Test::More tests => 5;
 use XML::LibXML;
 
 # elementFormDefault="qualified">
@@ -105,6 +105,9 @@ my $server1 = $soap->compile
  );
 
 is(ref $server1, 'CODE', 'compiled a server');
+
+__END__
+WORK IN PROGRESS
 
 my $hash1 = $server1->($msg1_soap);
 is(ref $hash1, 'HASH', 'produced HASH');

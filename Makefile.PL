@@ -4,17 +4,21 @@ use 5.8.0;
 
 WriteMakefile
  ( NAME	 	=> 'XML::Compile'
- , VERSION	=> 0.18
+ , VERSION	=> 0.50
  , PREREQ_PM    =>
    { XML::LibXML               => 1.63
-   , Test::More                => 0.54
-   , Test::Deep                => 0.095
    , Math::BigInt              => 1.77
    , Data::Dump::Streamer      => 2.03
    , IO                        => 1.22
+   , Log::Report               => 0.09
+
+   , Test::More                => 0.54
+   , Test::Deep                => 0.095
+   , Test::Pod                 => 1.00
    }
  , AUTHOR       => 'Mark Overmeer'
  , ABSTRACT     => 'Compilation based XML processing'
+ , LICENSE      => 'perl'
  );
 
 ### used by oodist during production of distribution
@@ -33,5 +37,6 @@ WEBSITE         = http://perl.overmeer.net/xml-compile/
 # for HTML
 HTML_OUTPUT     = ../public_html/xml-compile/html
 HTML_DOCROOT    = /xml-compile/html
+HTML_PACKAGE    = ../public_html/xml-compile/htmlpkg
 
 __POSTAMBLE
