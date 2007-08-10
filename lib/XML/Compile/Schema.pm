@@ -6,7 +6,6 @@ package XML::Compile::Schema;
 use base 'XML::Compile';
 
 use Log::Report 'xml-compile', syntax => 'SHORT';
-use Carp;
 use List::Util   qw/first/;
 use XML::LibXML  ();
 use File::Spec   ();
@@ -18,7 +17,7 @@ use XML::Compile::Schema::NameSpaces;
 
 =chapter NAME
 
-XML::Compile::Schema - Compile a schema
+XML::Compile::Schema - Compile a schema into CODE
 
 =chapter SYNOPSIS
 
@@ -58,15 +57,16 @@ XML::Compile::Schema - Compile a schema
 =chapter DESCRIPTION
 
 This module collects knowledge about one or more schemas.  The most
-important method is M<compile()> which can create XML file readers and
-writers based on the schema information and some selected type.
+important method provided is M<compile()>, which can create XML file
+readers and writers based on the schema information and some selected
+element or attribute type.
 
-Two implementations use the translator, and more can be added later.  Both
-get created with the C<compile> method.
+Various implementations use the translator, and more can be added
+later:
 
 =over 4
 
-=item READER (translate XML to HASH)
+=item C<$schema->compile('READER'...)> translates XML to HASH
 
 The XML reader produces a HASH from a M<XML::LibXML::Node> tree or an
 XML string.  Those represent the input data.  The values are checked.
@@ -88,11 +88,11 @@ or
  my $hash   = $msgin->($xml_string);
  my $hash   = $msgin->($xml_node);
 
-=item WRITER (translate HASH to XML)
+=item C<$schema->compile('WRITER', ...)> translates HASH to XML
 
-The writer produces schema compliant XML, based on a HASH.  To get the
-data encoding correct, you are required to pass a document in which the
-XML nodes may get a place later.
+The writer produces schema compliant XML, based on a Perl HASH.  To get
+the data encoding correctly, you are required to pass a document object
+in which the XML nodes may get a place later.
 
 =example create an XML writer
  my $doc    = XML::LibXML::Document->new('1.0', 'UTF-8');
@@ -103,21 +103,36 @@ XML nodes may get a place later.
 alternative
 
  my $write  = $schema->compile(WRITER => 'myns#myid');
+
+=item C<$schema->template('XML', ...)> creates an XML example
+
+Based on the schema, this produces an XML message as example.  Schemas
+are usually so complex that people loose overview.  This example may
+put you back on track, and used as starting point for many creating the
+XML version of the message.
+
+=item C<$schema->template('PERL', ...)> creates an Perl example
+
+Based on the schema, this produces an Perl HASH structure (a bit
+like the output by Data::Dumper), which can be used as template
+for creating messages.  The output contains documentation, and is
+usually much clearer than the schema itself.
+
 =back
 
-Be warned that the schema itself is NOT VALIDATED; you can easily
-construct schemas which do work with this module, but are not
-valid according to W3C.  Only in some cases, the translater will
-refuse to accept mistakes: mainly because it cannot produce valid
-code.
-
-See chapter L</DETAILS> and learn how the data is processed.
+Be warned that the B<schema is not validated>; you can develop schemas
+which do work well with this module, but are not valid according to W3C.
+In many cases, however, the translater will refuse to accept mistakes:
+mainly because it cannot produce valid code.
 
 =chapter METHODS
 
 =section Constructors
 
-=c_method new OPTIONS
+=c_method new TOP, OPTIONS
+Collect schema information.  Details about many name-spaces can be
+organized with only a single schema object (actually, the data is
+administered in an internal M<XML::Compile::Schema::NameSpaces> object)
 
 =option  hook ARRAY-WITH-HOOKDATA | HOOK
 =default hook C<undef>
@@ -157,11 +172,15 @@ to collect schemas.
 sub namespaces() { shift->{namespaces} }
 
 =method addSchemas XML, OPTIONS
-Collect all the schemas defined in the XML data.
+Collect all the schemas defined in the XML data.  The XML parameter
+must be a M<XML::LibXML> node, therefore it is adviced to use
+M<importDefinitions()>, which has a much more flexible way to
+specify the data.
 
+No OPTIONS are defined, on the moment.
 =cut
 
-sub addSchemas($)
+sub addSchemas($@)
 {   my $self = shift;
     my $node = shift or return ();
 
@@ -192,8 +211,8 @@ sub addSchemas($)
 
 =method importDefinitions XMLDATA, OPTIONS
 Import (include) the schema information included in the XMLDATA.  The
-XMLDATA must be acceptable for M<dataToXML()>.  The OPTIONS are passed
-to M<addSchemas()>.
+XMLDATA must be acceptable for M<dataToXML()>.  The resulting node
+and the OPTIONS are passed to M<addSchemas()>.
 =cut
 
 sub importDefinitions($@)
@@ -215,7 +234,7 @@ sub addHook(@)
 }
 
 =method addHooks HOOK, [HOOK, ...]
-Add multiple hooks at once.  These all must be HASHes. See L</Schema hooks>
+Add multiple hooks at once.  These must all be HASHes. See L</Schema hooks>
 and M<addHook()>. C<undef> values are ignored.
 =cut
 
@@ -226,58 +245,61 @@ sub addHooks(@)
 }
 
 =method hooks
-Returns the LIST of defined hooks (HASHes).
+Returns the LIST of defined hooks (as HASHes).
 =cut
 
 sub hooks() { @{shift->{hooks}} }
 
 =section Compilers
 
-=method compile ('READER'|'WRITER'), ELEMENT, OPTIONS
+=method compile ('READER'|'WRITER'), TYPE, OPTIONS
 
-Translate the specified ELEMENT into a CODE reference which is able to
-translate between XML-text and a HASH.  When the ELEMENT is C<undef>,
-then an empty LIST is returned.
+Translate the specified ELEMENT (found in one of the read schemas) into
+a CODE reference which is able to translate between XML-text and a HASH.
+When the TYPE is C<undef>, an empty LIST is returned.
 
-The ELEMENT is the starting-point for processing in the data-structure.
-It can either be a global element, or a global type.  The NAME
-must be specified in C<{url}name> format, there the url is the
-name-space.  An alternative is the C<url#id> which refers to 
-an element or type with the specific C<id> attribute value.
+The indicated TYPE is the starting-point for processing in the
+data-structure, a toplevel element or attribute name.  The name must
+be specified in C<{url}name> format, there the url is the name-space.
+An alternative is the C<url#id> which refers to an element or type with
+the specific C<id> attribute value.
 
 When a READER is created, a CODE reference is returned which needs
-to be called with parsed XML (an L<XML::LibXML::Node>) or an XML text.
+to be called with XML, as accepted by M<XML::Compile::dataToXML()>.
 Returned is a nested HASH structure which contains the data from
-contained in the XML.  When a simple element type is addressed, you
-will get a single value back,
+contained in the XML.  The transformation rules are explained below.
 
 When a WRITER is created, a CODE reference is returned which needs
-to be called with a HASH, and returns a XML::LibXML::Node.
+to be called with an M<XML::LibXML::Document> object and a HASH, and
+returns a M<XML::LibXML::Node>.
 
 Most options below are explained in more detailed in the manual-page
-M<XML::Compile::Schema::Translate>.
+M<XML::Compile::Schema::Translate>, which implements the compilation..
 
 =option  check_values BOOLEAN
 =default check_values <true>
 Whether code will be produce to check that the XML fields contain
 the expected data format.
 
-Turning this off will improve the processing significantly, but is
-(of course) much less unsafer.  Do not set it off when you expect
-data from external sources.
+Turning this off will improve the processing speed significantly, but is
+(of course) much less safe.  Do not set it off when you expect data from
+external sources: validation is a crucial requirement for XML.
 
 =option  check_occurs BOOLEAN
 =default check_occurs <false>
-Whether code will be produced to complain about elements which
-should or should not appear, and is between bounds or not.
-Elements which may have more than 1 occurence will still always
-be represented by an ARRAY.
+Whether code will be produced to do bounds checking on elements and blocks
+which may appear more than once. When the schema says that maxOccurs is 1,
+then that element becomes optional.  When the schema says that maxOccurs
+is larger than 1, then the output is still always an ARRAY, but now of
+unrestricted length.
 
 =option  ignore_facets BOOLEAN
 =default ignore_facets <false>
 Facets influence the formatting and range of values. This does
-not come cheap, so can be turned off.  Affects the restrictions
-set for a simpleType.
+not come cheap, so can be turned off.  It affects the restrictions
+set for a simpleType.  The processing speed will improve, but validation
+is a crucial requirement for XML: please do not turn this off when the
+data comes from external sources.
 
 =option  path STRING
 =default path <expanded name of type>
@@ -657,19 +679,19 @@ appear exactly once.  When missing, this is an error.
 =item maxOccurs larger than 1
 
 In this case, the element or particle block can appear multiple times.
-Multiple values will be kept in an ARRAY within the HASH.  Non-schema
-based XML processors will not return a single value as an ARRAY, which
-makes that code more complicated.
+Multiple values are kept in an ARRAY within the HASH.  Non-schema based
+XML modules do not return a single value as an ARRAY, which makes that
+code more complicated.  But in our case, we know the expected amount
+beforehand.
 
 When the maxOccurs larger than 1 is specified for an element, an ARRAY
 of those elements is produced.  When it is specified for a block (sequence,
-choice, all, group), then an ARRAY of HASHes is returned.  The complication,
-in this case, is that the block needs a name, where it hasn't one in the
-schema.  As name, the first element in the construct is used.
+choice, all, group), then an ARRAY of HASHes is returned.  See the special
+section about the subject.
 
-An error will be produced when the number of elements found is less than
-C<minOccurs> or more than C<maxOccurs>, unless M<compile(check_occurs)>
-is C<false>.
+An error is produced when the number of elements found is less than
+C<minOccurs> (defaults to 1) or more than C<maxOccurs> (defaults to 1),
+unless M<compile(check_occurs)> is C<false>.
 
 =example elements with maxOccurs E<gt> 1
 In the schema:
@@ -681,27 +703,6 @@ In the XML message:
 
 In the Perl representation:
  a => [12, 13], b => 14
-
-=example always an array with maxOccurs E<gt> 1
-
-Even when there is only one element found, it will be returned as
-ARRAY (of one element).  Therefore, you can write
-
- my $data = $reader->($xml);
- foreach my $a ( @{$data->{a}} ) {...}
-
-=example blocks with maxOccurs E<gt> 1
-In the schema:
- <sequence maxOccurs="5">
-   <element name="a" type="int" />
-   <element name="b" type="int" />
- </sequence>
-
-In the XML message:
- <a>15</a><b>16</b><a>17</a><b>18</b>
-
-In Perl representation:
- a => [ {a => 15, b => 16}, {a => 17, b => 18} ]
 
 =item value is C<NIL>
 
@@ -728,6 +729,84 @@ Produce an error when the value is not present or different (after
 the white-space rules where applied).
 
 =back
+
+=section Repetative blocks
+
+Particle blocks come in four shapes: C<sequence>, C<choice>, C<all>,
+and C<group> (an indirect block).  In situations like this:
+
+  <element name="example">
+    <complexType>
+      <sequence>
+        <element name="a" type="int" />
+        <sequence>
+          <element name="b" type="int" />
+        </sequence>
+        <element name="c" type="int" />
+      </sequence>
+    </complexType>
+  </element>
+
+(yes, schemas are verbose) the data structure is
+
+  <example> <a>1</a> <b>2</b> <c>3</c> </example>
+
+the Perl representation is I<flattened>, into
+
+  example => { a => 1, b => 2, c => 3 }
+
+Ok, this is very simple.  However, schemas can use repetition:
+
+  <element name="example">
+    <complexType>
+      <sequence>
+        <element name="a" type="int" />
+        <sequence minOccurs="0" maxOccurs="unbounded">
+          <element name="b" type="int" />
+        </sequence>
+        <element name="c" type="int" />
+      </sequence>
+    </complexType>
+  </element>
+
+The XML message may be:
+
+  <example> <a>1</a> <b>2</b> <b>3</b> <b>4</b> <c>5</c> </example>
+
+Now, the perl representation needs to produce an array of the data in
+the repeated block.  This array needs to have a name, because more of
+these blocks may appear together in a construct.  The B<name of the
+block> is derived from the I<type of block> and the name of the I<first
+element> in the block, regardless whether that element is present in
+the data or not.  See M<XML::Compile::Util::block_label()>.  So, about data
+is translated into (and vice versa)
+
+  example =>
+    { a     => 1
+    , seq_b => [ {b => 2}, {b => 3}, {b => 4}
+    , c     => 5
+    }
+
+=example always an array with maxOccurs E<gt> 1
+
+Even when there is only one element found, it will be returned as
+ARRAY (of one element).  Therefore, you can write
+
+ my $data = $reader->($xml);
+ foreach my $a ( @{$data->{a}} ) {...}
+
+=example blocks with maxOccurs E<gt> 1
+In the schema:
+ <sequence maxOccurs="5">
+   <element name="a" type="int" />
+   <element name="b" type="int" />
+ </sequence>
+
+In the XML message:
+ <a>15</a><b>16</b><a>17</a><b>18</b>
+
+In Perl representation:
+ seq_a => [ {a => 15, b => 16}, {a => 17, b => 18} ]
 
 =section List type
 
@@ -789,11 +868,12 @@ The C<any> and C<anyAttribute> elements are referred to as C<wildcards>:
 they specify groups of elements and attributes which can be used, in
 stead of being explicit.
 
-The author of this module advices B<against the use of wildcards>
-in schemas, because the purpose of schemas is to be explicit and that
-basic idea is simply thrown away by these wildcards.  Let people cleanly
-extend the schema with inheritance!  If you use a standard schema
-which facilitates these wildcards, then please do not use them!
+The author of this module advices B<against the use of wildcards> in
+schemas, because the purpose of schemas is to be explicit about the
+structure of the message, and that basic idea is simply thrown away by
+these wildcards.  Let people cleanly extend the schema with inheritance!
+If you use a standard schema which facilitates these wildcards, then
+please do not use them!
 
 Because wildcards are not explicit about the types to expect, the
 C<XML::Compile> module can not prepare for them automatically.

@@ -155,34 +155,36 @@ __XML
 
 # test 5
 
-test_rw($schema, test5 => <<__XML, {t5_a => [ {t5_a => 20} ]} );
+test_rw($schema, test5 => <<__XML, {cho_t5_a => [ {t5_a => 20} ]} );
 <test5><t5_a>20</t5_a></test5>
 __XML
 
-test_rw($schema, test5 => <<__XML, {t5_a => [ {t5_b => 21} ]} );
+test_rw($schema, test5 => <<__XML, {cho_t5_a => [ {t5_b => 21} ]} );
 <test5><t5_b>21</t5_b></test5>
 __XML
 
-test_rw($schema, test5 => <<__XML, {t5_a => [ {t5_c => 22} ]} );
+test_rw($schema, test5 => <<__XML, {cho_t5_a => [ {t5_c => 22} ]} );
 <test5><t5_c>22</t5_c></test5>
 __XML
 
-my %t5_a = (t5_a =>
-  [ {t5_a => 23}
-  , {t5_b => 24}
-  , {t5_c => 25}
-  ]);
+my %t5_a =
+ ( cho_t5_a => [ {t5_a => 23}
+               , {t5_b => 24}
+               , {t5_c => 25}
+               ]
+ );
 
 test_rw($schema, test5 => <<__XML, \%t5_a);
 <test5><t5_a>23</t5_a><t5_b>24</t5_b><t5_c>25</t5_c></test5>
 __XML
 
-my %t5_b = (t5_a =>
-  [ {t5_a => 30}
-  , {t5_a => 31}
-  , {t5_c => 32}
-  , {t5_a => 33}
-  ]);
+my %t5_b =
+ ( cho_t5_a => [ {t5_a => 30}
+               , {t5_a => 31}
+               , {t5_c => 32}
+               , {t5_a => 33}
+               ]
+ );
 
 test_rw($schema, test5 => <<__XML, \%t5_b);
 <test5><t5_a>30</t5_a><t5_a>31</t5_a><t5_c>32</t5_c><t5_a>33</t5_a></test5>
@@ -192,7 +194,7 @@ test_rw($schema, test5 => '<test5/>', {});
 
 # test 6
 
-test_rw($schema, test6 => <<__XML, {t6_a => [ {t6_b => 10} ]} );
+test_rw($schema, test6 => <<__XML, {cho_t6_a => [ {t6_b => 10} ]} );
 <test6><t6_b>10</t6_b></test6>
 __XML
 
@@ -207,13 +209,14 @@ $error = reader_error($schema, test6 => <<__XML);
 __XML
 is($error, "element `t6_a' not processed at {http://test-types}test6#el(test6)");
 
-my %t6_b = (t6_a =>
-  [ {t6_a => 30}
-  , {t6_a => 31}
-  , {t6_c => 32}
-  , {t6_a => 33}
-  ]
-  );
+my %t6_b =
+ ( cho_t6_a => [ {t6_a => 30}
+               , {t6_a => 31}
+               , {t6_c => 32}
+               , {t6_a => 33}
+               ]
+ );
+
 $error = writer_error($schema, test6 => \%t6_b);
 is($error, "found 4 blocks for `t6_a', must be between 1 and 3 inclusive");
 

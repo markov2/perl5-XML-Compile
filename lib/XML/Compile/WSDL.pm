@@ -153,7 +153,7 @@ sub addWSDL($)
 
     # WSDL 1.1 par 2.1.1 says: WSDL defs all in own name-space
     my $index = $self->{index};
-    my $toplevels = $spec->{import} || [];  # silly WSDL structure
+    my $toplevels = $spec->{gr_import} || [];  # silly WSDL structure
     foreach my $toplevel (@$toplevels)
     {   my $which = (keys %$toplevel)[0];   # only one
         next unless $which =~ m/^(?:service|message|binding|portType)$/;

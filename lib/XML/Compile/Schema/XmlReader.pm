@@ -7,7 +7,7 @@ no warnings 'once';
 use Log::Report 'xml-compile', syntax => 'SHORT';
 use List::Util qw/first/;
 
-use XML::Compile::Util     qw/pack_type odd_elements/;
+use XML::Compile::Util     qw/pack_type odd_elements block_label/;
 use XML::Compile::Iterator ();
 
 =chapter NAME
@@ -27,12 +27,16 @@ into a (nested) Perl HASH structure.
 =cut
 
 # Each action implementation returns a code reference, which will be
-# used to do the run-time work.  The principle of closures is used to
+# used to do the run-time work.  The mechanism of `closures' is used to
 # keep the important information.  Be sure that you understand closures
 # before you attempt to change anything.
-#
+
 # The returned reader subroutines will always be called
-#      my @pairs = $reader->($tree) 
+#      my @pairs = $reader->($tree);
+
+# Some error messages are labeled with 'misfit' which is used to indicate
+# that the structure of found data is not conforming the needs. For optional
+# blocks, these errors are caught and un-done.
 
 sub tag_unqualified
 {   my $name = $_[3];
@@ -41,7 +45,7 @@ sub tag_unqualified
 }
 *tag_qualified = \&tag_unqualified;
 
-sub wrapper
+sub element_wrapper
 {   my ($path, $args, $processor) = @_;
     # no copy of $_[0], because it may be a large string
     sub { my $tree;
@@ -58,6 +62,21 @@ sub wrapper
           }
 
           $processor->($tree);
+        };
+}
+
+sub attribute_wrapper
+{   my ($path, $args, $processor) = @_;
+
+    sub { my $attr = shift;
+          ref $attr && $attr->isa('XML::LibXML::Attr')
+              or error __x"expects an attribute node, but got `{something}' at {path}"
+                    , something => (ref $attr || $attr), path => $path;
+
+          my $node = XML::LibXML::Element->new('dummy');
+          $node->addChild($attr);
+
+          $processor->($node);
         };
 }
 
@@ -130,7 +149,8 @@ sub all($@)
 }
 
 sub block_handler
-{   my ($path, $args, $label, $min, $max, $process) = @_;
+{   my ($path, $args, $label, $min, $max, $process, $kind) = @_;
+    my $multi = block_label $kind, $label;
 
     # flatten the HASH: when a block appears only once, there will
     # not be an additional nesting in the output tree.
@@ -160,7 +180,7 @@ sub block_handler
               {   my @pairs = $process->($tree);
                   push @res, {@pairs};
               }
-              ($label => \@res);
+              ($multi => \@res);
             }, 'BLOCK';
     }
 
@@ -183,7 +203,7 @@ sub block_handler
                   push @res, {@pairs};
               }
 
-              @res ? ($label => \@res) : ();
+              @res ? ($multi => \@res) : ();
             }, 'BLOCK';
     }
 
@@ -212,7 +232,7 @@ sub block_handler
               @pairs or last;
               push @res, {@pairs};
           }
-          ($label => \@res);
+          ($multi => \@res);
         }, 'BLOCK';
 }
 
@@ -515,7 +535,10 @@ sub attribute_prohibited
 
 sub attribute
 {   my ($path, $args, $ns, $tag, $do) = @_;
-    sub { my $node = $_[0]->getAttributeNodeNS($ns, $tag);
+    sub {
+use Carp;
+ $_[0]->isa('XML::LibXML::Node') or confess "$!";
+          my $node = $_[0]->getAttributeNodeNS($ns, $tag);
           defined $node or return ();;
           my $val = $do->($node);
           defined $val ? ($tag => $val) : ();

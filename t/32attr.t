@@ -8,7 +8,7 @@ use TestTools;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 64;
+use Test::More tests => 113;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -44,14 +44,42 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
   <attribute name="a2_e" type="int" use="prohibited" />
 </attributeGroup>
 
+<element name="test3">
+  <complexType>
+    <attribute name="a3">
+      <simpleType>
+         <restriction base="int" />
+      </simpleType>
+    </attribute>
+  </complexType>
+</element>
+
+<attribute name="a4" type="int" />
+<element name="test4">
+  <complexType>
+    <attribute ref="me:a4"/>
+  </complexType>
+</element>
+
+<attribute name="a5">
+  <simpleType>
+    <restriction base="token">
+      <enumeration value="only-one"/>
+    </restriction>
+  </simpleType>
+</attribute>
+<element name="test5">
+  <complexType>
+    <attribute ref="me:a5"/>
+  </complexType>
+</element>
+
 </schema>
 __SCHEMA__
 
 ok(defined $schema);
 
-#
-# simple attributes
-#
+## test 1
 
 my %t1 = (t1_a => 10, t1_b => 9, a1_a => 11, a1_b => 12);
 test_rw($schema, test1 => <<__XML__, \%t1);
@@ -81,7 +109,7 @@ my %t1_c = (a1_b => 24, t1_a => 25);
 $error = writer_error($schema, test1 => \%t1_c);
 is($error, "required value for `t1_b' missing at {http://test-types}test1");
 
-ok(1, "** Testing attributeGroups");
+## test 2  attributeGroup
 
 my %t2_a = (a2_a => 30, a2_b => 31, a2_c => 29, t2_b => 100);
 test_rw($schema, test2 => <<__XML__, \%t2_a);
@@ -104,6 +132,25 @@ __XML__
 
 is($error, "attribute `a2_e' is prohibited at {http://test-types}test2/at(a2_e)");
 
-
 $error = writer_error($schema, test2 => {a2_c => 29, a2_e => 666, t2_b => 77} );
 is($error, "attribute `a2_e' is prohibited at {http://test-types}test2/at(a2_e)");
+
+test_rw($schema, test3 => '<test3 a3="41"/>', { a3 => 41 });
+
+### toplevel attributes
+
+# test 4
+
+test_rw($schema, test4 => '<test4 a4="42"/>', { a4 => 42 });
+
+test_rw($schema, a4 => XML::LibXML::Attr->new('a4', 43), 43, ' a4="43"');
+
+# test 5
+
+test_rw($schema, test5 => '<test5 a5="only-one"/>', { a5 => 'only-one' });
+
+$error = reader_error($schema, test5 => '<test5 a5="not-two"/>');
+is($error, "invalid enumerate `not-two' at {http://test-types}test5#facet");
+
+test_rw($schema, a5 => XML::LibXML::Attr->new(a5 => 'only-one')
+  , 'only-one', ' a5="only-one"');

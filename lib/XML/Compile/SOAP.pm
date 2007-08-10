@@ -453,14 +453,16 @@ sub _reader_encstyle_hook()
 {   my $self     = shift;
     my $envns    = $self->envelopeNS;
     my $style_r = $self->schemas->compile
-      ( READER => pack_type($envns, 'encodingStyle')
-      );
-    my $encstyle;
+      (READER => pack_type($envns, 'encodingStyle'));  # is attribute
+
+    my $encstyle;  # yes, closures!
 
     my $before = sub
-      { my $xml   = $_[0];
-        $encstyle = $style_r->(@_);
-        $xml->removeAttribute('encodingStyle');
+      { my ($xml, $path) = @_;
+        if(my $attr = $xml->getAttributeNode('encodingStyle'))
+        {   $encstyle = $style_r->($attr, $path);
+            $xml->removeAttribute('encodingStyle');
+        }
         $xml;
       };
 

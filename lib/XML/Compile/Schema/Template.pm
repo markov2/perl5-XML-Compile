@@ -7,8 +7,6 @@ use strict;
 use warnings;
 no warnings 'once';
 
-use Carp;
-
 use XML::Compile::Util qw/odd_elements/;
 use Log::Report 'xml-compile', syntax => 'SHORT';
 
@@ -39,10 +37,11 @@ BEGIN {
       for qw/tag_qualified tag_unqualified wrapper_ns/;
 }
 
-sub wrapper
+sub element_wrapper
 {   my ($path, $args, $processor) = @_;
     sub { $processor->() };
 }
+*attribute_wrapper = \&element_wrapper;
 
 sub _block($@)
 {   my ($block, $path, $args, @pairs) = @_;
@@ -76,8 +75,22 @@ sub element_handler
 }
 
 sub block_handler
-{   my ($path, $args, $label, $min, $max, $proc) = @_;
-    element_handler($path, $args, $label, $min, $max, undef, $proc);
+{   my ($path, $args, $label, $min, $max, $proc, $kind) = @_;
+
+    # I am too laze, on the moment.
+    notice "maxOccurs > 2 on blocks not supported"
+        if $max eq 'unbounded' or $max > 1;
+
+    sub { my $data = $proc->();
+          my $occur
+           = $max eq 'unbounded' && $min==0 ? 'occurs any number of times'
+           : $max ne 'unbounded' && $max==1 && $min==0 ? 'is optional' 
+           : $max ne 'unbounded' && $max==1 && $min==1 ? ''  # the usual case
+           :                                  "occurs $min <= # <= $max times";
+          $data->{occur}   = $occur if $occur;
+          $data->{flatten} = $max ne 'unbounded' && $max==1;
+          $data;
+        };
 }
 
 sub required

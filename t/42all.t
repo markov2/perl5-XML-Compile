@@ -170,18 +170,18 @@ is($error, "data for `t4_b' missing at {http://test-types}test4");
 
 # test 5
 
-my %t5_a = (t5_a =>
-  [ { t5_a => 23
-    , t5_b => 24
-    , t5_c => 25
-    }
-  ]);
+my %t5_a =
+ ( all_t5_a => [ { t5_a => 23
+               , t5_b => 24
+               , t5_c => 25
+               } ]
+ );
 
 test_rw($schema, test5 => <<__XML, \%t5_a);
 <test5><t5_a>23</t5_a><t5_b>24</t5_b><t5_c>25</t5_c></test5>
 __XML
 
-my %t5_b = (t5_a =>
+my %t5_b = (all_t5_a =>
   [ { t5_a => 30
     , t5_b => 31
     , t5_c => 32

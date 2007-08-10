@@ -7,7 +7,7 @@ no warnings 'once';
 
 use Log::Report 'xml-compile', syntax => 'SHORT';
 use List::Util    qw/first/;
-use XML::Compile::Util qw/unpack_type odd_elements/;
+use XML::Compile::Util qw/unpack_type odd_elements block_label/;
 
 =chapter NAME
 
@@ -66,7 +66,7 @@ sub tag_unqualified
     $name;
 }
 
-sub wrapper
+sub element_wrapper
 {   my ($path, $args, $processor) = @_;
     sub { my ($doc, $data) = @_;
           my $top = $processor->(@_);
@@ -74,6 +74,7 @@ sub wrapper
           $top;
         };
 }
+*attribute_wrapper = \&element_wrapper;
 
 sub wrapper_ns
 {   my ($path, $args, $processor, $index) = @_;
@@ -218,12 +219,13 @@ sub element_handler
 }
 
 sub block_handler
-{   my ($path, $args, $label, $min, $max, $process) = @_;
+{   my ($path, $args, $label, $min, $max, $process, $kind) = @_;
+    my $multi = block_label $kind, $label;
 
     if($min==0 && $max eq 'unbounded')
     {   return bless
         sub { my $doc    = shift;
-              my $values = delete shift->{$label};
+              my $values = delete shift->{$multi};
                 ref $values eq 'ARRAY' ? (map {$process->($doc, $_)} @$values)
               : defined $values        ? $process->($doc, $values)
               :                          ();
@@ -233,7 +235,7 @@ sub block_handler
     if($max eq 'unbounded')
     {   return bless
         sub { my $doc    = shift;
-              my $values = delete shift->{$label};
+              my $values = delete shift->{$multi};
               my @values = ref $values eq 'ARRAY' ? @$values
                          : defined $values ? $values : ();
 
@@ -277,7 +279,7 @@ sub block_handler
     my $opt = $max - $min;
     bless
     sub { my $doc    = shift;
-          my $values = delete shift->{$label};
+          my $values = delete shift->{$multi};
           my @values = ref $values eq 'ARRAY' ? @$values
                      : defined $values ? $values : ();
 

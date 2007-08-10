@@ -38,62 +38,52 @@ XML::Compile - Compilation based XML processing
 
 =chapter SYNOPSIS
 
- # See XML::Compile::Schema
+ # See XML::Compile::Schema / ::WSDL / ::SOAP
 
 =chapter DESCRIPTION
 
-Many professional applications which process XML do that based on a formal
-specification, expressed as XML Schema.  XML::Compile processes
-<b>data-centric XML</b> with the help of such schema's.  On the Perl side,
-this module creates a tree of nested hashes with the same structure as
-the XML.
+Many (professional) applications process XML based on a formal
+specification, expressed as XML Schema.  XML::Compile processes XML with
+the help of such schemas.  The Perl program only handles a tree of nested
+HASHes and ARRAYs.
 
-Where other Perl modules, like M<SOAP::WSDL> help you using these schema's
-(often with a lot of run-time [XPath] searches), XML::Compile takes a
-different approach: in stead of run-time processing of the specification,
-it will first compile the expected structure into a pure Perl code
-reference, and then use that to process the data.
-
-There are many perl modules with the same intention as this one:
-translate between XML and nested hashes.  However, there are a few
-serious differences:  because the schema is used here (and not in the
-other modules), we can validate the data.  XML requires validation but
-quite a number of modules simply ignore that.  Next to this, data-types
-are formatted and processed correctly; for instance, the specification
-prescribes that the C<Integer> data-type must accept values of at
-least 18 digits... not just longs.  Also more complex data-types like
-C<list>, C<union>, C<substitutionGroup> (unions on complex type level),
-and C<any>/C<anyAttribute> are supported, which is rarely the case for
-the other modules.
-
-In general two WARNINGS:
+Three serious WARNINGS:
 
 =over 4
 
 =item .
 
-The compiler does not support non-namespace schema's and mixed elements.
+The compiler does only support B<namespace schemas>.  It is possible,
+but generally seen as weakness, to make schemas which do not use
+namespaces, but for the moment XML::Compile does not handle those.
+Check for a C<targetNamespace> attribute on C<schema> in your C<xsd>
+file.
 
 =item .
 
-The provided B<schema is not validated>!  In some cases,
-compile-time and run-time errors will be reported, but typically only
-in cases that the parser has no idea what to do with such a mistake.
-On the other hand, the processed B<data is validated>: the output will
-follow the specs closely.
+The focus is on B<data-centric XML>, which means that mixed elements
+are not understood automatically.  However, with using hooks, you can
+work around this.
+
+=item .
+
+The provided B<schema is not validated>!  In many cases, compile-time
+and run-time errors will get reported.  On the other hand, the processed
+B<data is strictly validated>: both input and output will follow the
+specs closely.
 
 =back
 
-For end-users, the following packages are interesting (the other
+For end-users, the following packages are of interest (the other
 are support packages):
 
 =over 4
 
 =item M<XML::Compile::Schema>
-Interpret schema elements and types.
+Interpret schema elements and types: process XML messages.
 
-=item M<XML::Compile::WSDL>
-Interpret WSDL files.
+=item M<XML::Compile::WSDL> and M<XML::Compile::SOAP>
+Use the SOAP protocol. (implementation in progress)
 
 =item M<XML::Compile::Dumper>
 Save pre-compiled converters in pure perl packages.
@@ -101,6 +91,10 @@ Save pre-compiled converters in pure perl packages.
 =back
 
 =chapter METHODS
+
+Methods found in this manual page are shared by the end-user modules,
+and should not be used directly: objects of type C<XML::Compile> do not
+exist.
 
 =section Constructors
 These constructors are base class methods to be extended,
@@ -126,8 +120,8 @@ See M<addSchemaDirs()> for a detailed explanation.
 sub new($@)
 {   my ($class, $top) = (shift, shift);
 
-    panic "you should instantiate a sub-class, $class is base only"
-        if $class eq __PACKAGE__;
+    $class ne __PACKAGE__
+       or panic "you should instantiate a sub-class, $class is base only";
 
     (bless {}, $class)->init( {top => $top, @_} );
 }
@@ -198,21 +192,21 @@ sub findSchemaFile($)
 =section Read XML
 
 =method dataToXML NODE|REF-XML-STRING|XML-STRING|FILENAME|KNOWN
-Collect XML data.  Either a preparsed NODE is provided, which
-is returned unchanged.  A SCALAR reference is interpreted as reference
-to XML as plain text (XML texts can be large, hence you can improve
-performance by passing it around as reference in stead of copy).
-Any value which starts with blanks followed by a "E<lt>" is interpreted
+Collect XML data.  When a ready M<XML::LibXML> NODE is provided, it is
+returned immediately and unchanged.  A SCALAR reference is interpreted
+as reference to XML as plain text (XML texts can be large, and you can
+improve performance by passing it around by reference instead of copy).
+Any value which starts with blanks followed by a 'E<lt>' is interpreted
 as XML text.
 
-You may also specify a pre-defined (KNOWN) name-space.  A set of definition
-files is included in the distribution, and installed somewhere when the
-modules got installed.  Either define an environmen variable SCHEMA_LOCATION
-or use M<new(schema_dirs)> to inform the library where to find these
-files.
+You may also specify a pre-defined I<known> name-space URI.  A set of
+definition files is included in the distribution, and installed somewhere
+when this all gets installed.  Either define an environment variable
+named SCHEMA_LOCATION or use M<new(schema_dirs)> (option available to
+all end-user objects) to inform the library where to find these files.
 
 =error cannot find pre-installed name-space files
-Use $ENV{SCHEMA_LOCATION} or M<new(schema_dirs)> to express location
+Use C<$ENV{SCHEMA_LOCATION}> or M<new(schema_dirs)> to express location
 of installed name-space files, which came with the M<XML::Compile>
 distribution package.
 
@@ -235,7 +229,8 @@ sub dataToXML($)
 
     if(my $known = $self->knownNamespace($thing))
     {   my $fn = $self->findSchemaFile($known)
-            or error "cannot find pre-installed name-space files";
+            or mistake __x"cannot find pre-installed name-space files named {path} for {name}"
+                 , path => $known, name => $thing;
 
         return $self->_parseFile($fn);
     }
@@ -267,7 +262,6 @@ sub _parseFile($)
 Walks the whole tree from NODE downwards, calling the CODE reference
 for each NODE found.  When that routine returns false, the child
 nodes will be skipped.
-
 =cut
 
 sub walkTree($$)
@@ -277,5 +271,31 @@ sub walkTree($$)
             for $node->getChildNodes;
     }
 }
+
+=chapter DETAILS
+
+=section Comparison
+
+Where other Perl modules, like M<SOAP::WSDL> help you using these schemas
+(often with a lot of run-time [XPath] searches), XML::Compile takes a
+different approach: instead of run-time processing of the specification,
+it will first compile the expected structure into a pure Perl CODE
+reference, and then use that to process the data as often as needed.
+
+There are many Perl modules with the same intention as this one:
+translate between XML and nested hashes.  However, there are a few
+serious differences:  because the schema is used here (and not by the
+other modules), we can validate the data.  XML requires validation but
+quite a number of modules simply ignore that.
+
+Next to this, data-types are formatted and processed correctly; for
+instance, the specification prescribes that the C<Integer> data-type
+must accept values of at least 18 digits... not just Perl's idea of longs.
+
+XML::Compile suppoer the more complex data-types like C<list>, C<union>,
+C<substitutionGroup> (unions on complex type level), and even the
+nasty C<any> and C<anyAttribute>, which is rarely the case for the
+other modules.
+=cut
 
 1;

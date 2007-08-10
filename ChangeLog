@@ -6,9 +6,28 @@ Mark Overmeer.
 
 TODO:
   - improve template output, f.i. anyAttribute and any
-  - the min/max calculation on nested choice/sequences can be done better
-  - <xs:group minOccurs="0" maxOccurs="unbounded" ref="bar:SoonRef"/>
-  - attributeGroup in seperate namespace?
+
+version 0.51: Fri Aug 10 14:27:05 CEST 2007
+
+	Changes:
+
+	- the labels for blocks when maxOccurs >= 2 have changed from
+	  f.i. 'xyz' into 'seq_xyz', to become clearer.
+
+	Fixes:
+
+	- both attribute with own simpleType definition, as attribute ref
+	  to attribute with own simpleType were missing.
+
+	- got direct compilation of top-level attributes to work, and
+	  all available soap11 tests with it.
+
+	Improvements:
+
+	- much clearer docs about repetative blocks.
+
+	- reread/corrected a few manual pages, but there is still a
+	  lot to do.
 
 version 0.50: Thu Aug  9 23:19:19 CEST 2007
 

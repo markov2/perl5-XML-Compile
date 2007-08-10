@@ -5,9 +5,10 @@ package XML::Compile::Util;
 use base 'Exporter';
 
 our @EXPORT = qw/pack_type unpack_type pack_id unpack_id
-  odd_elements/;
+  odd_elements block_label/;
 
 use Log::Report 'xml-compile';
+
 =chapter NAME
 
 XML::Compile::Util - Utility routines for XML::Compile components
@@ -69,6 +70,36 @@ Returns the odd-numbered elements in the list.
 sub odd_elements(@)
 {   my $i = 0;
     map {$i++ % 2 ? $_ : ()} @_;
+}
+
+=function block_label KIND, LABEL
+Particle blocks, like `sequence' and `choice', which have a maxOccurs
+(maximum occurrence) which is 2 of more, are represented by an ARRAY
+of HASHs.  The label with such a block is derived from its first element.
+This function determines how.
+
+The KIND of block is abbreviated, and prepended before the LABEL.  When
+the LABEL already had a block abbreviation (which may be caused by nested
+blocks), that will be stripped first.
+
+An element KIND of block is found in substitution groups.  That label
+will not change.
+
+=examples labels for blocks with maxOccurs > 1
+  seq_address      # sequence get seq_ prepended
+  cho_gender       # choices get cho_ before them
+  all_money        # an all block can also be repreated in spec >1.1
+  gr_people        # group refers to a block of above type, but
+                   #    that type is not reflected in the name
+=cut
+
+my %block_abbrev = qw/sequence seq_  choice cho_  all all_  group gr_/;
+sub block_label($$)
+{   my ($kind, $label) = @_;
+    return $label if $kind eq 'element';
+
+    $label =~ s/^(?:seq|cho|all|gr)_//;
+    $block_abbrev{$kind} . $label;
 }
 
 1;
