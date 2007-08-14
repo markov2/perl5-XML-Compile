@@ -172,7 +172,7 @@ sub builtInType($$;$@)
 
     my %args = @_;
 
-    $name    = $sloppy_int_version{$name}
+    return $builtin_types{$sloppy_int_version{$name}}
         if $args{sloppy_integers} && exists $sloppy_int_version{$name};
 
     # only official names are exported this way

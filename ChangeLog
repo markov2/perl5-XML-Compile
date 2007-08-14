@@ -7,6 +7,13 @@ Mark Overmeer.
 TODO:
   - improve template output, f.i. anyAttribute and any
 
+version 0.52: Tue Aug 14 09:37:14 CEST 2007
+
+	Fixes:
+
+	- sloppy_integer did not pass some usage restrictions for
+	  other than Integer->int translation.
+
 version 0.51: Fri Aug 10 14:27:05 CEST 2007
 
 	Changes:
