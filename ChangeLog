@@ -5,7 +5,31 @@ Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
 TODO:
-  - improve template output, f.i. anyAttribute and any
+  - improve template output, f.i. anyAttribute, any, and maxOccurs > 1
+
+version 0.53: Thu Sep  6 21:15:14 CEST 2007
+
+	Changes:
+
+	- When calling SOAP operations, the elements do not use a Body
+	  or Header anymore: these structures are flattened for the
+	  user's convenience.
+
+	Fixes:
+
+	- totalDigits did only handle floats, not integers.  Reported
+	  by [Gert Doering]
+
+	- float values should not show trailing zeros.  The use of
+	  sprintf "%lf" was superfluous, hence removed.
+
+	- produce error when pre-installed schemas are not found.
+
+	Improvements:
+
+	- a bit of progress on WSDL/SOAP
+
+	- YAPC::EU 2007 presentation available on the website.
 
 version 0.52: Tue Aug 14 09:37:14 CEST 2007
 

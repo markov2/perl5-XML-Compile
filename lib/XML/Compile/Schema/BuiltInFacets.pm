@@ -170,8 +170,15 @@ sub _enumeration($$$)
 }
 
 sub _totalDigits($$$)
-{   my $nr = $_[2];
-    sub { sprintf "%${nr}f", $_[0] };
+{   my ($path, undef, $nr) = @_;
+    sub { return $_[0] if $nr >= ($_[0] =~ tr/0-9//);
+          my $val = $_[0];
+          return sprintf "%.${nr}f", $val
+              if $val =~ m/^[+-]?0*(\d)[.eE]/ && length($1) < $nr;
+
+          error __x"decimal too long, got {length} digits max {max} at {where}"
+             , length => ($val =~ tr/0-9//), max => $nr, where => $path;
+    };
 }
 
 sub _fractionDigits($$$)

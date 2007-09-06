@@ -10,6 +10,8 @@ use XML::Compile::Util  qw/pack_type/;
 XML::Compile::SOAP - base-class for SOAP implementations
 
 =chapter SYNOPSIS
+ **WARNING** Implementation not finished (but making
+ progress): so NOT USABLE AT ALL!!
 
  use XML::Compile::SOAP::SOAP11;
  use XML::Compile::Util qw/pack_type/;
@@ -36,7 +38,7 @@ XML::Compile::SOAP - base-class for SOAP implementations
    ('CLIENT', 'OUTPUT'              # server to client
    , header   => [ h2 => $h2type ]
    , body     => [ b2 => $b2type ]
-   , headerfault => [ ... ]
+   , headerfault => [ ... ]         # not in SOAP1.1
    , fault    => [ ... ]
    );
 
@@ -47,26 +49,28 @@ XML::Compile::SOAP - base-class for SOAP implementations
  print $result->{b2}->{...};
 
 =chapter DESCRIPTION
-**WARNING** Implementation not finished: not usable!!
 
 This module handles the SOAP protocol.  The first implementation is
 SOAP1.1 (F<http://www.w3.org/TR/2000/NOTE-SOAP-20000508/>), which is still
 most often used.  The SOAP1.2 definition (F<http://www.w3.org/TR/soap12/>)
-are different; this module tries to define a sufficiently
-abstract interface to hide the protocol differences.
+is quite different; this module tries to define a sufficiently abstract
+interface to hide the protocol differences.
+
+TODO:
+ faults
+ header-faults
+ HTTP transport
+ other transport
 
 =section Limitations
 
 On the moment, the following limitations exist:
 
 =over 4
-
 =item .
 Only qualified header and body elements are supported.
-
 =item .
 Only document/literal use is supported, not XML-RPC.
-
 =back
 
 =chapter METHODS
@@ -74,6 +78,9 @@ Only document/literal use is supported, not XML-RPC.
 =section Constructors
 
 =method new OPTIONS
+Create a new SOAP object.  You have to instantiate either the SOAP11 or
+SOAP12 sub-class of this, because there are quite some differences (which
+can be hidden for you)
 
 =requires envelope_ns URI
 =requires encoding_ns URI
@@ -89,6 +96,9 @@ you can add schemas later with C<< $soap->schames->importDefinitions() >>
 
 sub new($@)
 {   my $class = shift;
+    error __x"you can only instantiate sub-classes of {class}"
+        if $class eq __PACKAGE__;
+
     (bless {}, $class)->init( {@_} );
 }
 
@@ -141,11 +151,15 @@ to explicitly specify the type of the element to be processed.
 =option  header ENTRIES
 =default header C<undef>
 ARRAY of PAIRS, defining a nice LABEL (free of choice but unique)
-and an element reference.  The LABEL will appear in your code only, to
+and an element reference.  The LABEL will appear in the Perl HASH, to
 refer to the element in a simple way.
 
 =option  body   ENTRIES
-=default body   C<undef>
+=default body   []
+ARRAY of PAIRS, defining a nice LABEL (free of choice but unique,
+also w.r.t. the header and fault ENTRIES).  The LABEL will appear
+in the Perl HASH only, to be able to refer to a body element in a
+simple way.
 
 =option  fault  ENTRIES
 =default fault  []
@@ -244,7 +258,7 @@ sub _writer($)
     # produce header parsing
     #
 
-    my @header;
+    my (@header, @hlabels);
     my @h = @{$args->{header} || []};
     while(@h)
     {   my ($label, $element) = splice @h, 0, 2;
@@ -257,7 +271,9 @@ sub _writer($)
            );
 
         push @header, $label => $self->_writer_header_env($code, \%allns
-             , delete $understand{$label}, delete $destination{$label});
+           , delete $understand{$label}, delete $destination{$label});
+
+        push @hlabels, $label;
     }
 
     keys %understand
@@ -274,7 +290,7 @@ sub _writer($)
     # Produce body parsing
     #
 
-    my @body;
+    my (@body, @blabels);
     my @b = @{$args->{body} || []};
     while(@b)
     {   my ($label, $element) = splice @b, 0, 2;
@@ -287,6 +303,7 @@ sub _writer($)
            );
 
         push @body, $label => $code;
+        push @blabels, $label;
     }
 
     my $bodyhook   = $self->_writer_hook($envns, 'Body', @body);
@@ -307,7 +324,11 @@ sub _writer($)
 
     sub { my ($values, $charset) = @_;
           my $doc = XML::LibXML::Document->new('1.0', $charset);
-          $envelope->($doc, $values);
+          my %data = %$values;  # do not destroy the calling hash
+
+          $data{Header}{$_} = delete $data{$_} for @hlabels;
+          $data{Body}{$_}   = delete $data{$_} for @blabels;
+          $envelope->($doc, \%data);
         };
 }
 
@@ -421,7 +442,16 @@ sub _reader($)
      , hooks  => [ $encstyle, $headerhook, $bodyhook ]
      );
 
-    $envelope;
+    sub { my $xml   = shift;
+          my $data  = $envelope->($xml);
+          my @pairs = ( %{delete $data->{Header} || {}}
+                      , %{delete $data->{Body}   || {}});
+          while(@pairs)
+          {  my $k       = shift @pairs;
+             $data->{$k} = shift @pairs;
+          }
+          $data;
+        }
 }
 
 sub _reader_hook($$@)
@@ -557,12 +587,14 @@ Ok, now the program you create the request:
  $soap->schemas->importDefinitions('myschema.xsd');
 
  my $get_price = $soap->compile
-  ( 'CLIENT', 'INPUT'
-  , header => [ transaction => pack_type($TestNS, 'Transaction') ]
-  , body =>   [ request => pack_type($TestNS, 'GetLastTradePrice') ]
-  , mustUnderstand => 'transaction'
-  , destination => [ 'transaction' => 'NEXT http://actor' ]
-  );
+   ( 'CLIENT', 'INPUT'
+   , header =>
+      [ transaction => pack_type($TestNS, 'Transaction') ]
+   , body  =>
+      [ request => pack_type($TestNS, 'GetLastTradePrice') ]
+   , mustUnderstand => 'transaction'
+   , destination    => [ transaction => 'NEXT http://actor' ]
+   );
 
 C<INPUT> is used in the WSDL terminology, indicating this message is
 an input message for the server.  This C<$get_price> is a WRITER.  Above
@@ -575,9 +607,9 @@ look)  So: let's send this:
 
  # insert your data
  my %data_in =
-   ( Header => {transaction => 5}
-   , Body   => {request => {symbol => 'DIS'}}
-   );
+  ( transaction => 5
+  , request     => {symbol => 'DIS'}
+  );
 
  # create a XML::LibXML tree
  my $xml  = $get_price->(\%data_in, 'UTF-8');
@@ -611,7 +643,7 @@ contains the XML.  The program looks like this:
  my $server = $soap->compile       # create once
   ( 'SERVER', 'INPUT'
   , header => [ transaction => pack_type($TestNS, 'Transaction') ]
-  , body =>   [ request => pack_type($TestNS, 'GetLastTradePrice') ]
+  , body   => [ request => pack_type($TestNS, 'GetLastTradePrice') ]
   );
 
  my $data_out = $server->($soap);  # call often

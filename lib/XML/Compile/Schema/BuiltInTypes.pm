@@ -69,11 +69,7 @@ sub str2num
     $v;
 }
 
-sub num2str
-{   my $v = eval { use warnings FATAL => 'all'; sprintf "%lf", $_[0]};
-    $@ && error __x $@;
-    $v;
-}
+sub num2str { "$_[0]" }
 
 sub str      { "$_[0]" };
 sub collapse { $_[0] =~ s/\s+//g; $_[0]}

@@ -9,7 +9,7 @@ use TestTools;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 179;
+use Test::More tests => 300;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -77,6 +77,22 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
     <restriction base="string">
       <enumeration value="one" />
       <enumeration value="two" />
+    </restriction>
+  </simpleType>
+</element>
+
+<element name="test9">
+  <simpleType>
+    <restriction base="long">
+      <totalDigits value="4" />
+    </restriction>
+  </simpleType>
+</element>
+
+<element name="test10">
+  <simpleType>
+    <restriction base="float">
+      <totalDigits value="4" />
     </restriction>
   </simpleType>
 </element>
@@ -200,4 +216,38 @@ $error = reader_error($schema, test8 => <<__XML__);
 __XML__
 is($error, "invalid enumerate `' at {http://test-types}test8#facet");
 
+### test9 (bug reported by Gert Doering)
 
+push @run_opts, sloppy_integers => 1;
+
+test_rw($schema, test9 => '<test9>0</test9>', 0);
+
+test_rw($schema, test9 => '<test9>12</test9>', 12);
+
+test_rw($schema, test9 => '<test9>123</test9>', 123);
+
+test_rw($schema, test9 => '<test9>1234</test9>', 1234);
+
+$error = writer_error($schema, test9 => 12345);
+is($error, 'decimal too long, got 5 digits max 4 at {http://test-types}test9#facet');
+
+$error = reader_error($schema, test9 => '<test9>12345</test9>');
+is($error, 'decimal too long, got 5 digits max 4 at {http://test-types}test9#facet');
+
+### test10 (same bug reported by Gert Doering)
+
+test_rw($schema, test10 => '<test10>0</test10>', 0);
+
+test_rw($schema, test10 => '<test10>1.2</test10>', 1.2);
+
+test_rw($schema, test10 => '<test10>1.23</test10>', 1.23);
+
+test_rw($schema, test10 => '<test10>12.3</test10>', 12.3);
+
+test_rw($schema, test10 => '<test10>1.234</test10>', 1.234);
+
+test_rw($schema, test10 => '<test10>12.34</test10>', 12.34);
+
+test_rw($schema, test10 => '<test10>123.4</test10>', 123.4);
+
+test_rw($schema, test10 => '<test10>1234</test10>', 1234);

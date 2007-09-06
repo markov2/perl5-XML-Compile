@@ -182,3 +182,6 @@ ok(!$op->canTransport('http://', 'document'), 'only transport HTTP');
 my ($action, $style) = $op->action;
 is($action, 'http://example.com/GetLastTradePrice', 'action');
 ok(!defined $style);
+
+exit 0;  # under development
+$op->prepare;

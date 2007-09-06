@@ -49,7 +49,7 @@ sub element_wrapper
 {   my ($path, $args, $processor) = @_;
     # no copy of $_[0], because it may be a large string
     sub { my $tree;
-          if(ref $_[0] && $_[0]->isa('XML::LibXML::Iterator'))
+          if(ref $_[0] && UNIVERSAL::isa($_[0], 'XML::LibXML::Iterator'))
           {   $tree = $_[0];
           }
           else

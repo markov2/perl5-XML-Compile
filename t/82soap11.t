@@ -53,14 +53,14 @@ $soap->schemas->importDefinitions($schema);
 #warn "$_\n" for sort $soap->schemas->elements;
 
 my @msg1_struct = 
- ( header => [ transaction => "{$TestNS}Transaction" ]
- , body =>   [ request => "{$TestNS}GetLastTradePrice" ]
- );
+  ( header => [ transaction => "{$TestNS}Transaction" ]
+  , body =>   [ request => "{$TestNS}GetLastTradePrice" ]
+  );
 
-my $msg1_data
- = { Header => {transaction => 5}
-   , Body   => {request => {symbol => 'DIS'}}
-   };
+my $msg1_data =
+  { transaction => 5
+  , request     => {symbol => 'DIS'}
+  };
 
 my $msg1_soap = <<__MESSAGE1;
 <SOAP-ENV:Envelope
@@ -87,7 +87,7 @@ my $client1 = $soap->compile
  ( 'CLIENT', 'INPUT'
  , @msg1_struct
  , mustUnderstand => 'transaction'
- , destination => [ 'transaction' => 'NEXT http://actor' ]
+ , destination    => [ transaction => 'NEXT http://actor' ]
  );
 
 is(ref $client1, 'CODE', 'compiled a client');

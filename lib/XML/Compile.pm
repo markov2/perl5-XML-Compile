@@ -229,7 +229,7 @@ sub dataToXML($)
 
     if(my $known = $self->knownNamespace($thing))
     {   my $fn = $self->findSchemaFile($known)
-            or mistake __x"cannot find pre-installed name-space files named {path} for {name}"
+            or error __x"cannot find pre-installed name-space files named {path} for {name}"
                  , path => $known, name => $thing;
 
         return $self->_parseFile($fn);

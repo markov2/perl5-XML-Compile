@@ -292,9 +292,9 @@ sub operation(@)
 
 =method prepare [NAME], OPTIONS
 Creates temporarily an M<XML::Compile::SOAP::Operation> with M<operation()>,
-and then calls C<prepare()> on that; a usual combination.
-As OPTIONS, combine all possibilities for M<operation()> and
-M<XML::Compile::SOAP::Operation::prepare()>.
+and then calls C<prepare()> on that; an usual combination.
+As OPTIONS are available the combination of all possibilities for
+M<operation()> and all of M<XML::Compile::SOAP::Operation::prepare()>.
 =cut
 
 sub prepare(@)
