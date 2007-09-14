@@ -8,7 +8,7 @@ use TestTools;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 190;
+use Test::More tests => 208;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -100,6 +100,16 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
     <element name="g7e1" type="int"/>
   </sequence>
 </group>
+
+<!-- really silly, but used -->
+<element name="test8">
+  <complexType>
+    <choice>
+      <element name="t8a" type="int" />
+      <element name="t8b" type="int" minOccurs="0" />
+    </choice>
+  </complexType>
+</element>
 
 </schema>
 __SCHEMA__
@@ -231,4 +241,13 @@ __XML
 
 test_rw($schema, test7 => <<__XML, {g7e1 => 15, g7e2 => 14} );
 <test7><g7e2>14</g7e2><g7e1>15</g7e1></test7>
+__XML
+
+# test 8
+test_rw($schema, test8 => <<__XML, { t8a => 16 });
+<test8><t8a>16</t8a></test8>
+__XML
+
+test_rw($schema, test8 => <<__XML, { });
+<test8/>
 __XML

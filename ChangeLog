@@ -6,6 +6,18 @@ Mark Overmeer.
 
 TODO:
   - improve template output, f.i. anyAttribute, any, and maxOccurs > 1
+  - recursive schemas
+
+version 0.54: Fri Sep 14 15:35:53 CEST 2007
+
+	Fixes:
+
+	- XmlReader::block_handler called "last", where "return" was
+	  ment, resulting in a warning. [Gert Doering]
+
+	- Handle case where choice has minOccurs==1, but one (or more)
+	  of the options has minOccurs==0... which makes the choice
+	  optional implicitly.  Found by  [Gert Doering]
 
 version 0.53: Thu Sep  6 21:15:14 CEST 2007
 
