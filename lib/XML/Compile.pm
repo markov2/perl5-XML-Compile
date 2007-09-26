@@ -7,30 +7,18 @@ package XML::Compile;
 use Log::Report 'xml-compile', syntax => 'SHORT';
 use XML::LibXML;
 
-my %namespace_defs =
- ( 'http://www.w3.org/XML/1998/namespace'    => '1998-namespace.xsd'
+use File::Spec     qw();
 
- # XML Schema's
- , 'http://www.w3.org/1999/XMLSchema'        => '1999-XMLSchema.xsd'
- , 'http://www.w3.org/1999/part2.xsd'        => '1999-XMLSchema-part2.xsd'
- , 'http://www.w3.org/2000/10/XMLSchema'     => '2000-XMLSchema.xsd'
- , 'http://www.w3.org/2001/XMLSchema'        => '2001-XMLSchema.xsd'
-
- # WSDL 1.1
- , 'http://schemas.xmlsoap.org/wsdl/'        => 'wsdl.xsd'
- , 'http://schemas.xmlsoap.org/wsdl/soap/'   => 'wsdl-soap.xsd'
- , 'http://schemas.xmlsoap.org/wsdl/http/'   => 'wsdl-http.xsd'
- , 'http://schemas.xmlsoap.org/wsdl/mime/'   => 'wsdl-mime.xsd'
-
- # SOAP 1.1
- , 'http://schemas.xmlsoap.org/soap/encoding/' => 'soap-encoding.xsd'
- , 'http://schemas.xmlsoap.org/soap/envelope/' => 'soap-envelope.xsd'
-
- # SOAP 1.2
- , 'http://www.w3.org/2003/05/soap-encoding' => '2003-soap-encoding.xsd'
- , 'http://www.w3.org/2003/05/soap-envelope' => '2003-soap-envelope.xsd'
- , 'http://www.w3.org/2003/05/soap-rpc'      => '2003-soap-rpc.xsd'
+__PACKAGE__->knownNamespace
+ ( 'http://www.w3.org/XML/1998/namespace' => '1998-namespace.xsd'
+ , 'http://www.w3.org/1999/XMLSchema'     => '1999-XMLSchema.xsd'
+ , 'http://www.w3.org/1999/part2.xsd'     => '1999-XMLSchema-part2.xsd'
+ , 'http://www.w3.org/2000/10/XMLSchema'  => '2000-XMLSchema.xsd'
+ , 'http://www.w3.org/2001/XMLSchema'     => '2001-XMLSchema.xsd'
  );
+
+__PACKAGE__->addSchemaDirs($ENV{SCHEMA_DIRECTORIES});
+__PACKAGE__->addSchemaDirs(__FILE__);
 
 =chapter NAME
 
@@ -128,43 +116,64 @@ sub new($@)
 
 sub init($)
 {   my ($self, $args) = @_;
-    $self->addSchemaDirs($ENV{SCHEMA_DIRECTORIES});
     $self->addSchemaDirs($args->{schema_dirs});
     $self;
 }
 
 =section Accessors
 
-=method addSchemaDirs DIRECTORIES
+=ci_method addSchemaDirs DIRECTORIES
 Each time this method is called, the specified DIRECTORIES will be added
 in front of the list of already known schema directories.  Initially,
 the value of the environment variable C<SCHEMA_DIRECTORIES> is added
 (therefore used last), then the constructor option C<schema_dirs>
 is processed.
 
+If a pm filename is provided, then the directory to be used is
+calculated from it (platform independent).  So, C<lib/XML/Compile.pm>
+becomes C<lib/XML/Compile/xsd/>.  This way, modules can simply add
+their definitions via C<< XML::Compile->addSchemaDirs(__FILE__) >>
+
 Values which are C<undef> are skipped.  ARRAYs are flattened.  
 Arguments are split on colons (only when on UNIX) after flattening.
-
+The list of directories is returned, in all but VOID context.
 =cut
 
+my @schema_dirs;
 sub addSchemaDirs(@)
-{   my $self = shift;
+{   my $thing = shift;
     foreach (@_)
     {   my $dir  = shift;
         my @dirs = grep {defined} ref $dir eq 'ARRAY' ? @$dir : $dir;
-        push @{$self->{schema_dirs}},
-           $^O eq 'MSWin32' ? @dirs : map { split /\:/ } @dirs;
+        foreach ($^O eq 'MSWin32' ? @dirs : map { split /\:/ } @dirs)
+        {   my $el = $_;
+            $el = File::Spec->catfile($el, 'xsd') if $el =~ s/\.pm$//i;
+            push @schema_dirs, $el;
+        }
     }
-    $self;
+    defined wantarray ? @schema_dirs : ();
 }
 
-=ci_method knownNamespace NAMESPACE
-Returns the file which contains the definition of a NAMESPACE, if it
-is one of the set which is distributed with the M<XML::Compile>
-module.
+=ci_method knownNamespace NAMESPACE|PAIRS
+If used with only one NAMESPACE, it returns the filename in the
+distribution (not the full path) which contains the definition.
+
+When PAIRS of NAMESPACE-FILENAME are given, then those get defined.
+This is typically called during the initiation of modules, like
+XML::Compile and XML::Compile::SOAP.  The definitions are global.
 =cut
 
-sub knownNamespace($) { $namespace_defs{$_[1]} }
+my %namespace_file;
+sub knownNamespace($;@)
+{   my $thing = shift;
+    return $namespace_file{ $_[0] } if @_==1;
+
+    while(@_)
+    {  my $ns = shift;
+       $namespace_file{$ns} = shift;
+    }
+    undef;
+}
 
 =method findSchemaFile FILENAME
 Runs through all defined schema directories (see M<addSchemaDirs()>)
@@ -180,7 +189,7 @@ sub findSchemaFile($)
     return (-r $fn ? $fn : undef)
         if File::Spec->file_name_is_absolute($fn);
 
-    foreach my $dir (@{$self->{schema_dirs}})
+    foreach my $dir (@schema_dirs)
     {   my $full = File::Spec->catfile($dir, $fn);
         next unless -e $full;
         return -r $full ? $full : undef;

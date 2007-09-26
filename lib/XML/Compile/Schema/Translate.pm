@@ -209,6 +209,8 @@ sub topLevel($$)
             }
       );
 
+    delete $self->{nest};  # reset recursion administration
+
     my $name = $node->localName;
     my $make
       = $name eq 'element'   ? $self->element($tree)
@@ -495,6 +497,15 @@ sub element($)
         or error __x"element has no name at {where}", where => $tree->path;
 
     $self->assertType($tree->path, name => NCName => $name);
+    my $fullname = pack_type $self->{tns}, $name;
+
+    # detect recursion
+    if(exists $self->{nest}{$fullname})
+    {   my $outer = \$self->{nest}{$fullname};
+#warn "Recursion detected for $fullname";
+        return sub { $$outer->(@_) };
+    }
+    $self->{nest}{$fullname} = undef;
 
     my $where    = $tree->path. "#el($name)";
     my $form     = $node->getAttribute('form');
@@ -559,9 +570,15 @@ sub element($)
     {   $r = $self->make(simple_element => $where, $tag, $st);
     }
 
-      ($before || $replace || $after)
-    ? $self->make(hook => $where, $r, $tag, $before, $replace, $after)
-    : $r
+    # this must look very silly to you... however, this is resolving
+    # recursive schemas: this way nested use of the same element
+    # definition will catch the code reference of the outer definition.
+    $self->{nest}{$fullname}
+      = ($before || $replace || $after)
+      ? $self->make(hook => $where, $r, $tag, $before, $replace, $after)
+      : $r;
+
+    delete $self->{nest}{$fullname};  # clean the outer definition
 }
 
 sub particle($)

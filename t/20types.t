@@ -11,7 +11,7 @@ use TestTools;
 
 use Test::More tests => 21;
 
-our $xmlfile = File::Spec->rel2abs('xsd/2001-XMLSchema.xsd');
+our $xmlfile = XML::Compile->findSchemaFile('2001-XMLSchema.xsd');
 
 ok(-r $xmlfile,  'find demo file');
 

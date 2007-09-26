@@ -5,8 +5,38 @@ Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
 TODO:
-  - improve template output, f.i. anyAttribute, any, and maxOccurs > 1
-  - recursive schemas
+  - improve template output, f.i. anyAttribute, any, maxOccurs > 1,
+    schema recursion.
+
+version 0.55: Wed Sep 26 10:32:49 CEST 2007
+
+	Changes:
+
+	- split-off the SOAP and WSDL things into a separate
+	  XML::Compile::SOAP distribution, because they need more
+	  complex dependencies and need more releases in the near
+	  future.
+
+	- install xsd's automatically in XML/Compile/xsd/
+	  (XML::Compile::SOAP's xsd-files are in XML/Compile/SOAP/xsd/)
+
+	Improvements:
+
+	- added display of XML::LibXML version to t/01use.t
+
+	- accept recursive schema's.  Reported by [Scott Peimann]
+	  tests in t/62recurse.t
+
+	- old bug in XML::LibXML shows up in its 1.64 release in combination
+	  with the XML::Compile test-set.  XML::LibXML 1.65 contains the
+	  patch.
+
+	- skip t/pod.t when manuals are still in OODoc format.
+
+	- XML::Compile::addSchemaDirs() effects are now global.
+
+	- XML::Compile::knownNamespaces() can be used to define own
+	  files for name-spaces, also global.
 
 version 0.54: Fri Sep 14 15:35:53 CEST 2007
 

@@ -4,7 +4,7 @@ use warnings;
 use strict;
 
 use lib 'lib';
-use Test::More tests => 19;
+use Test::More tests => 14;
 
 # The versions of the following packages are reported to help understanding
 # the environment in which the tests are run.  This is certainly not a
@@ -27,6 +27,8 @@ foreach my $package (@show_versions)
     warn "$package $report\n";
 }
 
+warn "libxml2 ".XML::LibXML::LIBXML_DOTTED_VERSION()."\n";
+
 require_ok('XML::Compile');
 require_ok('XML::Compile::Dumper');
 require_ok('XML::Compile::Iterator');
@@ -40,9 +42,4 @@ require_ok('XML::Compile::Schema::Translate');
 require_ok('XML::Compile::Schema::XmlReader');
 require_ok('XML::Compile::Schema::XmlWriter');
 require_ok('XML::Compile::Schema::Template');
-require_ok('XML::Compile::SOAP');
-require_ok('XML::Compile::SOAP::SOAP11');
-require_ok('XML::Compile::SOAP::SOAP12');
-require_ok('XML::Compile::SOAP::Operation');
 require_ok('XML::Compile::Util');
-require_ok('XML::Compile::WSDL');

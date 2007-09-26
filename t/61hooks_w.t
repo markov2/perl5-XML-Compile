@@ -10,7 +10,7 @@ use Data::Dumper;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 37 + ($skip_dumper ? 0 : 9);
+use Test::More tests => 36 + ($skip_dumper ? 0 : 9);
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -32,9 +32,6 @@ __SCHEMA__
 
 ok(defined $schema);
 
-my @errors;
-push @run_opts, invalid => sub {no warnings; push @errors, "$_[2] ($_[1])"};
-
 my $xml1 = <<__XML;
 <test1>
   <byType>aap</byType>
@@ -47,7 +44,6 @@ __XML
 
 my %f1 = (byType => 'aap', byId => 2, byPath => 3);
 test_rw($schema, test1 => $xml1, \%f1);
-ok(!@errors);
 
 # try all selectors and hook types
 
