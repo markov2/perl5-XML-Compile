@@ -145,10 +145,10 @@ sub _collectTypes($)
         or panic "requires schema element";
 
     my $xsd = $self->{xsd} = $schema->namespaceURI;
-    my $def = $self->{def} =
-       XML::Compile::Schema::Specs->predefinedSchema($xsd)
-         or error __x"schema namespace {namespace} not (yet) supported"
-                , namespace => $xsd;
+    my $def = $self->{def}
+       = XML::Compile::Schema::Specs->predefinedSchema($xsd)
+            or error __x"schema namespace {namespace} not (yet) supported"
+                  , namespace => $xsd;
 
     my $xsi = $self->{xsi} = $def->{uri_xsi};
     my $tns = $self->{tns} = $schema->getAttribute('targetNamespace') || '';

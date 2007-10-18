@@ -236,7 +236,7 @@ sub typeByName($$)
     if($code)
     {   my $where = $typename;
         my $st = $self->make
-          ( builtin=> $where, $node, $typename , $code, $self->{check_values});
+          (builtin=> $where, $node, $typename , $code, $self->{check_values});
 
         return +{ st => $st };
     }

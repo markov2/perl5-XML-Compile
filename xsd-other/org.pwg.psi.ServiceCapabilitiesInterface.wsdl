@@ -1,0 +1,162 @@
+<wsdl:definitions xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:wsdlsoap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:apachesoap="http://xml.apache.org/xml-soap" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:intf="http://www.pwg.org/ps/0.94b/" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" xmlns:impl="http://www.pwg.org/ps/0.94b/" xmlns="http://schemas.xmlsoap.org/wsdl/" xmlns:pwgpsi="http://www.pwg.org/ps/0.94b/" xmlns:pwgsm="http://www.pwg.org/schemas/sm/0.90/" targetNamespace="http://www.pwg.org/ps/0.94b/">
+	<wsdl:types>
+		<schema targetNamespace="http://www.pwg.org/ps/0.94b/" xmlns="http://www.w3.org/2001/XMLSchema">
+			<import namespace="http://www.pwg.org/schemas/sm/0.90/" schemaLocation="http://www.pwg.org/schemas/sm/0.90/PwgSemanticElements.xsd"/>
+			<import namespace="http://www.pwg.org/schemas/sm/0.90/" schemaLocation="http://www.pwg.org/schemas/sm/0.90/PrinterStatus.xsd"/>
+			<import namespace="http://www.pwg.org/schemas/sm/0.90/" schemaLocation="http://www.pwg.org/schemas/sm/0.90/PrinterDescription.xsd"/>
+			<import namespace="http://www.pwg.org/schemas/sm/0.90/" schemaLocation="http://www.pwg.org/schemas/sm/0.90/ProcessingDefault.xsd"/>
+			<import namespace="http://www.pwg.org/schemas/sm/0.90/" schemaLocation="http://www.pwg.org/schemas/sm/0.90/ProcessingSupported.xsd"/>
+			<import namespace="http://www.pwg.org/schemas/sm/0.90/" schemaLocation="http://www.pwg.org/schemas/sm/0.90/ProcessingReady.xsd"/>
+			<import namespace="http://www.pwg.org/schemas/sm/0.90/" schemaLocation="http://www.pwg.org/schemas/sm/0.90/Printer.xsd"/>
+			<import namespace="http://www.pwg.org/ps/0.94b/" schemaLocation="http://www.pwg.org/schemas/ps/0.94b/psiSemanticElements.xsd"/>
+			<import namespace="http://www.pwg.org/ps/0.94b/" schemaLocation="http://www.pwg.org/schemas/ps/0.94b/targetDeviceIdentifier.xsd"/>
+			<import namespace="http://www.pwg.org/ps/0.94b/" schemaLocation="http://www.pwg.org/schemas/ps/0.94b/reference.xsd"/>
+			<import namespace="http://schemas.xmlsoap.org/soap/encoding/"/>
+			<complexType name="TargetDeviceNotSupported">
+				<sequence/>
+			</complexType>
+			<element name="TargetDeviceNotSupported" nillable="true" type="impl:TargetDeviceNotSupported"/>
+			<complexType name="InvalidTargetDeviceIdentifier">
+				<sequence/>
+			</complexType>
+			<element name="InvalidTargetDeviceIdentifier" nillable="true" type="impl:InvalidTargetDeviceIdentifier"/>
+			<complexType name="ArrayOfTargetDeviceIdentifier">
+				<complexContent>
+					<restriction base="soapenc:Array">
+						<attribute ref="soapenc:arrayType" wsdl:arrayType="pwgpsi:targetDeviceIdentifierType[]"/>
+					</restriction>
+				</complexContent>
+			</complexType>
+			<element name="ArrayOfTargetDeviceIdentifier" type="impl:ArrayOfTargetDeviceIdentifier" nillable="true"/>
+			<complexType name="ReferenceNotSupported">
+				<sequence/>
+			</complexType>
+			<complexType name="InvalidReferenceCredentials">
+				<sequence/>
+			</complexType>
+			<element name="InvalidReferenceCredentials" type="impl:InvalidReferenceCredentials" nillable="true"/>
+			<complexType name="InvalidReference">
+				<sequence/>
+			</complexType>
+			<element name="InvalidReference" type="impl:InvalidReference" nillable="true"/>
+			<complexType name="ReferenceNotSupported">
+				<sequence/>
+			</complexType>
+			<element name="ReferenceNotSupported" type="impl:ReferenceNotSupported" nillable="true"/>
+			<complexType name="ReferenceNotResolvable">
+				<sequence/>
+			</complexType>
+			<element name="ReferenceNotResolvable" type="impl:ReferenceNotResolvable" nillable="true"/>
+		</schema>
+	</wsdl:types>
+	<wsdl:message name="ValidateReferenceRequest">
+		<wsdl:part name="reference" element="pwgpsi:referenceObject"/>
+	</wsdl:message>
+	<wsdl:message name="GetTargetDeviceElementsRequest">
+		<wsdl:part name="targetDeviceIdentifier" element="pwgpsi:targetDeviceIdentifierObject"/>
+		<wsdl:part name="requestedElements" element="pwgsm:Printer"/>
+	</wsdl:message>
+	<wsdl:message name="GetTargetDeviceElementsResponse">
+		<wsdl:part name="GetTargetDeviceElementsReturn" element="pwgsm:Printer"/>
+	</wsdl:message>
+	<wsdl:message name="InvalidReferenceCredentials">
+		<wsdl:part name="fault" type="intf:InvalidReferenceCredentials"/>
+	</wsdl:message>
+	<wsdl:message name="InvalidReference">
+		<wsdl:part name="fault" type="intf:InvalidReference"/>
+	</wsdl:message>
+	<wsdl:message name="ReferenceNotSupported">
+		<wsdl:part name="fault" type="intf:ReferenceNotSupported"/>
+	</wsdl:message>
+	<wsdl:message name="ReferenceNotResolvable">
+		<wsdl:part name="fault" type="intf:ReferenceNotResolvable"/>
+	</wsdl:message>
+	<wsdl:message name="ValidateReferenceResponse">
+		<wsdl:part name="ValidateReferenceReturn" type="xsd:string"/>
+	</wsdl:message>
+	<wsdl:message name="GetKnownTargetDevicesResponse">
+		<wsdl:part name="GetKnownTargetDevicesReturn" type="intf:ArrayOfTargetDeviceIdentifier"/>
+	</wsdl:message>
+	<wsdl:message name="GetKnownTargetDevicesRequest">
+		<wsdl:part name="printerFilterElements" element="pwgsm:Printer"/>
+	</wsdl:message>
+	<wsdl:message name="TargetDeviceNotSupported">
+		<wsdl:part name="fault" type="intf:TargetDeviceNotSupported"/>
+	</wsdl:message>
+	<wsdl:message name="InvalidTargetDeviceIdentifier">
+		<wsdl:part name="fault" type="intf:InvalidTargetDeviceIdentifier"/>
+	</wsdl:message>
+	<wsdl:portType name="ServiceCapabilitiesInterface">
+		<wsdl:operation name="GetTargetDeviceElements" parameterOrder="targetDeviceIdentifier requestedElements">
+			<wsdl:input name="GetTargetDeviceElementsRequest" message="intf:GetTargetDeviceElementsRequest"/>
+			<wsdl:output name="GetTargetDeviceElementsResponse" message="intf:GetTargetDeviceElementsResponse"/>
+			<wsdl:fault name="TargetDeviceNotSupported" message="intf:TargetDeviceNotSupported"/>
+			<wsdl:fault name="InvalidTargetDeviceIdentifier" message="intf:InvalidTargetDeviceIdentifier"/>
+		</wsdl:operation>
+		<wsdl:operation name="GetKnownTargetDevices" parameterOrder="printerFilterElements">
+			<wsdl:input name="GetKnownTargetDevicesRequest" message="intf:GetKnownTargetDevicesRequest"/>
+			<wsdl:output name="GetKnownTargetDevicesResponse" message="intf:GetKnownTargetDevicesResponse"/>
+		</wsdl:operation>
+		<wsdl:operation name="ValidateReference" parameterOrder="reference">
+			<wsdl:input name="ValidateReferenceRequest" message="intf:ValidateReferenceRequest"/>
+			<wsdl:output name="ValidateReferenceResponse" message="intf:ValidateReferenceResponse"/>
+			<wsdl:fault name="InvalidReferenceCredentials" message="intf:InvalidReferenceCredentials"/>
+			<wsdl:fault name="InvalidReference" message="intf:InvalidReference"/>
+			<wsdl:fault name="ReferenceNotSupported" message="intf:ReferenceNotSupported"/>
+			<wsdl:fault name="ReferenceNotResolvable" message="intf:ReferenceNotResolvable"/>
+		</wsdl:operation>
+	</wsdl:portType>
+	<wsdl:binding name="org.pwg.psi.ServiceCapabilitiesInterfaceSoapBinding" type="intf:ServiceCapabilitiesInterface">
+		<wsdlsoap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+		<wsdl:operation name="GetTargetDeviceElements">
+			<wsdlsoap:operation/>
+			<wsdl:input>
+				<wsdlsoap:body use="literal" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" namespace="http://www.pwg.org/ps/0.94b/"/>
+			</wsdl:input>
+			<wsdl:output>
+				<wsdlsoap:body use="literal" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" namespace="http://www.pwg.org/ps/0.94b/"/>
+			</wsdl:output>
+			<wsdl:fault name="TargetDeviceNotSupported">
+				<wsdlsoap:fault name="TargetDeviceNotSupported" use="literal" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" namespace="http://www.pwg.org/ps/0.94b/"/>
+			</wsdl:fault>
+			<wsdl:fault name="InvalidTargetDeviceIdentifier">
+				<wsdlsoap:fault name="InvalidTargetDeviceIdentifier" use="literal" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" namespace="http://www.pwg.org/ps/0.94b/"/>
+			</wsdl:fault>
+		</wsdl:operation>
+		<wsdl:operation name="GetKnownTargetDevices">
+			<wsdlsoap:operation/>
+			<wsdl:input>
+				<wsdlsoap:body use="literal" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" namespace="http://www.pwg.org/ps/0.94b/"/>
+			</wsdl:input>
+			<wsdl:output>
+				<wsdlsoap:body use="literal" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" namespace="http://www.pwg.org/ps/0.94b/"/>
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="ValidateReference">
+			<wsdlsoap:operation/>
+			<wsdl:input>
+				<wsdlsoap:body use="literal" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" namespace="http://www.pwg.org/ps/0.94b/"/>
+			</wsdl:input>
+			<wsdl:output>
+				<wsdlsoap:body use="literal" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" namespace="http://www.pwg.org/ps/0.94b/"/>
+			</wsdl:output>
+			<wsdl:fault name="InvalidReferenceCredentials">
+				<wsdlsoap:fault name="InvalidReferenceCredentials" use="literal" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" namespace="http://www.pwg.org/ps/0.94b/"/>
+			</wsdl:fault>
+			<wsdl:fault name="InvalidReference">
+				<wsdlsoap:fault name="InvalidReference" use="literal" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" namespace="http://www.pwg.org/ps/0.94b/"/>
+			</wsdl:fault>
+			<wsdl:fault name="ReferenceNotSupported">
+				<wsdlsoap:fault name="ReferenceNotSupported" use="literal" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" namespace="http://www.pwg.org/ps/0.94b/"/>
+			</wsdl:fault>
+			<wsdl:fault name="ReferenceNotResolvable">
+				<wsdlsoap:fault name="ReferenceNotResolvable" use="literal" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" namespace="http://www.pwg.org/ps/0.94b/"/>
+			</wsdl:fault>
+		</wsdl:operation>
+	</wsdl:binding>
+	<wsdl:service name="ServiceCapabilitiesInterfaceService">
+		<wsdl:port name="org.pwg.psi.ServiceCapabilitiesInterface" binding="intf:org.pwg.psi.ServiceCapabilitiesInterfaceSoapBinding">
+			<wsdlsoap:address location="http://127.0.0.1/org.pwg.psi.ServiceCapabilitiesInterface"/>
+		</wsdl:port>
+	</wsdl:service>
+</wsdl:definitions>

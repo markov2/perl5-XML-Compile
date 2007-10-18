@@ -41,24 +41,24 @@ Three serious WARNINGS:
 
 =item .
 
-The compiler does only support B<namespace schemas>.  It is possible,
+The compiler B<only supports namespace schemas>.  It is possible,
 but generally seen as weakness, to make schemas which do not use
-namespaces, but for the moment XML::Compile does not handle those.
+namespaces, but for the moment, XML::Compile does not handle those.
 Check for a C<targetNamespace> attribute on C<schema> in your C<xsd>
 file.
 
 =item .
 
 The focus is on B<data-centric XML>, which means that mixed elements
-are not understood automatically.  However, with using hooks, you can
+are not understood automatically.  However, with using hooks you can
 work around this.
 
 =item .
 
-The provided B<schema is not validated>!  In many cases, compile-time
-and run-time errors will get reported.  On the other hand, the processed
-B<data is strictly validated>: both input and output will follow the
-specs closely.
+The provided B<schema is not validated>.  In many cases, compile-time
+errors will get reported.  On the other hand, the processed B<data is
+strictly validated>: both input and output will follow the specs closely
+(unless disabled).
 
 =back
 
@@ -71,10 +71,12 @@ are support packages):
 Interpret schema elements and types: process XML messages.
 
 =item M<XML::Compile::WSDL> and M<XML::Compile::SOAP>
-Use the SOAP protocol. (implementation in progress)
+Use the SOAP protocol, client side.  Requires the installation of
+the XML-Compile-SOAP distribition.  Implementation in progress.
 
-=item M<XML::Compile::Dumper>
-Save pre-compiled converters in pure perl packages.
+=item M<XML::Compile::SOAP::Daemon>
+Create a SOAP daemon.  Requires the installation of the
+XML-Compile-SOAP-Daemon distribition.  Implementation in progress.
 
 =back
 

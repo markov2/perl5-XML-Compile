@@ -1,10 +1,10 @@
 use ExtUtils::MakeMaker;
 
-use 5.8.0;
+use 5.008;
 
 WriteMakefile
  ( NAME	 	=> 'XML::Compile'
- , VERSION	=> 0.55
+ , VERSION	=> 0.56
  , PREREQ_PM    =>
    { XML::LibXML               => 1.63
    , Math::BigInt              => 1.77
@@ -30,12 +30,12 @@ DISTDIR         = ../public_html/xml-compile/source
 LICENSE         = artistic
 
 # for POD
+EXTENDS		= ../XMLSOAP:../XMLDaemon
 FIRST_YEAR      = 2006
 EMAIL           = perl@overmeer.net
 WEBSITE         = http://perl.overmeer.net/xml-compile/
 
 # for HTML
-EXTENDS		= ../XMLSOAP
 HTML_OUTPUT     = ../public_html/xml-compile/html
 HTML_DOCROOT    = /xml-compile/html
 HTML_PACKAGE    = ../public_html/xml-compile/htmlpkg

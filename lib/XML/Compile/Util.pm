@@ -23,27 +23,35 @@ The functions provided by this package are used by various XML::Compile
 components, which on their own may be unrelated.
 
 =chapter FUNCTIONS
-=function pack_type NAMESPACE, LOCALNAME
-Translates the two arguments into one compact string representation of
-the node type.
+=function pack_type [NAMESPACE], LOCALNAME
+Translates the arguments into one compact string representation of
+the node type.  When the NAMESPACE is not present, C<undef>, or an
+empty string, then no namespace is presumed, and no curly braces
+part made.
+
 =example
  print pack_type 'http://my-ns', 'my-type';
  # shows:  {http://my-ns}my-type 
+
+ print pack_type 'my-type';
+ print pack_type undef, 'my-type';
+ print pack_type '', 'my-type';
+ # all three show:   my-type
+
 =cut
 
-sub pack_type($$) {
-   defined $_[0] && defined $_[1]
-       or report PANIC => "pack_type with undef `$_[0]' or `$_[1]'";
-   "{$_[0]}$_[1]"
+sub pack_type($;$)
+{   @_==1 || !defined $_[0] || !length $_[0] ? $_[0] : "{$_[0]}$_[1]"
 }
 
 =function unpack_type STRING
 Returns a LIST of two elements: the name-space and the localname, as
 included in the STRING.  That STRING must be compatible with the
-result of M<pack_type()>.
+result of M<pack_type()>.  When no name-space is present, an empty
+string is used.
 =cut
 
-sub unpack_type($) { $_[0] =~ m/^\{(.*?)\}(.*)$/ ? ($1, $2) : () }
+sub unpack_type($) { $_[0] =~ m/^\{(.*?)\}(.*)$/ ? ($1, $2) : ('', $_[0]) }
 
 =function pack_id NAMESPACE, ID
 Translates the two arguments into one compact string representation of

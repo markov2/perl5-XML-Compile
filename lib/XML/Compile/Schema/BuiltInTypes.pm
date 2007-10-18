@@ -13,7 +13,7 @@ use MIME::Base64;
 use POSIX              qw/strftime/;
 # use XML::RegExp;  ### can we use this?
 
-use XML::Compile::Util qw/pack_type/;
+use XML::Compile::Util qw/pack_type unpack_type/;
 
 =chapter NAME
 
@@ -47,8 +47,12 @@ You B<cannot call> these functions yourself.
 
 # The XML reader calls
 #     check(parse(value))  or check_read(parse(value))
+
 # The XML writer calls
 #     check(format(value)) or check_write(format(value))
+
+# Parse has a second argument, only for QNAME: the node
+# Format has a second argument for QNAME as well.
 
 sub identity { $_[0] };
 sub str2int
@@ -69,11 +73,12 @@ sub str2num
     $v;
 }
 
-sub num2str { "$_[0]" }
+sub num2str   { "$_[0]" }
+sub str       { "$_[0]" };
+sub _collapse { $_[0] =~ s/\s+//g; $_[0]}
+sub _preserve { for($_[0]) {s/\s+/ /g; s/^ //; s/ $//}; $_[0]}
+sub _replace  { $_[0] =~ s/[\t\r\n]/ /gs; $_[0]}
 
-sub str      { "$_[0]" };
-sub collapse { $_[0] =~ s/\s+//g; $_[0]}
-sub preserve { for($_[0]) {s/\s+/ /g; s/^ //; s/ $//}; $_[0]}
 sub bigint   { $_[0] =~ s/\s+//g;
    my $v = Math::BigInt->new($_[0]); $v->is_nan ? undef : $v }
 sub bigfloat { $_[0] =~ s/\s+//g;
@@ -99,7 +104,7 @@ hash value and C<true> and C<false> in XML.
 =cut
 
 $builtin_types{boolean} =
- { parse   => \&collapse
+ { parse   => \&_collapse
  , format  => sub { $_[0] eq 'false' || $_[0] eq 'true' ? $_[0] : !!$_[0] }
  , check   => sub { $_[0] =~ m/^(false|true|0|1)$/ }
  , example => 'true'
@@ -374,7 +379,7 @@ my $timeFrag     = qr/ (?: $hourFrag \: $minuteFrag \: $secondFrag )
 
 my $date         = qr/^ $yearFrag \- $monthFrag \- $dayFrag $timezoneFrag? $/x;
 $builtin_types{date} =
- { parse   => \&collapse
+ { parse   => \&_collapse
  , format  => sub { $_[0] =~ /\D/ ? $_[0] : strftime("%Y-%m-%d", gmtime $_[0])}
  , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $date }
  , example => '2006-10-06'
@@ -394,7 +399,7 @@ my $dateTime = qr/^ $yearFrag \- $monthFrag \- $dayFrag
                     T $timeFrag $timezoneFrag? $/x;
 
 $builtin_types{dateTime} =
- { parse   => \&collapse
+ { parse   => \&_collapse
  , format  => sub { $_[0] =~ /\D/ ? $_[0]
      : strftime("%Y-%m-%dT%H:%S%MZ", gmtime($_[0])) }
  , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $dateTime }
@@ -407,7 +412,7 @@ Format C<---12> or C<---12+09:00> (12 days, optional time-zone)
 
 my $gDay = qr/^ \- \- \- $dayFrag $timezoneFrag? $/x;
 $builtin_types{gDay} =
- { parse   => \&collapse
+ { parse   => \&_collapse
  , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $gDay }
  , example => '---12+09:00'
  };
@@ -418,7 +423,7 @@ Format C<--09> or C<--09+07:00> (9 months, optional time-zone)
 
 my $gMonth = qr/^ \- \- $monthFrag $timezoneFrag? $/x;
 $builtin_types{gMonth} =
- { parse   => \&collapse
+ { parse   => \&_collapse
  , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $gMonth }
  , example => '--09+07:00'
  };
@@ -429,7 +434,7 @@ Format C<--09-12> or C<--09-12+07:00> (9 months 12 days, optional time-zone)
 
 my $gMonthDay = qr/^ \- \- $monthFrag \- $dayFrag $timezoneFrag? /x;
 $builtin_types{gMonthDay} =
- { parse   => \&collapse
+ { parse   => \&_collapse
  , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $gMonthDay }
  , example => '--09-12+07:00'
  };
@@ -440,7 +445,7 @@ Format C<2006> or C<2006+07:00> (year 2006, optional time-zone)
 
 my $gYear = qr/^ $yearFrag \- $monthFrag $timezoneFrag? $/x;
 $builtin_types{gYear} =
- { parse   => \&collapse
+ { parse   => \&_collapse
  , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $gYear }
  , example => '2006+07:00'
  };
@@ -451,7 +456,7 @@ Format C<2006-11> or C<2006-11+07:00> (november 2006, optional time-zone)
 
 my $gYearMonth = qr/^ $yearFrag \- $monthFrag $timezoneFrag? $/x;
 $builtin_types{gYearMonth} =
- { parse   => \&collapse
+ { parse   => \&_collapse
  , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $gYearMonth }
  , example => '2006-11+07:00'
  };
@@ -465,7 +470,7 @@ All other C<n[YMDHMS]> are optional.
 =cut
 
 $builtin_types{duration} =
- { parse   => \&collapse
+ { parse   => \&_collapse
  , check   => sub { my $val = $_[0]; $val =~ s/\s+//g; $val =~
      m/^\-?P(?:\d+Y)?(?:\d+M)?(?:\d+D)?
         (?:T(?:\d+H)?(?:\d+M)?(?:\d+(?:\.\d+)?)S)?$/x }
@@ -479,7 +484,7 @@ All other C<n[DHMS]> are optional.
 =cut
 
 $builtin_types{dayTimeDuration} =
- { parse  => \&collapse
+ { parse  => \&_collapse
  , check  => sub { my $val = $_[0]; $val =~ s/\s+//g; $val =~
      m/^\-?P(?:\d+D)?(?:T(?:\d+H)?(?:\d+M)?(?:\d+(?:\.\d+)?)S)?$/ }
  , example => 'P2DT3H5M10S'
@@ -491,7 +496,7 @@ The C<P> is obligatory, the C<n[YM]> are optional.
 =cut
 
 $builtin_types{yearMonthDuration} =
- { parse  => \&collapse
+ { parse  => \&_collapse
  , check  => sub { my $val = $_[0]; $val =~ s/\s+//g; $val =~
      m/^\-?P(?:\d+Y)?(?:\d+M)?$/ }
  , example => 'P40Y5M'
@@ -514,7 +519,7 @@ string are ignored.
 =cut
 
 $builtin_types{normalizedString} =
- { parse   => \&preserve
+ { parse   => \&_preserve
  , example => 'example'
  };
 
@@ -523,7 +528,7 @@ An RFC3066 language indicator.
 =cut
 
 $builtin_types{language} =
- { parse   => \&collapse
+ { parse   => \&_collapse
  , check   => sub { my $v = $_[0]; $v =~ s/\s+//g; $v =~
        m/^[a-zA-Z]{1,8}(?:\-[a-zA-Z0-9]{1,8})*$/ }
  , example => 'nl-NL'
@@ -544,14 +549,14 @@ $builtin_types{ID} =
 $builtin_types{IDREF} =
 $builtin_types{NCName} =
 $builtin_types{ENTITY} =
- { parse   => \&collapse
+ { parse   => \&_collapse
  , check   => sub { $_[0] !~ m/\:/ }
  , example => 'label'
  };
 
 $builtin_types{IDREFS} =
 $builtin_types{ENTITIES} =
- { parse   => \&preserve
+ { parse   => \&_preserve
  , check   => sub { $_[0] !~ m/\:/ }
  , example => 'labels'
  };
@@ -563,13 +568,13 @@ A name which contains no colons (a non-colonized name).
 =cut
 
 $builtin_types{Name} =
- { parse   => \&collapse
+ { parse   => \&_collapse
  , example => 'name'
  };
 
 $builtin_types{token} =
 $builtin_types{NMTOKEN} =
- { parse   => \&collapse
+ { parse   => \&_collapse
  , example => 'token'
  };
 
@@ -577,7 +582,7 @@ $builtin_types{NMTOKEN} =
 =cut
 
 $builtin_types{NMTOKENS} =
- { parse   => \&preserve
+ { parse   => \&_preserve
  , example => 'tokens'
  };
 
@@ -595,7 +600,7 @@ be translated into an URI object: it may not be used that way.
 #    check   => sub { $_[0] =~ $RE{URI} }
 
 $builtin_types{anyURI} =
- { parse   => \&collapse
+ { parse   => \&_collapse
  , example => 'http://example.com'
  };
 
@@ -603,8 +608,11 @@ $builtin_types{anyURI} =
 A qualified type name: a type name with optional prefix.  The prefix notation
 C<prefix:type> will be translated into the C<{$ns}type> notation.
 
-This conversion currently only works for the reader, but should be
-implemented for the writer as well.
+For writers, this translation can only happen when the C<$ns> is also
+in use on some other place in the message: the name-space declaration
+can not be added at run-time.  In other cases, you will get a run-time
+error.  Play with M<XML::Compile::Schema::compile(output_namespaces)>,
+predefining evenything what may be used, setting the C<used> count to C<1>.
 =cut
 
 sub _valid_qname($)
@@ -618,11 +626,27 @@ $builtin_types{QName} =
  { parse   =>
      sub { my ($qname, $node) = @_;
            my $prefix = $qname =~ s/^([^:]*)\:// ? $1 : '';
+
+           length $prefix
+               or error __x"QNAME requires prefix at `{qname}'", qname=>$qname;
+
+           $node = $node->node if $node->isa('XML::Compile::Iterator');
            my $ns = $node->lookupNamespaceURI($prefix)
                or error __x"cannot find prefix `{prefix}' for QNAME `{qname}'"
                      , prefix => $prefix, qname => $qname;
-           pack_type($ns, $qname);
+           pack_type $ns, $qname;
          }
+ , format  =>
+    sub { my ($type, $trans) = @_;
+          my ($ns, $local) = unpack_type $type;
+          $ns or return $local;
+
+          my $def = $trans->{$ns};
+          if(!$def || !$def->{used})
+          {   error __x"QNAME formatting only works if the namespace is used elsewhere, not {ns}", ns => $ns;
+          }
+          "$def->{prefix}:$local";
+        }
  , check   => \&_valid_qname
  , example => 'myns:name'
  };
@@ -632,5 +656,42 @@ NOT IMPLEMENTED, so treated as string.
 =cut
 
 $builtin_types{NOTATION} = {};
+
+=section only in 1999 and 2000/10 schemas
+
+=function binary
+Perl strings can contain any byte, also nul-strings, so can
+contain any sequence of bits.  Limited to byte length.
+=cut
+
+$builtin_types{binary} = { example => 'binary string' };
+
+=function timeDuration
+'Old' name for M<duration()>.
+=cut
+
+$builtin_types{timeDuration} = $builtin_types{duration};
+
+=function uriReference
+Probably the same rules as M<anyURI()>.
+=cut
+
+$builtin_types{uriReference} = $builtin_types{anyURI};
+
+=pod how to do these constants?
+$builtin_types{century}       = {                     period => 'P100Y' }
+$builtin_types{recurringDate} = { duration => 'P24H', period => 'P1Y'   }
+$builtin_types{recurringDay}  = { duration => 'P24H', period => 'P1M'   }
+$builtin_types{timeInstant}   = { duration => 'P0Y',  period => 'P0Y'   }
+$builtin_types{timePeriod}    = { duration => 'P0Y' }
+$builtin_types{year}          = {                     period => 'P1Y'   }
+$builtin_types{recurringDuration} = ??
+=cut
+
+# only in 2000/10 schemas
+$builtin_types{CDATA} =
+ { parse   => \&_replace
+ , example => 'CDATA'
+ };
 
 1;

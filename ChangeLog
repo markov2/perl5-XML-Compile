@@ -8,6 +8,25 @@ TODO:
   - improve template output, f.i. anyAttribute, any, maxOccurs > 1,
     schema recursion.
 
+version 0.56: Thu Oct 18 09:25:16 CEST 2007
+
+	Improvements:
+
+	- XML::Compile::Util::pack_type() and ::unpack_type() now
+	  understand name-spaceless types.
+
+	- filled-in pre-declared type tables for older schema
+	  definitions, but did NOT IMPLEMENT the differences in
+	  SCHEMA RULES.  Some initial checks in t/81-2000.t
+
+	- XML::Compile::SOAP::Server split-off from XML::Compile::SOAP;
+	  documentation updated to reflect this.
+
+	- added README.todo
+
+	- implemented correct QNAME run-time "{ns}local" to "prefix:local"
+	  translator, for writer.  May cause run-time error message.  
+
 version 0.55: Wed Sep 26 10:32:49 CEST 2007
 
 	Changes:

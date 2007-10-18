@@ -545,10 +545,7 @@ sub attribute_prohibited
 
 sub attribute
 {   my ($path, $args, $ns, $tag, $do) = @_;
-    sub {
-use Carp;
- $_[0]->isa('XML::LibXML::Node') or confess "$!";
-          my $node = $_[0]->getAttributeNodeNS($ns, $tag);
+    sub { my $node = $_[0]->getAttributeNodeNS($ns, $tag);
           defined $node or return ();;
           my $val = $do->($node);
           defined $val ? ($tag => $val) : ();

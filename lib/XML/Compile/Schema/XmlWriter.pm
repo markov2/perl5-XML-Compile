@@ -7,7 +7,7 @@ no warnings 'once';
 
 use Log::Report 'xml-compile', syntax => 'SHORT';
 use List::Util    qw/first/;
-use XML::Compile::Util qw/unpack_type odd_elements block_label/;
+use XML::Compile::Util qw/pack_type unpack_type odd_elements block_label/;
 
 =chapter NAME
 
@@ -38,7 +38,7 @@ sub tag_qualified
     my ($pref, $label)
        = index($name, ':') >=0 ? split(/\:/, $name) : ('',$name);
 
-    my $ns  = length($pref)? $node->lookupNamespaceURI($pref) :$args->{tns};
+    my $ns  = length($pref)? $node->lookupNamespaceURI($pref) : $args->{tns};
 
     my $out_ns = $args->{output_namespaces};
     my $out = $out_ns->{$ns};
@@ -82,7 +82,7 @@ sub wrapper_ns
     foreach my $entry (values %$index)
     {   $entry->{used} or next;
         push @entries, [ $entry->{uri}, $entry->{prefix} ];
-        $entry->{used} = 0;
+#       $entry->{used} = 0;
     }
 
     @entries or return $processor;
@@ -294,6 +294,8 @@ sub block_handler
 
 sub required
 {   my ($path, $args, $label, $do) = @_;
+use Carp;
+$do or confess;
     my $req =
     sub { my @nodes = $do->(@_);
           return @nodes if @nodes;
@@ -457,11 +459,12 @@ sub builtin
       : N__"illegal value `{value}' for type {type} at {path}";
 
     my $format = $def->{format};
+    my $trans  = $args->{output_namespaces};
 
     $check
     ? ( defined $format
       ? sub { defined $_[1] or return undef;
-              my $value = $format->($_[1], $node);
+              my $value = $format->($_[1], $trans);
               return $value if defined $value && $check->($value);
               error __x$err, value => $value, type => $type, path => $path;
             }
@@ -470,7 +473,7 @@ sub builtin
             }
       )
     : ( defined $format
-      ? sub { defined $_[1] ? $format->($_[1], $node) : undef }
+      ? sub { defined $_[1] ? $format->($_[1], $trans) : undef }
       : sub { $_[1] }
       );
 }
@@ -624,9 +627,9 @@ sub _split_any_list($$$)
     my (@attrs, @elems);
 
     foreach my $node (@nodes)
-    {   ref $node
-            or error __x"Elements for 'any' are XML::LibXML nodes, not {string} at {path}"
-                 , string => $node, path => $path;
+    {   ref $node && !$node->isa('XML::LibXML')
+            or error __x"elements for 'any' are XML::LibXML nodes, not {string} at {path}"
+                  , string => $node, path => $path;
 
         if($node->isa('XML::LibXML::Attr'))
         {   push @attrs, $node;
@@ -638,7 +641,7 @@ sub _split_any_list($$$)
             next;
         }
 
-        error __x"An XML::LibXML::Element or ::Attr is expected as 'any' or 'anyAttribute value with {type}, but a {kind} was found at {path}"
+        error __x"an XML::LibXML::Element or ::Attr is expected as 'any' or 'anyAttribute value with {type}, but a {kind} was found at {path}"
            , type => $type, kind => ref $node, path => $path;
     }
 
@@ -696,8 +699,9 @@ sub anyElement
 
           foreach my $type (keys %$values)
           {   my ($ns, $local) = unpack_type $type;
-              defined $ns or next;
-              my @attrs;
+
+              # name-spaceless Perl, then not for any(Attribute)
+              defined $ns && length $ns or next;
 
               $yes{$ns} or next if keys %yes;
               $no{$ns} and next if keys %no;
@@ -710,23 +714,25 @@ sub anyElement
 
               foreach my $node (@$elems)
               {   my $nodens = $node->namespaceURI;
+                  defined $nodens or next; # see README.todo work-around
+
                   my $name   = $node->localName;
                   next if $nodens eq $ns && $name eq $local;
 
                   error __x"provided 'any' element node has type {type}, but labeled with {other} at {path}"
-                     , type => packtype($nodens, $name), other => $type, path => $path
+                     , type => pack_type($nodens, $name), other => $type, path => $path
               }
 
               push @res, @$elems;
               $max eq 'unbounded' || @res <= $max
                   or error __x"too many 'any' elements after consuming {count} nodes of {type}, max {max} at {path}"
-                        , count => scalar @$elems, type => $type
-                        , max => $max, path => $path;
+                       , count => scalar @$elems, type => $type
+                       , max => $max, path => $path;
           }
 
           @res >= $min
               or error __x"too few 'any' elements, got {count} for minimum {min} at {path}"
-                    , count => scalar @res, min => $min, path => $path;
+                   , count => scalar @res, min => $min, path => $path;
 
           @res;
         }, 'ANY';

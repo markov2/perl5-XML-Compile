@@ -32,33 +32,17 @@ to do it.  Feel invited.
 # the official meta-scheme: the scheme of the scheme.  These lists are
 # used to restrict the namespace to the specified, hiding all helper
 # types.
-my %builtin_public_1999 =
- ();
 
-my %builtin_public_2000 = %builtin_public_1999;
-
-my @builtin_public_2001 = qw/
- anySimpleType
- anyType
- anyURI
+my @builtin_common = qw/
  boolean
- base64binary
  byte
  date
- dateTime
- dayTimeDuration
  decimal
  double
  duration
- ENTITY
  ENTITIES
+ ENTITY
  float
- gDay
- gMonth
- gMonthDay
- gYear
- gYearMonth
- hexBinary
  ID
  IDREF
  IDREFS
@@ -68,15 +52,13 @@ my @builtin_public_2001 = qw/
  long
  Name
  NCName
+ negativeInteger
  NMTOKEN
  NMTOKENS
- negativeInteger
  nonNegativeInteger
  nonPositiveInteger
- normalizedString
- positiveInteger
- precissionDecimal
  NOTATION
+ positiveInteger
  QName
  short
  string
@@ -89,7 +71,48 @@ my @builtin_public_2001 = qw/
  yearMonthDuration
  /;
 
-my %builtin_public_2001 = map { ($_ => $_) } @builtin_public_2001;
+my @builtin_extra_1999 = qw/
+ binary
+ recurringDate
+ recurringDay
+ recurringDuration
+ timeDuration
+ timeInstant
+ timePeriod
+ uriReference
+ year
+ /;
+
+my @builtin_extra_2000 = (@builtin_extra_1999, qw/
+ anyType
+ CDATA
+ / );
+
+my @builtin_extra_2001  = qw/
+ anySimpleType
+ anyType
+ anyURI
+ base64binary
+ dateTime
+ dayTimeDuration
+ gDay
+ gMonth
+ gMonthDay
+ gYear
+ gYearMonth
+ hexBinary
+ normalizedString
+ precissionDecimal
+ /;
+
+my %builtin_public_1999 = map { ($_ => $_) }
+   @builtin_common, @builtin_extra_1999;
+
+my %builtin_public_2000 = map { ($_ => $_) }
+   @builtin_common, @builtin_extra_2000;
+
+my %builtin_public_2001 = map { ($_ => $_) }
+   @builtin_common, @builtin_extra_2001;
 
 my %sloppy_int_version =
  ( decimal            => 'double'
@@ -129,7 +152,6 @@ my %schemas = map { ($_->{uri_xsd} => $_) }
 
 =c_method predefinedSchemas
 Returns the uri of all predefined schemas.
-
 =cut
 
 sub predefinedSchemas() { keys %schemas }
@@ -137,7 +159,6 @@ sub predefinedSchemas() { keys %schemas }
 =c_method predefinedSchema URI
 Return a HASH which contains the schema information for the specified
 URI (or undef if it doesn't exist).
-
 =cut
 
 sub predefinedSchema($) { defined $_[1] ? $schemas{$_[1]} : () }
@@ -153,7 +174,6 @@ the <decimal> and <integer> types must accept huge integers, which
 require C<Math::Big*> objects to process.  But often, Perl's normal
 signed 32bit integers suffice... which is good for performance, but not
 standard compliant.
-
 =cut
 
 sub builtInType($$;$@)
