@@ -6,15 +6,18 @@ package XML::Compile;
 
 use Log::Report 'xml-compile', syntax => 'SHORT';
 use XML::LibXML;
+use XML::Compile::Util qw/:constants/;
 
 use File::Spec     qw();
 
 __PACKAGE__->knownNamespace
- ( 'http://www.w3.org/XML/1998/namespace' => '1998-namespace.xsd'
- , 'http://www.w3.org/1999/XMLSchema'     => '1999-XMLSchema.xsd'
- , 'http://www.w3.org/1999/part2.xsd'     => '1999-XMLSchema-part2.xsd'
- , 'http://www.w3.org/2000/10/XMLSchema'  => '2000-XMLSchema.xsd'
- , 'http://www.w3.org/2001/XMLSchema'     => '2001-XMLSchema.xsd'
+ ( &XMLNS       => '1998-namespace.xsd'
+ , &SCHEMA1999  => '1999-XMLSchema.xsd'
+ , &SCHEMA2000  => '2000-XMLSchema.xsd'
+ , &SCHEMA2001  => '2001-XMLSchema.xsd'
+ , &SCHEMA2001i => '2001-XMLSchema-instance.xsd'
+ , 'http://www.w3.org/1999/part2.xsd'
+                => '1999-XMLSchema-part2.xsd'
  );
 
 __PACKAGE__->addSchemaDirs($ENV{SCHEMA_DIRECTORIES});
@@ -251,8 +254,8 @@ sub dataToXML($)
 
     my $data = "$thing";
     $data = substr($data, 0, 39) . '...' if length($data) > 40;
-    mistake __x"don't known how to interpret XML data\n   {data}"
-          , data => $data;
+    error __x"don't known how to interpret XML data\n   {data}"
+       , data => $data;
 }
 
 sub _parse($)
@@ -303,7 +306,7 @@ Next to this, data-types are formatted and processed correctly; for
 instance, the specification prescribes that the C<Integer> data-type
 must accept values of at least 18 digits... not just Perl's idea of longs.
 
-XML::Compile suppoer the more complex data-types like C<list>, C<union>,
+XML::Compile supports the more complex data-types like C<list>, C<union>,
 C<substitutionGroup> (unions on complex type level), and even the
 nasty C<any> and C<anyAttribute>, which is rarely the case for the
 other modules.

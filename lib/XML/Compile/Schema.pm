@@ -216,8 +216,9 @@ and the OPTIONS are passed to M<addSchemas()>.
 =cut
 
 sub importDefinitions($@)
-{   my ($self, $thing) = (shift, shift);
-    my $tree = $self->dataToXML($thing) or return;
+{   my $self  = shift;
+    my $thing = shift or return;
+    my $tree  = $self->dataToXML($thing) or return;
     $self->addSchemas($tree, @_);
 }
 
@@ -273,8 +274,8 @@ When a WRITER is created, a CODE reference is returned which needs
 to be called with an M<XML::LibXML::Document> object and a HASH, and
 returns a M<XML::LibXML::Node>.
 
-Most options below are explained in more detailed in the manual-page
-M<XML::Compile::Schema::Translate>, which implements the compilation..
+Most options below are B<explained in more detailed> in the manual-page
+M<XML::Compile::Schema::Translate>, which implements the compilation.
 
 =option  check_values BOOLEAN
 =default check_values <true>
@@ -324,7 +325,7 @@ When defined, this will overrule the C<attributeFormDefault> flags in
 all schemas.  When not qualified, the xml will not produce nor
 process prefixes on attributes.
 
-=option  output_namespaces HASH
+=option  output_namespaces HASH|ARRAY-of-PAIRS
 =default output_namespaces {}
 Can be used to predefine an output namespace (when 'WRITER') for instance
 to reserve common abbreviations like C<soap> for external use.  Each
@@ -343,6 +344,12 @@ XML components into one, and add the namespaces later.
 =default namespace_reset <false>
 Use the same prefixes in C<output_namespaces> as with some other compiled
 piece, but reset the counts to zero first.
+
+=option  use_default_prefix BOOLEAN
+=default use_default_prefix <false>
+When mixing qualified and unqualified namespaces, then the use of
+a default prefix can be quite confusing.  Therefore, by default, all
+qualified elements will have an explicit prefix.
 
 =option  sloppy_integers BOOLEAN
 =default sloppy_integers <false>
@@ -392,11 +399,9 @@ sub compile($$@)
 {   my ($self, $action, $type, %args) = @_;
     defined $type or return ();
 
-    exists $args{check_values}
-       or $args{check_values} = 1;
-
-    exists $args{check_occurs}
-       or $args{check_occurs} = 1;
+    exists $args{check_values}       or $args{check_values} = 1; 
+    exists $args{check_occurs}       or $args{check_occurs} = 1;
+    exists $args{include_namespaces} or $args{include_namespaces} = 1;
 
     $args{sloppy_integers}   ||= 0;
     unless($args{sloppy_integers})
@@ -409,13 +414,25 @@ sub compile($$@)
             if $@;
     }
 
-    $args{include_namespaces} = 1
-        unless defined $args{include_namespaces};
 
-    $args{output_namespaces}  ||= {};
+    my $outns = $args{output_namespaces} ||= {};
+    if(ref $outns eq 'ARRAY')
+    {   my @ns = @$outns;
+        $outns = $args{output_namespaces} = {};
+        while(@ns)
+        {   my ($prefix, $uri) = (shift @ns, shift @ns);
+            $outns->{$uri} = { uri => $uri, prefix => $prefix };
+        }
+    }
 
-    do { $_->{used} = 0 for values %{$args{output_namespaces}} }
-        if $args{namespace_reset};
+    my $saw_default = 0;
+    foreach (values %$outns)
+    {   $_->{used} = 0 if $args{namespace_reset};
+        $saw_default ||= $_->{prefix} eq '';
+    }
+
+    $outns->{''} = {uri => '', prefix => '', used => 0}
+        if !$saw_default && !$args{use_default_prefix};
 
     my $nss   = $self->namespaces;
 
@@ -918,11 +935,6 @@ evaluated before the global hooks.
  my $reader = $schema->compile(READER => $type
   , hook => HOOK, hooks => [ HOOK, HOOK, ...]);
 
- # syntax may still change
- $wsdl->call(GetPrice => $params, hook => HOOK, ...);
- $wsdl->prepare('GetPrice', hook => HOOK, ...);
- $wsdl->server(hook => HOOK, ...);
-
 =examples of HOOKs:
 
  my $hook = { type    => '{my_ns}my_type'
@@ -946,8 +958,9 @@ Each hook has two kinds of parameters: selectors and processors.
 Selectors define the schema component of which the processing is modified.
 When one of the selectors matches, the processing information for the hook
 is used.  When no selector is specified, then the hook will be used on all
-elements.  Available selectors (see below for details on each of them):
+elements.
 
+Available selectors (see below for details on each of them):
 =over 4
 =item . type
 =item . id
@@ -984,8 +997,8 @@ pattern archors.
  type => qr/\}xml_/   # type start with xml_
  type => [ qw/int float/ ];
 
- use XML::Compile::Util qw/pack_type/;
- type => pack_type('http://www.w3.org/2000/10/XMLSchema', 'int')
+ use XML::Compile::Util qw/pack_type SCHEMA2000/;
+ type => pack_type(SCHEMA2000, 'int')
 
 =subsection hooks on matching ids
 
@@ -998,9 +1011,12 @@ the future.
 
  # default schema types have id's with same name
  id => 'int'
- id => 'http://www.w3.org/2000/10/XMLSchema#int'
+ id => 'http://www.w3.org/2001/XMLSchema#int'
  id => qr/\#xml_/   # id which start with xml_
  id => [ qw/int float/ ];
+
+ use XML::Compile::Util qw/pack_id SCHEMA2001/;
+ id => pack_id(SCHEMA2001, int)
 
 =subsection hooks on matching paths
 

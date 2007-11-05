@@ -8,6 +8,25 @@ TODO:
   - improve template output, f.i. anyAttribute, any, maxOccurs > 1,
     schema recursion.
 
+version 0.57: Mon Nov  5 15:53:19 CET 2007
+
+	Fixes:
+
+	- basic schema elements (like SCHEMA2001 int) could not be
+	  used as starting point for translation.
+
+	Improvements:
+
+	- XML::Compile::Util now exports some standard name-spaces as
+	  symbolic names, like SCHEMA2001.
+
+	- added 2001 XMLSchema instance xsd.
+
+	- XML::Compile::Schema::importDefinitions ignores undef param.
+
+	- compile(output_namespaces) now can be initialized with a
+	  simple ARRAY, and explained a little better.
+
 version 0.56: Thu Oct 18 09:25:16 CEST 2007
 
 	Improvements:

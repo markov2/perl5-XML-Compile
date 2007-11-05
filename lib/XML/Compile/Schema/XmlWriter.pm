@@ -294,8 +294,6 @@ sub block_handler
 
 sub required
 {   my ($path, $args, $label, $do) = @_;
-use Carp;
-$do or confess;
     my $req =
     sub { my @nodes = $do->(@_);
           return @nodes if @nodes;

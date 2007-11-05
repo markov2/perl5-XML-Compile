@@ -4,8 +4,18 @@ use strict;
 package XML::Compile::Util;
 use base 'Exporter';
 
-our @EXPORT = qw/pack_type unpack_type pack_id unpack_id
-  odd_elements block_label/;
+my @constants  = qw/XMLNS SCHEMA1999 SCHEMA2000 SCHEMA2001 SCHEMA2001i/;
+our @EXPORT    = qw/pack_type unpack_type/;
+our @EXPORT_OK =
+   ( qw/pack_id unpack_id odd_elements block_label/
+   , @constants );
+our %EXPORT_TAGS = (constants => \@constants);
+
+use constant XMLNS       => 'http://www.w3.org/XML/1998/namespace';
+use constant SCHEMA1999  => 'http://www.w3.org/1999/XMLSchema';
+use constant SCHEMA2000  => 'http://www.w3.org/2000/10/XMLSchema';
+use constant SCHEMA2001  => 'http://www.w3.org/2001/XMLSchema';
+use constant SCHEMA2001i => 'http://www.w3.org/2001/XMLSchema-instance';
 
 use Log::Report 'xml-compile';
 
@@ -23,6 +33,15 @@ The functions provided by this package are used by various XML::Compile
 components, which on their own may be unrelated.
 
 =chapter FUNCTIONS
+
+=section Constants
+
+The followinf URI are exported as constants, to avoid typinng
+in the same long URIs each time again: XMLNS, SCHEMA1999,
+SCHEMA2000, SCHEMA2001, and SCHEMA2001i.
+
+=section Packing
+
 =function pack_type [NAMESPACE], LOCALNAME
 Translates the arguments into one compact string representation of
 the node type.  When the NAMESPACE is not present, C<undef>, or an
@@ -70,6 +89,8 @@ result of M<pack_id()>.
 =cut
 
 sub unpack_id($) { split /\#/, $_[0], 2 }
+
+=section Other
 
 =function odd_elements LIST
 Returns the odd-numbered elements in the list.

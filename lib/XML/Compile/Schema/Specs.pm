@@ -7,6 +7,7 @@ package XML::Compile::Schema::Specs;
 use Log::Report 'xml-compile', syntax => 'SHORT';
 
 use XML::Compile::Schema::BuiltInTypes   qw/%builtin_types/;
+use XML::Compile::Util qw/SCHEMA1999 SCHEMA2000 SCHEMA2001 unpack_type/;
 
 =chapter NAME
 
@@ -18,10 +19,7 @@ XML::Compile::Schema::Specs - Predefined Schema Information
  use XML::Compile::Schema::Specs;
 
 =chapter DESCRIPTION
-This package defines the various schema-specifications, however
-currently only supports the last one: L<http://www.w3.org/2001/XMLSchema>.
-It is simple to extend the list of supported schemas, but someone has
-to do it.  Feel invited.
+This package defines the various schema-specifications.
 
 =chapter METHODS
 
@@ -127,22 +125,22 @@ my %sloppy_int_version =
  );
 
 my %schema_1999 =
- ( uri_xsd => 'http://www.w3.org/1999/XMLSchema'
- , uri_xsi => 'http://www.w3.org/1999/XMLSchema-instance'
+ ( uri_xsd => SCHEMA1999
+ , uri_xsi => SCHEMA1999.'-instance'
 
  , builtin_public => \%builtin_public_1999
  );
 
 my %schema_2000 =
- ( uri_xsd => 'http://www.w3.org/2000/10/XMLSchema'
- , uri_xsi => 'http://www.w3.org/2000/10/XMLSchema-instance'
+ ( uri_xsd => SCHEMA2000
+ , uri_xsi => SCHEMA2000.'-instance'
 
  , builtin_public => \%builtin_public_2000
  );
 
 my %schema_2001 =
- ( uri_xsd  => 'http://www.w3.org/2001/XMLSchema'
- , uri_xsi  => 'http://www.w3.org/2001/XMLSchema-instance'
+ ( uri_xsd  => SCHEMA2001
+ , uri_xsi  => SCHEMA2001 .'-instance'
 
  , builtin_public => \%builtin_public_2001
  );
@@ -163,7 +161,7 @@ URI (or undef if it doesn't exist).
 
 sub predefinedSchema($) { defined $_[1] ? $schemas{$_[1]} : () }
 
-=c_method builtInType EXPANDED | (URI,LOCAL), OPTIONS
+=c_method builtInType (NODE|undef), EXPANDED | (URI,LOCAL), OPTIONS
 Provide an EXPANDED (full) type name or an namespace URI and a LOCAL node
 name.  Returned is a HASH with process information or C<undef> if not
 found.
@@ -179,13 +177,8 @@ standard compliant.
 sub builtInType($$;$@)
 {   my ($class, $node, $ns) = (shift, shift, shift);
     my $name = @_ % 1 ? shift : undef;
-    unless(defined $name)
-    {   if($ns =~ m/^\s*\{(.*)\}(.*)/ ) { ($ns, $name) = ($1, $2) }
-        else
-        {   error __x"incomplete type {namespace}"
-                , namespace => $ns;
-        }
-    }
+    ($ns, $name) = unpack_type $ns
+        unless defined $name;
 
     my $schema = $schemas{$ns}
         or return ();

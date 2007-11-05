@@ -9,7 +9,7 @@ use List::Util  'first';
 use XML::Compile::Schema::Specs;
 use XML::Compile::Schema::BuiltInFacets;
 use XML::Compile::Schema::BuiltInTypes   qw/%builtin_types/;
-use XML::Compile::Util                   qw/pack_type/;
+use XML::Compile::Util                   qw/pack_type unpack_type/;
 use XML::Compile::Iterator               ();
 
 # Elements from the schema to ignore: remember, we are collecting data
@@ -169,13 +169,26 @@ sub make($@)
 
 sub topLevel($$)
 {   my ($self, $path, $fullname) = @_;
-    my $nss  = $self->namespaces;
 
+    # built-in types have to be handled differently.
+    my $internal = XML::Compile::Schema::Specs->builtInType
+      (undef, $fullname, sloppy_integers => $self->{sloppy_integers});
+
+    if($internal)
+    {   my $builtin = $self->make(builtin => $fullname, undef
+            , $fullname, $internal, $self->{check_values});
+        my $builder = $self->{action} eq 'WRITER'
+          ? sub { $_[0]->createTextNode($builtin->(@_)) }
+          : $builtin;
+        return $self->make('element_wrapper', $path, $builder);
+    }
+
+    my $nss  = $self->namespaces;
     my $top  = $nss->find(element   => $fullname)
             || $nss->find(attribute => $fullname)
        or error __x(( $fullname eq $path
-                    ? N__"cannot find element or attribute {name}"
-                    : N__"cannot find element or attribute {name} at {where}"
+                    ? N__"cannot find element or attribute `{name}'"
+                    : N__"cannot find element or attribute `{name}' at {where}"
                     ), name => $fullname, where => $path);
 
     my $node = $top->{node};
@@ -200,7 +213,7 @@ sub topLevel($$)
     my $schemans = $node->namespaceURI;
 
     my $tree = XML::Compile::Iterator->new
-      ( $top->{node}
+      ( $node
       , $path
       , sub { my $n = shift;
                  $n->isa('XML::LibXML::Element')
@@ -1244,10 +1257,12 @@ sub findHooks($$$)
     {   my $match;
 
         $match++
-            if !$hook->{path} && !$hook->{id} && !$hook->{type};
+            if !$hook->{path} && !$hook->{id}
+            && !$hook->{type} && !$hook->{attribute};
 
-        if(my $p = $hook->{path})
-        {   $match++
+        if(!$match && $hook->{path})
+        {   my $p = $hook->{path};
+            $match++
                if first {ref $_ eq 'Regexp' ? $path =~ $_ : $path eq $_}
                      ref $p eq 'ARRAY' ? @$p : $p;
         }
@@ -1261,8 +1276,8 @@ sub findHooks($$$)
         }
 
         if(!$match && defined $type && $hook->{type})
-        {   my $t     = $hook->{type};
-            my $local = $type =~ m/^\{.*?\}(.*)$/ ? $1 : die $type;
+        {   my $t  = $hook->{type};
+            my ($ns, $local) = unpack_type $t;
             $match++
                 if first {ref $_ eq 'Regexp'     ? $type  =~ $_
                          : substr($_,0,1) eq '{' ? $type  eq $_
@@ -1359,19 +1374,50 @@ options to interfere.
 
 =over 4
 
-=item output_namespaces HASH
+=item output_namespaces HASH|ARRAY-of-PAIRS
 The translator will create XML elements (WRITER) which use name-spaces,
 based on its own name-space/prefix mapping administration.  This is
-needed because the XML tree is formed bottom-up, where XML::LibXML
-can only handle this top-down.
+needed because the XML tree is created bottom-up, where XML::LibXML
+namespace management can only handle this top-down.
 
-When your pass your own HASH as argument, you can explicitly specify
-the prefixes you like to be used for which name-space.  Found name-spaces
-will be added to the hash, as well the use count.  When a new name-space
-URI is discovered, an attempt is made to use the prefix as found in the
-schema. Prefix collisions are actively avoided: when two URIs want the
-same prefix, a sequence number is added to one of them which makes it
-unique.
+When your pass your own HASH as argument, you can explicitly specify the
+prefixes you like to be used for which name-space.  Found name-spaces
+will be added to the HASH, as well the use count.  When a new name-space
+URI is discovered, an attempt is made to use the prefix as found in
+the schema. Prefix collisions are actively avoided: when two URIs want
+the same prefix, a sequence number is added to one of them which makes
+it unique.
+
+The HASH structure looks like this:
+
+  my %namespaces =
+    ( myns => { uri => 'myns', prefix => 'mypref', used => 1}
+    , ...  => { uri => ... }
+    );
+
+  my $make = $schema->compile
+    ( WRITER => ...
+    , output_namespaces => \%namespaces
+    );
+
+  # share the same namespace defs with an other component
+  my $other = $schema->compile
+    ( WRITER => ...
+    , output_namespaces => \%namespaces
+    );
+
+When used is specified and larger than 0, then the namespace will
+appear in the top-level output element (unless C<include_namespaces>
+is false).
+
+Initializing using an ARRAY is a little simpler:
+
+ output_namespaces => [ mypref => 'myns', ... => ... ];
+
+However, be warned that this does not work well with a false value
+for C<include_namespaces>: detected namespaces are added to an
+internal HASH now, which is not returned; that information is lost.
+You will need to know each used namespace beforehand.
 
 =item include_namespaces BOOLEAN
 When true and WRITER, the top level returned XML element will contain
@@ -1392,6 +1438,16 @@ consistent name-space usage.  However, when C<include_namespaces> is
 used, you may get ghost name-space listings.  This option will reset
 the counts on all defined name-spaces.
 
+=item use_default_namespace BOOLEAN (added in release 0.57)
+When a true value, the blank prefix will be used for the first namespace
+URI which requires a auto-generated prefix.  However, in quite some
+environments, people mix horrible non-namespace qualified elements with 
+nice namespace qualified elements.  In such situations, namespace the
+qualified-but-default prefix (i.e., no prefix) is confusing.  Therefore,
+the option defaults to false: do not use the invisible prefix.
+
+You may explicitly specify a blank prefix with C<output_namespaces>,
+which will be used when applicable.
 =back
 
 =subsection Wildcards handlers

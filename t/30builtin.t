@@ -8,7 +8,7 @@ use TestTools;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 8;
+use Test::More tests => 14;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -34,6 +34,23 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 __SCHEMA__
 
 ok(defined $schema);
+
+#
+# Direct schema access
+#
+
+my $dirr = $schema->compile(READER => "{$SchemaNS}int");
+ok(defined $dirr, 'read an int');
+my $val = $dirr->('<some>40</some>');
+cmp_ok($val, '==', 40);
+
+my $dirw = $schema->compile(WRITER => "{$SchemaNS}int");
+my $doc  = XML::LibXML->createDocument('1.0', 'UTF-8');
+ok(defined $dirw, 'write an int');
+my $node = $dirw->($doc, '41');
+ok(ref $node, 'created XML node');
+isa_ok($node, 'XML::LibXML::Text');
+compare_xml($node, '41');
 
 #
 # simple element type
