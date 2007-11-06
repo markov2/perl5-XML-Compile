@@ -8,6 +8,18 @@ TODO:
   - improve template output, f.i. anyAttribute, any, maxOccurs > 1,
     schema recursion.
 
+version 0.58: Tue Nov  6 12:35:28 CET 2007
+
+	Fixes:
+
+	- could not handle empty sequences.
+
+	- boolean 'true' and 'false' must be decoded into 1 and 0.
+
+	- parsing of boolean was sensitive for blanks.
+
+	- elements_qualified overrule extended too far.
+
 version 0.57: Mon Nov  5 15:53:19 CET 2007
 
 	Fixes:
