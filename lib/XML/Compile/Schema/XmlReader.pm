@@ -394,7 +394,7 @@ sub complex_element
     my @elems = odd_elements @$elems;
     my @attrs = (odd_elements(@$attrs), @$attrs_any);
 
-    sub { my $tree    = shift; # or return ();
+    sub { my $tree    = shift or return ();
           my $node    = $tree->node;
           my %complex
            = ( (map {$_->($tree)} @elems)

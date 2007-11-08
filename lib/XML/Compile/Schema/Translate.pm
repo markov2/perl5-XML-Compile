@@ -515,12 +515,13 @@ sub element($)
     my $fullname = pack_type $self->{tns}, $name;
 
     # detect recursion
-    if(exists $self->{nest}{$fullname})
-    {   my $outer = \$self->{nest}{$fullname};
-#warn "Recursion detected for $fullname";
+    my $nodeid = $$node;  # the internal SCALAR value; the C struct
+    if(exists $self->{nest}{$nodeid})
+    {   my $outer = \$self->{nest}{$nodeid};
+#warn "Recursion detected for $nodeid";
         return sub { $$outer->(@_) };
     }
-    $self->{nest}{$fullname} = undef;
+    $self->{nest}{$nodeid} = undef;
 
     my $where    = $tree->path. "#el($name)";
     my $form     = $node->getAttribute('form');
@@ -585,15 +586,15 @@ sub element($)
     {   $r = $self->make(simple_element => $where, $tag, $st);
     }
 
-    # this must look very silly to you... however, this is resolving
-    # recursive schemas: this way nested use of the same element
-    # definition will catch the code reference of the outer definition.
-    $self->{nest}{$fullname}
-      = ($before || $replace || $after)
+    my $do = ($before || $replace || $after)
       ? $self->make(hook => $where, $r, $tag, $before, $replace, $after)
       : $r;
 
-    delete $self->{nest}{$fullname};  # clean the outer definition
+    # this must look very silly to you... however, this is resolving
+    # recursive schemas: this way nested use of the same element
+    # definition will catch the code reference of the outer definition.
+    $self->{nest}{$nodeid} = $do;
+    delete $self->{nest}{$nodeid};  # clean the outer definition
 }
 
 sub particle($)

@@ -4,7 +4,7 @@ use 5.008;
 
 WriteMakefile
  ( NAME	 	=> 'XML::Compile'
- , VERSION	=> 0.58
+ , VERSION	=> '0.59'
  , PREREQ_PM    =>
    { XML::LibXML               => 1.63
    , Math::BigInt              => 1.77
@@ -14,7 +14,7 @@ WriteMakefile
 
    , Test::More                => 0.54
    , Test::Deep                => 0.095
-   , Test::Pod                 => 1.00
+   , Test::Pod                 => '1.00'
    }
  , AUTHOR       => 'Mark Overmeer'
  , ABSTRACT     => 'Compilation based XML processing'

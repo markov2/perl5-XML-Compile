@@ -6,7 +6,14 @@ Mark Overmeer.
 
 TODO:
   - improve template output, f.i. anyAttribute, any, maxOccurs > 1,
-    schema recursion.
+
+version 0.59: Thu Nov  8 14:04:44 CET 2007
+
+	Fixes:
+
+	- Schema recursion detected too often.  It had to be based on the
+	  schema-node, not the type name (which isn't unique enough)
+	  Spotted by [Gert Doering].
 
 version 0.58: Tue Nov  6 12:35:28 CET 2007
 

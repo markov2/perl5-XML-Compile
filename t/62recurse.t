@@ -10,7 +10,7 @@ use Data::Dumper;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 55;
+use Test::More tests => 73;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -34,6 +34,30 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
   </sequence>
 </complexType>
 
+# this is not recursion
+<element name="test3">
+  <complexType>
+    <sequence>
+      <element name="c">
+        <complexType>
+          <sequence>
+            <element name="c" type="int"/>
+          </sequence>
+        </complexType>
+      </element>
+    </sequence>
+  </complexType>
+</element>
+
+
+# ... neither is this one
+<element name="test4">
+  <complexType>
+    <sequence>
+      <element name="test4" type="int" />
+    </sequence>
+  </complexType>
+</element>
 
 </schema>
 __SCHEMA__
@@ -92,4 +116,16 @@ test_rw($schema, test2 => <<__XML, {a => 7, b => {a => 8, b => {a => 9}}});
      </b>
   </b>
 </test2>
+__XML
+
+### test 3, no recursion [when detected as recursion, you get errors]
+
+test_rw($schema, test3 => <<__XML, { c => { c => 42 } } );
+<test3><c><c>42</c></c></test3>
+__XML
+
+### test 4, no recursion
+
+test_rw($schema, test4 => <<__XML, { test4 => 11 } );
+<test4><test4>11</test4></test4>
 __XML
