@@ -27,7 +27,28 @@ foreach my $package (@show_versions)
     warn "$package $report\n";
 }
 
-warn "libxml2 ".XML::LibXML::LIBXML_DOTTED_VERSION()."\n";
+my $xml2_version = XML::LibXML::LIBXML_DOTTED_VERSION();
+warn "libxml2 $xml2_version\n";
+
+my @xv = split /\./, $xml2_version;
+if($xv[0] < 2 || $xv[1] < 6 || $xv[2] < 23)
+{   warn <<__WARN;
+
+*
+* WARNING:
+* Your libxml2 version ($xml2_version) is quite old: you may
+* have failing tests and poor functionality.
+*
+* Please install a new version of the library AND reinstall the
+* XML::LibXML module.  Otherwise, you may need to install this
+* module with force.
+*
+
+__WARN
+
+    warn "Press enter to continue with the tests: \n";
+    <STDIN>;
+}
 
 require_ok('XML::Compile');
 require_ok('XML::Compile::Dumper');

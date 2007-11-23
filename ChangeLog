@@ -7,6 +7,25 @@ Mark Overmeer.
 TODO:
   - improve template output, f.i. anyAttribute, any, maxOccurs > 1,
 
+version 0.60:
+
+	Changes:
+
+	- ELEMENT_ORDER hook returns packed types, not nodeName's,
+	  because that would include a (non constant) prefix.
+
+	Fixes:
+
+	- ::Util::pack_type() with undef namespace returned undef.
+
+	Improvements:
+
+	- Warn people about out-dated libxml2 when running tests
+	  in t/01use.t.  Let's see of CPANTesters like this.
+
+	- when a READER is compiled with C<rpc_hrefs>, then elements
+	  may have a href attribute, used for SOAP-RPC encoding.
+
 version 0.59: Thu Nov  8 14:04:44 CET 2007
 
 	Fixes:

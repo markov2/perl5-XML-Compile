@@ -393,6 +393,12 @@ option are run before the global definitions.
 =default hooks C<undef>
 Alternative for option C<hook>.
 
+=option  permit_href BOOLEAN
+=default permit_href <false>
+When parsing SOAP-RPC encoded messages, the elements may have a C<href>
+attribute, pointing to an object with C<id>.  The READER will return the
+unparsed, unresolved node when the attribute is detected, and the SOAP-RPC
+decoder will have to discover and resolve it.
 =cut
 
 sub compile($$@)

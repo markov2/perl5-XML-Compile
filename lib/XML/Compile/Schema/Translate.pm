@@ -766,7 +766,12 @@ sub particleElement($)
      : undef;
 
     my $ns    = $node->namespaceURI;
-    ($name => $self->make($generate => $where, $ns, $name, $do, $value));
+    my $do_el = $self->make($generate => $where, $ns, $name, $do, $value);
+
+    $do_el = $self->make('element_href' => $where, $ns, $name, $do_el)
+        if $self->{permit_href} && $self->{action} eq 'READER';
+ 
+    ($name => $do_el);
 }
 
 sub attributeOne($)

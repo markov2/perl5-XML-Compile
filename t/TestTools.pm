@@ -7,8 +7,8 @@ package TestTools;
 use base 'Exporter';
 
 use XML::LibXML;
-use XML::Compile::Dumper;
 use XML::Compile::Util qw/SCHEMA2001/;
+use XML::Compile::Dumper;
 
 use Test::More;
 use Test::Deep   qw/cmp_deeply/;

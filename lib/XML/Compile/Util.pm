@@ -60,7 +60,9 @@ part made.
 =cut
 
 sub pack_type($;$)
-{   @_==1 || !defined $_[0] || !length $_[0] ? $_[0] : "{$_[0]}$_[1]"
+{      @_==1 ? $_[0]
+    : !defined $_[0] || !length $_[0] ? $_[1]
+    : "{$_[0]}$_[1]"
 }
 
 =function unpack_type STRING
