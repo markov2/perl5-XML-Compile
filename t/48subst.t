@@ -9,7 +9,8 @@ use TestTools;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 21 + ($skip_dumper ? 0 : 18);
+use Test::More tests => 21;
+
 my $TestNS2 = "http://second-ns";
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );

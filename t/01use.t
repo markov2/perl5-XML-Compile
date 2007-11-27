@@ -4,7 +4,7 @@ use warnings;
 use strict;
 
 use lib 'lib';
-use Test::More tests => 14;
+use Test::More tests => 13;
 
 # The versions of the following packages are reported to help understanding
 # the environment in which the tests are run.  This is certainly not a
@@ -51,7 +51,6 @@ __WARN
 }
 
 require_ok('XML::Compile');
-require_ok('XML::Compile::Dumper');
 require_ok('XML::Compile::Iterator');
 require_ok('XML::Compile::Schema');
 require_ok('XML::Compile::Schema::BuiltInFacets');

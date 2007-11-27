@@ -73,13 +73,18 @@ are support packages):
 =item M<XML::Compile::Schema>
 Interpret schema elements and types: process XML messages.
 
-=item M<XML::Compile::WSDL> and M<XML::Compile::SOAP>
+=item M<XML::Compile::WSDL11> and M<XML::Compile::SOAP>
 Use the SOAP protocol, client side.  Requires the installation of
 the XML-Compile-SOAP distribition.  Implementation in progress.
 
 =item M<XML::Compile::SOAP::Daemon>
 Create a SOAP daemon.  Requires the installation of the
 XML-Compile-SOAP-Daemon distribition.  Implementation in progress.
+
+=item M<XML::Compile::Dumper>
+Enables you to save pre-compiled XML handlers, the results of
+M<compileClient()>.  However, this results in huge files, so may not be
+worth the effort.
 
 =back
 

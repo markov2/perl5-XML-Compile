@@ -4,7 +4,7 @@ use 5.008;
 
 WriteMakefile
  ( NAME	 	=> 'XML::Compile'
- , VERSION	=> '0.60'
+ , VERSION	=> '0.61'
  , PREREQ_PM    =>
    { XML::LibXML               => 1.63
    , Math::BigInt              => 1.77
@@ -30,7 +30,7 @@ DISTDIR         = ../public_html/xml-compile/source
 LICENSE         = artistic
 
 # for POD
-EXTENDS		= ../XMLSOAP:../XMLDaemon
+EXTENDS		= ../XMLSOAP:../XMLDaemon:../XMLDumper
 FIRST_YEAR      = 2006
 EMAIL           = perl@overmeer.net
 WEBSITE         = http://perl.overmeer.net/xml-compile/

@@ -8,7 +8,6 @@ use base 'Exporter';
 
 use XML::LibXML;
 use XML::Compile::Util qw/SCHEMA2001/;
-use XML::Compile::Dumper;
 
 use Test::More;
 use Test::Deep   qw/cmp_deeply/;
@@ -16,12 +15,7 @@ use POSIX        qw/_exit/;
 use Log::Report  qw/try/;
 use Data::Dumper qw/Dumper/;
 
-# avoid refcount errors perl 5.8.8, libxml 2.6.26, XML::LibXML 2.60,
-# and Data::Dump::Streamer 2.03;  actually, the bug can be anywhere...
-our $skip_dumper = 1;
-
 our @EXPORT = qw/
- $skip_dumper
  $TestNS
  $SchemaNS
  $dump_pkg
@@ -75,39 +69,6 @@ sub reader_error($$$)
     warn "RETURNED TREE=",Dumper $tree if defined $tree;
     ok(length $error, "ER=$error");
     $error;
-}
-
-# check whether the dumped code produces the same HASH as
-# the freshly compiled code.
-my $lab = 1;
-sub reader_dump($$$)
-{   my ($reader, $xml, $hash) = @_;
-
-    my $e = '';
-    open OUT, '>:utf8', \$e;
-
-    my $d =  XML::Compile::Dumper->new
-     ( package    => $dump_pkg
-     , filehandle => \*OUT
-     );
-
-    my $label = 'dump_reader_'.$lab++;
-    $d->freeze($label => $reader);
-
-    $d->close;
-
-    # Wow!!! name-space polution!
-    eval $e;
-    cmp_ok($@, 'eq', '');
-
-    no strict 'refs';
-    my $r = *{"${dump_pkg}::$label"}{CODE};
-    ok(defined $r);
-
-    my $h = $r->($xml);
-    ok(defined $h, 'processed via dumped source');
- 
-    cmp_deeply($h, $hash, "dump and direct trees");
 }
 
 sub writer($$$@)
@@ -169,41 +130,6 @@ sub writer_error($$$)
     $error;
 }
 
-# check whether the dumped code produces the same XML as
-# the freshly compiled code.
-sub writer_dump($$)
-{   my ($writer, $xml) = @_;
-
-    my $e = '';
-    open OUT, '>:utf8', \$e;
-
-    my $d =  XML::Compile::Dumper->new
-     ( package    => $dump_pkg
-     , filehandle => \*OUT
-     );
-
-    my $label = 'dump_writer_'.$lab++;
-    $d->freeze($label => $writer);
-
-    $d->close;
-
-    # Wow!!! name-space polution!
-    eval $e;
-    cmp_ok($@, 'eq', '');
-
-    no strict 'refs';
-    my $w = *{"${dump_pkg}::$label"}{CODE};
-    ok(defined $w);
-
-    my $doc = XML::LibXML->createDocument('test doc', 'utf-8');
-    isa_ok($doc, 'XML::LibXML::Document');
-
-    my $tree2 = $w->($doc, $xml);
-    ok(defined $tree2, 'processed via dumped source');
-
-    $tree2;
-}
-
 sub test_rw($$$$;$$)
 {   my ($schema, $test, $xml, $hash, $expect, $h2) = @_;
 
@@ -230,11 +156,6 @@ sub test_rw($$$$;$$)
 #warn Dumper $h, $hash;
     cmp_deeply($h, $hash, "from xml");
 
-    # Reader dump
-
-    reader_dump($r, $xml, $hash)
-        unless $skip_dumper;
-
     # Writer
 
     my $writer = writer($schema, $test, $type);
@@ -244,12 +165,6 @@ sub test_rw($$$$;$$)
     my $tree = writer_test($writer, $msg);
 
     compare_xml($tree, $expect || $xml);
-
-    # Writer dump
-
-    return if $skip_dumper;
-    my $tree2 = writer_dump($writer, $msg);
-    compare_xml($tree2, $tree->toString);
 }
 
 sub compare_xml($$)

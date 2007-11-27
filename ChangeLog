@@ -7,7 +7,19 @@ Mark Overmeer.
 TODO:
   - improve template output, f.i. anyAttribute, any, maxOccurs > 1,
 
-version 0.60:
+version 0.61: Tue Nov 27 11:43:08 CET 2007
+
+	Changes:
+
+	- Moved XML::Compile::Dumper from this distribution into
+	  its own.
+
+	Fixes:
+
+	- ::compileClient(element_qualified => 'TOP') did remove the
+	  existing qualification need.
+
+version 0.60: Sat Nov 24 10:22:53 CET 2007
 
 	Changes:
 

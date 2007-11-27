@@ -196,18 +196,21 @@ sub topLevel($$)
     my $elems_qual = $top->{efd} eq 'qualified';
     if(exists $self->{elements_qualified})
     {   my $qual = $self->{elements_qualified} || 0;
+
            if($qual eq 'ALL')  { $elems_qual = 1 }
         elsif($qual eq 'NONE') { $elems_qual = 0 }
-        elsif($qual ne 'TOP')  { $elems_qual = $qual }
-        else
-        {   # explitly overrule the name-space qualification of the
-            # top-level element, which is dirty but people shouldn't
-            # use unqualified schemas anyway!!!
-            $node->removeAttribute('form');   # when in schema
-            $node->setAttribute(form => 'qualified');
-            $elems_qual = 0;
-            delete $self->{elements_qualified};
+        elsif($qual eq 'TOP')
+        {   unless($elems_qual)
+            {   # explitly overrule the name-space qualification of the
+                # top-level element, which is dirty but people shouldn't
+                # use unqualified schemas anyway!!!
+                $node->removeAttribute('form');   # when in schema
+                $node->setAttribute(form => 'qualified');
+                delete $self->{elements_qualified};
+                $elems_qual = 0;
+            }
         }
+        else {$elems_qual = $qual}
     }
 
     local $self->{elems_qual} = $elems_qual;

@@ -20,7 +20,6 @@ html/other/manuals/list.html
 html/other/methods/index.html
 html/other/xml.css
 lib/XML/Compile.pm
-lib/XML/Compile/Dumper.pm
 lib/XML/Compile/Iterator.pm
 lib/XML/Compile/Schema.pm
 lib/XML/Compile/Schema/BuiltInFacets.pm
@@ -43,7 +42,6 @@ lib/XML/Compile/xsd/2001-XMLSchema.xsd
 lib/XML/Compile/xsd/2001-datatypes.dtd
 t/01use.t
 t/20types.t
-t/21dump.t
 t/30builtin.t
 t/31elem.t
 t/32attr.t
