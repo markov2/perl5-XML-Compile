@@ -82,8 +82,8 @@ Create a SOAP daemon.  Requires the installation of the
 XML-Compile-SOAP-Daemon distribition.  Implementation in progress.
 
 =item M<XML::Compile::Dumper>
-Enables you to save pre-compiled XML handlers, the results of
-M<compileClient()>.  However, this results in huge files, so may not be
+Enables you to save pre-compiled XML handlers, the results of any
+C<compileClient>.  However, this results in huge files, so may not be
 worth the effort.
 
 =back

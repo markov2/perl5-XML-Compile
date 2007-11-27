@@ -7,6 +7,12 @@ Mark Overmeer.
 TODO:
   - improve template output, f.i. anyAttribute, any, maxOccurs > 1,
 
+version 0.62: Tue Nov 27 12:23:38 CET 2007
+
+	Fixes:
+
+	- Remove requirement for Data::Dump::Streamer.
+
 version 0.61: Tue Nov 27 11:43:08 CET 2007
 
 	Changes:
