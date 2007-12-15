@@ -3,7 +3,7 @@ use strict;
 
 package XML::Compile::Iterator;
 
-use XML::Compile::Util  qw/pack_type/;
+use XML::Compile::Util  qw/pack_type type_of_node/;
 use Log::Report 'xml-compile', syntax => 'SHORT';
 
 =chapter NAME
@@ -174,10 +174,7 @@ sub nrChildren()
 Returns the type of the M<node()>, or the empty string.
 =cut
 
-sub nodeType()
-{   my $node = shift->node or return '';
-    pack_type $node->namespaceURI, $node->localName;
-}
+sub nodeType() { type_of_node(shift->node) || '' }
 
 =method nodeLocal
 Returns the local name of the M<node()>, or the empty string.
@@ -201,10 +198,7 @@ sub textContent()
 Returns the type of the M<currentChild()>, or the empty string.
 =cut
 
-sub currentType()
-{   my $current = shift->currentChild or return '';
-    pack_type $current->namespaceURI, $current->localName;
-}
+sub currentType() { type_of_node(shift->currentChild) || '' }
 
 =method currentLocal
 Returns the local name of the M<currentChild()>, or the empty string.

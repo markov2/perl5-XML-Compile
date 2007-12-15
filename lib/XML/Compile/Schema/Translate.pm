@@ -729,7 +729,7 @@ sub particleElement($)
 
     if(my $ref =  $node->getAttribute('ref'))
     {   my $refname = $self->rel2abs($tree, $node, $ref);
-        my $where   = $tree->path . "#ref($ref)";
+        my $where   = $tree->path . "/$ref";
 
         my $def     = $self->namespaces->find(element => $refname)
             or error __x"cannot find element '{name}' at {where}"
@@ -741,7 +741,7 @@ sub particleElement($)
 
         return $self->isTrue($abstract)
           ? $self->particleElementSubst($tree->descend($refnode))
-          : $self->particleElement($tree->descend($refnode, 'ref'));
+          : $self->particleElement($tree->descend($refnode, $ref));
     }
 
     my $name     = $node->getAttribute('name')

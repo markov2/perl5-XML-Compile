@@ -7,8 +7,9 @@ use base 'Exporter';
 my @constants  = qw/XMLNS SCHEMA1999 SCHEMA2000 SCHEMA2001 SCHEMA2001i/;
 our @EXPORT    = qw/pack_type unpack_type/;
 our @EXPORT_OK =
-   ( qw/pack_id unpack_id odd_elements block_label/
-   , @constants );
+  ( qw/pack_id unpack_id odd_elements block_label type_of_node/
+  , @constants
+  );
 our %EXPORT_TAGS = (constants => \@constants);
 
 use constant XMLNS       => 'http://www.w3.org/XML/1998/namespace';
@@ -131,6 +132,15 @@ sub block_label($$)
 
     $label =~ s/^(?:seq|cho|all|gr)_//;
     $block_abbrev{$kind} . $label;
+}
+
+=function type_of_node NODE
+Translate an XML::LibXML::Node into a packed type.
+=cut
+
+sub type_of_node($)
+{   my $node = shift or return ();
+    pack_type $node->namespaceURI, $node->localName;
 }
 
 1;

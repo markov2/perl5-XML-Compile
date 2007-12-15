@@ -7,8 +7,11 @@ use strict;
 use warnings;
 no warnings 'once';
 
-use XML::Compile::Util qw/odd_elements/;
+use XML::Compile::Util qw/odd_elements block_label/;
 use Log::Report 'xml-compile', syntax => 'SHORT';
+
+use Data::Dumper;
+$Data::Dumper::Indent = 1;
 
 =chapter NAME
 
@@ -45,20 +48,43 @@ sub element_wrapper
 
 sub _block($@)
 {   my ($block, $path, $args, @pairs) = @_;
+    bless
     sub { my @elems = map { $_->() } odd_elements @pairs;
           my @tags  = map { $_->{tag} } @elems;
           local $" = ', ';
-          bless
            { tag    => $block
            , elems  => \@elems
            , struct => "$block of @tags"
-           }, 'BLOCK';
-        };
+           };
+        }, 'BLOCK';
 }
 
 sub sequence { _block(sequence => @_) }
 sub choice   { _block(choice   => @_) }
 sub all      { _block(all      => @_) }
+
+sub block_handler
+{   my ($path, $args, $label, $min, $max, $proc, $kind) = @_;
+
+    sub { my $data = $proc->();
+          my $occur
+           = $max eq 'unbounded' && $min==0 ? 'occurs any number of times'
+           : $max ne 'unbounded' && $max==1 && $min==0 ? 'is optional' 
+           : $max ne 'unbounded' && $max==1 && $min==1 ? ''  # the usual case
+           :       "occurs $min <= # <= $max times";
+
+          $data->{occur}   = $occur if $occur;
+          if($max ne 'unbounded' && $max==1)
+          {   bless $data, 'BLOCK';
+          }
+          else
+          {   $data->{tag}      = block_label $kind, $label;
+              $data->{is_array} = 1;
+              bless $data, 'REP-BLOCK';
+          }
+          $data;
+        };
+}
 
 sub element_handler
 {   my ($path, $args, $label, $min, $max, $req, $opt) = @_;
@@ -68,39 +94,30 @@ sub element_handler
            : $max ne 'unbounded' && $max==1 && $min==0 ? 'is optional' 
            : $max ne 'unbounded' && $max==1 && $min==1 ? ''  # the usual case
            :                                  "occurs $min <= # <= $max times";
-          $data->{occur}   = $occur if $occur;
-          $data->{flatten} = $max ne 'unbounded' && $max==1;
-          $data;
-        };
-}
-
-sub block_handler
-{   my ($path, $args, $label, $min, $max, $proc, $kind) = @_;
-
-    # I am too laze, on the moment.
-    notice "maxOccurs > 2 on blocks not supported"
-        if $max eq 'unbounded' or $max > 1;
-
-    sub { my $data = $proc->();
-          my $occur
-           = $max eq 'unbounded' && $min==0 ? 'occurs any number of times'
-           : $max ne 'unbounded' && $max==1 && $min==0 ? 'is optional' 
-           : $max ne 'unbounded' && $max==1 && $min==1 ? ''  # the usual case
-           :                                  "occurs $min <= # <= $max times";
-          $data->{occur}   = $occur if $occur;
-          $data->{flatten} = $max ne 'unbounded' && $max==1;
+          $data->{occur}    = $occur if $occur;
+          $data->{is_array} = $max eq 'unbounded' || $max > 1;
           $data;
         };
 }
 
 sub required
 {   my ($path, $args, $label, $do) = @_;
-    sub { $do->() };
+    $do;
+}
+
+sub element_href
+{   my ($path, $args, $ns, $childname, $do) = @_;
+    $do;
 }
 
 sub element
 {   my ($path, $args, $ns, $childname, $do) = @_;
-    sub { $do->() };
+    $do;
+}
+
+sub element_default
+{   my ($path, $args, $ns, $childname, $do, $default) = @_;
+    sub { (occur => "$childname defaults to example $default",  $do->()) };
 }
 
 sub element_fixed
@@ -114,15 +131,6 @@ sub element_nillable
     sub { (occur => "$childname is nillable", $do->()) };
 }
 
-sub element_default
-{   my ($path, $args, $ns, $childname, $do, $default) = @_;
-    sub { (occur => "$childname defaults to example $default",  $do->()) };
-}
-
-#
-# complexType/ComplexContent
-#
-
 sub complex_element
 {   my ($path, $args, $tag, $elems, $attrs, $any_attr) = @_;
     my @parts = (odd_elements(@$elems, @$attrs), @$any_attr);
@@ -135,17 +143,13 @@ sub complex_element
           }
 
           +{ kind    => 'complex'
-#          , struct  => "$tag is complex"  # too simple to mention
+#          , struct  => "$tag is complex"  # too obvious to mention
            , tag     => $tag
            , attrs   => \@attrs
            , elems   => \@elems
            };
         };
 }
-
-#
-# complexType/simpleContent
-#
 
 sub tagged_element
 {   my ($path, $args, $tag, $st, $attrs, $attrs_any) = @_;
@@ -161,14 +165,10 @@ sub tagged_element
        };
 }
 
-#
-# simpleType
-#
-
 sub simple_element
 {   my ($path, $args, $tag, $st) = @_;
     sub { +{ kind    => 'simple'
-#          , struct  => "$tag is a single value"  # normal case
+#          , struct  => "elem $tag is a single value"  # too obvious
            , tag     => $tag
            , $st->()
            };
@@ -181,8 +181,6 @@ sub builtin
     sub { (type => $type, example => $example) };
 }
 
-# simpleType
-
 sub list
 {   my ($path, $args, $st) = @_;
     sub { (struct => "a (blank separated) list of elements", $st->()) };
@@ -190,12 +188,12 @@ sub list
 
 sub facets_list
 {   my ($path, $args, $st, $early, $late) = @_;
-    sub { (facets => "with some limits on the list", $st->()) };
+    sub { (facets => "with some restrictions on list elements", $st->()) };
 }
 
 sub facets
 {   my ($path, $args, $st, @do) = @_;
-    sub { (facets => "with some limits", $st->()) };
+    sub { (facets => "with some value restrictions", $st->()) };
 }
 
 sub union
@@ -207,14 +205,12 @@ sub union
         };
 }
 
-# Attributes
-
 sub attribute_required
 {   my ($path, $args, $ns, $tag, $do) = @_;
 
-    sub { +{ kind   => 'attr'
-           , tag    => $tag
-           , occurs => "attribute $tag is required"
+    sub { +{ kind    => 'attr'
+           , tag     => $tag
+           , occurs  => "attribute $tag is required"
            , $do->()
            };
         };
@@ -225,21 +221,20 @@ sub attribute_prohibited
     sub { () };
 }
 
-sub attribute_default
+sub attribute
 {   my ($path, $args, $ns, $tag, $do) = @_;
-    sub { +{ kind   => 'attr'
-           , tag    => $tag
-           , occurs => "attribute $tag has default"
+    sub { +{ kind    => 'attr'
+           , tag     => $tag
            , $do->()
            };
         };
 }
 
-sub attribute_optional
+sub attribute_default
 {   my ($path, $args, $ns, $tag, $do) = @_;
     sub { +{ kind   => 'attr'
            , tag    => $tag
-           , occurs => "attribute $tag is optional"
+           , occurs => "attribute $tag has default"
            , $do->()
            };
         };
@@ -269,6 +264,27 @@ sub attribute_fixed_optional
         };
 }
 
+sub substgroup
+{   my ($path, $args, $type, %do) = @_;
+    sub { +{ kind    => 'substitution group'
+           , struct  => "one of the following, which extend $type"
+           , map { $_->() } values %do
+           }
+        };
+}
+
+sub anyAttribute
+{   my ($path, $args, $handler, $yes, $no, $process) = @_;
+    my $occurs = @$yes ? "in @$yes" : @$no ? "not in @$no" : 'any type';
+    bless sub { +{kind => 'attr' , struct  => "anyAttribute $occurs"} }, 'ANY';
+}
+
+sub anyElement
+{   my ($path, $args, $handler, $yes, $no, $process, $min, $max) = @_;
+    my $occurs = @$yes ? "in @$yes" : @$no ? "not in @$no" : 'any type';
+    bless sub { +{kind => 'element', struct  => 'anyElement'} }, 'ANY';
+}
+
 sub hook($$$$$)
 {   my ($path, $args, $r, $before, $produce, $after) = @_;
     return $r if $r;
@@ -276,37 +292,6 @@ sub hook($$$$$)
     ();
 }
 
-# any
-
-sub anyAttribute
-{   my ($path, $args, $handler, $yes, $no, $process) = @_;
-    my $occurs = @$yes ? "in @$yes" : @$no ? "not in @$no" : 'any type';
-
-    sub { +{ kind    => 'attr'
-           , struct  => "anyAttribute $occurs"
-           };
-        };
-}
-
-sub anyElement
-{   my ($path, $args, $handler, $yes, $no, $process, $min, $max) = @_;
-    my $occurs = @$yes ? "in @$yes" : @$no ? "not in @$no" : 'any type';
-    sub { +{ kind    => 'element'
-           , struct  => 'anyElement'
-           };
-        };
-}
-
-# SubstitutionGroups
-
-sub substgroup
-{   my ($path, $args, $type, %do) = @_;
-    sub { +{ kind    => 'substitution group'
-           , struct  => "one of the following, which extend $type"
-           , map { $_->() } values %do
-           }
-        }
-}
 
 ###
 ### toPerl
@@ -314,7 +299,9 @@ sub substgroup
 
 sub toPerl($%)
 {   my ($class, $ast, %args) = @_;
-    join "\n", perl_any($ast, \%args), '';
+    my $lines = join "\n", perl_any($ast, \%args);
+    $lines =~ s/\,\s*$/\n/;
+    $lines;
 }
 
 sub perl_any($$);
@@ -337,32 +324,52 @@ sub perl_any($$)
     {   my @sub = perl_any($child, $args);
         @sub or next;
 
-        # seperator blank between childs when comments
-        unshift @sub, '' if @subs && $sub[0] =~ m/^\# /;
-
         # last line is code and gets comma
         $sub[-1] =~ s/\,?$/,/;
 
-        # all lines get indented, unless flattening block
-        push @subs, ref $ast eq 'BLOCK' ? @sub
-          : map {length($_) ? "$args->{indent}$_" : ''} @sub;
+        if(ref $ast ne 'BLOCK')
+        {   s/^(.)/$args->{indent}$1/ for @sub;
+        }
+
+        if(ref $ast eq 'REP-BLOCK')
+        {  # repeated block
+           $sub[0]  =~ s/^  /{ /;
+           $sub[-1] =~ s/$/ },/;
+        }
+
+        # seperator blank, sometimes
+        unshift @sub, '' if $sub[0] =~ m/^\s*[#{]/;  # } 
+
+        push @subs, @sub;
     }
 
-    if(ref $ast eq 'BLOCK')
-    {   if($ast->{flatten}) { push @lines, @subs }
-        elsif( @{$ast->{elems}} )
-        {  $subs[0] =~ s/^ /{/;
-           push @lines, $ast->{elems}[0]->tag. ' => ['. @subs . ']';
-        }
+    if(ref $ast eq 'REP-BLOCK')
+    {   s/^(.)/  $1/ for @subs;
+        $subs[0] =~ s/^ ?/[/;
+        push @lines, $ast->{tag}. ' => ', @subs , ']';
+    }
+    elsif(ref $ast eq 'BLOCK')
+    {   push @lines, @subs;
     }
     elsif(@subs)
-    {   $subs[0] =~ s/^ /{/;
-        push @lines, "$ast->{tag} =>", @subs, '}';
+    {   length $subs[0] or shift @subs;
+        if($ast->{is_array})
+        {   s/^(.)/  $1/ for @subs;
+            $subs[0]  =~ s/^[ ]{0,3}/[ {/;
+            $subs[-1] =~ s/$/ }, ]/;
+            push @lines, "$ast->{tag} =>", @subs;
+        }
+        else
+        {   $subs[0]  =~ s/^  /{ /;
+            $subs[-1] =~ s/$/ },/;
+            push @lines, "$ast->{tag} =>", @subs;
+        }
     }
     else
     {   my $example = $ast->{example};
-        $example = qq{"$example"} if $example !~ m/^\d+(?:\.\d+)?$/;
-        push @lines, "$ast->{tag} => $example";
+        $example = qq{"$example"} if $example !~ m/^[+-]?\d+(?:\.\d+)?$/;
+        push @lines, "$ast->{tag} => "
+          . ($ast->{is_array} ? " [ $example, ]" : $example);
     }
 
     @lines;
@@ -389,7 +396,7 @@ sub xml_any($$$$)
 
     my $nest_indent = $indent.$args->{indent};
     if(@comment)
-    {   my $comment = join($nest_indent, '', @comment).$indent;
+    {   my $comment = ' '.join("$nest_indent   ", @comment) .' ';
         push @res
           , $doc->createTextNode($indent)
           , $doc->createComment($comment);
@@ -400,8 +407,7 @@ sub xml_any($$$$)
     push @childs, @{$ast->{elems}} if $ast->{elems};
 
     foreach my $child (@childs)
-    {   #push @res,
-        if(ref $child eq 'BLOCK')
+    {   if(ref $child eq 'BLOCK' || ref $child eq 'REP-BLOCK')
         {   push @res, xml_any($doc, $child, $indent, $args);
         }
         else

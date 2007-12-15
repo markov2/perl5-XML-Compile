@@ -7,7 +7,7 @@ no warnings 'once';
 use Log::Report 'xml-compile', syntax => 'SHORT';
 use List::Util qw/first/;
 
-use XML::Compile::Util     qw/pack_type odd_elements block_label/;
+use XML::Compile::Util qw/pack_type odd_elements block_label type_of_node/;
 use XML::Compile::Iterator ();
 
 =chapter NAME
@@ -321,8 +321,7 @@ sub required
                      , tag => $label, path => $path, _class => 'misfit';
           @pairs;
         };
-    bless $req, 'BLOCK' if ref $do eq 'BLOCK';
-    $req;
+    ref $do eq 'BLOCK' ? bless($req, 'BLOCK') : $req;
 }
 
 sub element_href
@@ -644,8 +643,8 @@ sub anyAttribute
               my $ns = $attr->namespaceURI || $_[0]->namespaceURI || '';
               next if keys %yes && !$yes{$ns};
               next if keys %no  &&   $no{$ns};
-              my $local = $attr->localName;
-              push @result, pack_type($ns, $local) => $attr;
+
+              push @result, pack_type($ns, $attr->localName) => $attr;
           }
           @result;
         };
@@ -663,7 +662,7 @@ sub anyAttribute
             @result;
           };
 
-     bless $run, 'BLOCK';
+     bless $run, 'ANY';
 }
 
 # anyElement
@@ -779,9 +778,9 @@ sub _decode_after($$)
     : $call eq 'ELEMENT_ORDER' ?
       sub { my ($xml, $h) = @_;
             ref $h eq 'HASH' or $h = { _ => $h };
-            my @order = map {pack_type $_->namespaceURI, $_->localName}
-               grep { $_->isa('XML::LibXML::Element') }
-                  $xml->childNodes;
+            my @order = map {type_of_node $_}
+                grep { $_->isa('XML::LibXML::Element') }
+                    $xml->childNodes;
             $h->{_ELEMENT_ORDER} = \@order;
             $h;
           }

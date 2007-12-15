@@ -399,6 +399,15 @@ When parsing SOAP-RPC encoded messages, the elements may have a C<href>
 attribute, pointing to an object with C<id>.  The READER will return the
 unparsed, unresolved node when the attribute is detected, and the SOAP-RPC
 decoder will have to discover and resolve it.
+
+=option  ignore_used_tags BOOLEAN
+=default ignore_used_tags <false>
+(WRITER) Usually, a C<mistake> warning is produced when a user provides
+a data structure which contains more data than is needed for the XML
+message which is created; this will show structural problems.  However,
+in some cases, you may want to play tricks with the data-structure and
+therefore disable this precausion.
+
 =cut
 
 sub compile($$@)

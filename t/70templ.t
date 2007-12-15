@@ -19,16 +19,21 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
   <complexType>
     <sequence>
        <element name="t1_a" type="int" />
-       <element name="t1_b" type="int" use="optional" />
-       <element name="t1_c" type="me:test2" />
+       <element name="t1_b" type="int" />
+       <element name="t1_c" type="me:test2" maxOccurs="2" />
        <element name="t1_d">
          <complexType>
            <sequence>
              <element name="t1_e" type="string" />
-             <element name="t1_f" type="float"  />
+             <element name="t1_f" type="float" maxOccurs="2" />
            </sequence>
          </complexType>
        </element>
+       <choice maxOccurs="3">
+         <element name="t1_g" type="me:test3" />
+         <element name="t1_h" type="int" minOccurs="0" />
+         <element name="t1_i" type="negativeInteger" maxOccurs="unbounded" />
+       </choice>
     </sequence>
   </complexType>
 </element>
@@ -39,6 +44,8 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
       <sequence>
         <element name="t2_a" type="int" />
       </sequence>
+      <attribute name="a2_a" type="int" />
+      <attribute name="a2_b" type="string" use="required" />
     </extension>
   </complexContent>
 </complexType>
@@ -48,6 +55,7 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
     <element name="t3_a" />
     <element name="t3_b" type="me:test4" />
   </sequence>
+  <attribute name="a3_a" type="int" />
 </complexType>
 
 <simpleType name="test4">
@@ -64,34 +72,73 @@ ok(defined $schema);
 
 templ_perl($schema, 'test1', <<__TEST1__, show => 'ALL');
 test1 =>
-{ # sequence of t1_a, t1_b, t1_c, t1_d
+{ # sequence of t1_a, t1_b, t1_c, t1_d, cho_t1_g
+
   # is a {http://www.w3.org/2001/XMLSchema}int
   t1_a => 42,
 
   # is a {http://www.w3.org/2001/XMLSchema}int
   t1_b => 42,
+
+  # occurs 1 <= # <= 2 times
   t1_c =>
-  { # sequence of t3_a, t3_b
-    # is a {http://www.w3.org/2001/XMLSchema}anyType
-    t3_a => "anything",
+  [ { # sequence of t3_a, t3_b
 
-    # is a {http://www.w3.org/2001/XMLSchema}int
-    # with some limits
-    t3_b => 42,
+      # is a {http://www.w3.org/2001/XMLSchema}anyType
+      t3_a => "anything",
 
-    # sequence of t2_a
-    # is a {http://www.w3.org/2001/XMLSchema}int
-    t2_a => 42,
-  },
+      # is a {http://www.w3.org/2001/XMLSchema}int
+      # with some value restrictions
+      t3_b => 42,
+
+      # sequence of t2_a
+
+      # is a {http://www.w3.org/2001/XMLSchema}int
+      t2_a => 42,
+
+      # is a {http://www.w3.org/2001/XMLSchema}int
+      a3_a => 42,
+
+      # is a {http://www.w3.org/2001/XMLSchema}int
+      a2_a => 42,
+
+      # is a {http://www.w3.org/2001/XMLSchema}string
+      a2_b => "example", }, ],
   t1_d =>
   { # sequence of t1_e, t1_f
+
     # is a {http://www.w3.org/2001/XMLSchema}string
     t1_e => "example",
 
     # is a {http://www.w3.org/2001/XMLSchema}float
-    t1_f => 3.1415,
-  },
-}
+    # occurs 1 <= # <= 2 times
+    t1_f =>  [ 3.1415, ], },
+
+  # choice of t1_g, t1_h, t1_i
+  # occurs 1 <= # <= 3 times
+  cho_t1_g => 
+  [
+    { t1_g =>
+      { # sequence of t3_a, t3_b
+
+        # is a {http://www.w3.org/2001/XMLSchema}anyType
+        t3_a => "anything",
+
+        # is a {http://www.w3.org/2001/XMLSchema}int
+        # with some value restrictions
+        t3_b => 42,
+
+        # is a {http://www.w3.org/2001/XMLSchema}int
+        a3_a => 42, }, },
+
+    { # is a {http://www.w3.org/2001/XMLSchema}int
+      # is optional
+      t1_h => 42, },
+
+    { # is a {http://www.w3.org/2001/XMLSchema}negativeInteger
+      # occurs 1 <= # <= unbounded times
+      t1_i =>  [ -1, ], },
+  ], }
 __TEST1__
 
 templ_perl($schema, 'test1', <<__TEST1b__, show => 'NONE', indent => '    ');
@@ -99,47 +146,74 @@ test1 =>
 {   t1_a => 42,
     t1_b => 42,
     t1_c =>
-    {   t3_a => "anything",
-        t3_b => 42,
-        t2_a => 42,
-    },
+    [ {   t3_a => "anything",
+          t3_b => 42,
+          t2_a => 42,
+          a3_a => 42,
+          a2_a => 42,
+          a2_b => "example", }, ],
     t1_d =>
     {   t1_e => "example",
-        t1_f => 3.1415,
-    },
-}
+        t1_f =>  [ 3.1415, ], },
+    cho_t1_g => 
+    [
+      {   t1_g =>
+          {   t3_a => "anything",
+              t3_b => 42,
+              a3_a => 42, }, },
+
+      {   t1_h => 42, },
+
+      {   t1_i =>  [ -1, ], },
+    ], }
 __TEST1b__
 
 templ_xml($schema, 'test1', <<__TEST1c__, show => 'ALL');
 <test1>
-  <!--
-    sequence of t1_a, t1_b, t1_c, t1_d
-  -->
+  <!-- sequence of t1_a, t1_b, t1_c, t1_d, cho_t1_g -->
   <t1_a type="int">42</t1_a>
   <t1_b type="int">42</t1_b>
   <t1_c>
-    <!--
-      sequence of t3_a, t3_b
-    -->
+    <!-- occurs 1 <= # <= 2 times -->
+    <!-- sequence of t3_a, t3_b -->
     <t3_a type="anyType">anything</t3_a>
     <t3_b type="int">
-      <!--
-        with some limits
-      -->
+      <!-- with some value restrictions -->
       42
     </t3_b>
-    <!--
-      sequence of t2_a
-    -->
+    <!-- sequence of t2_a -->
     <t2_a type="int">42</t2_a>
+    <a3_a type="int">42</a3_a>
+    <a2_a type="int">42</a2_a>
+    <a2_b type="string">example</a2_b>
   </t1_c>
   <t1_d>
-    <!--
-      sequence of t1_e, t1_f
-    -->
+    <!-- sequence of t1_e, t1_f -->
     <t1_e type="string">example</t1_e>
-    <t1_f type="float">3.1415</t1_f>
+    <t1_f type="float">
+      <!-- occurs 1 <= # <= 2 times -->
+      3.1415
+    </t1_f>
   </t1_d>
+  <!-- choice of t1_g, t1_h, t1_i
+       occurs 1 <= # <= 3 times -->
+  <t1_g>
+    <!-- sequence of t3_a, t3_b -->
+    <t3_a type="anyType">anything</t3_a>
+    <t3_b type="int">
+      <!-- with some value restrictions -->
+      42
+    </t3_b>
+    <a3_a type="int">42</a3_a>
+  </t1_g>
+  <t1_h type="int">
+    <!-- is optional -->
+    42
+  </t1_h>
+  <t1_i type="negativeInteger">
+    <!-- occurs 1 <= # <= unbounded times -->
+    -1
+  </t1_i>
 </test1>
 __TEST1c__
 
@@ -151,10 +225,20 @@ templ_xml($schema, 'test1', <<__TEST1d__, show => 'NONE');
     <t3_a>anything</t3_a>
     <t3_b>42</t3_b>
     <t2_a>42</t2_a>
+    <a3_a>42</a3_a>
+    <a2_a>42</a2_a>
+    <a2_b>example</a2_b>
   </t1_c>
   <t1_d>
     <t1_e>example</t1_e>
     <t1_f>3.1415</t1_f>
   </t1_d>
+  <t1_g>
+    <t3_a>anything</t3_a>
+    <t3_b>42</t3_b>
+    <a3_a>42</a3_a>
+  </t1_g>
+  <t1_h>42</t1_h>
+  <t1_i>-1</t1_i>
 </test1>
 __TEST1d__

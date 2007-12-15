@@ -4,8 +4,29 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
-TODO:
-  - improve template output, f.i. anyAttribute, any, maxOccurs > 1,
+version 0.63: Sat Dec 15 15:15:43 CET 2007
+
+	Changes:
+
+	- Require XML::LibXML 1.65, which solves attribute creating
+	  issues.
+
+	Fixes:
+
+	- dateTime did not format correctly: missing colon between
+	  minute and seconds.
+
+	- example template production failed on explicitly optional
+	  attributes and any kind of arrays.  Reported by [Gareth Kirwan]
+
+	Improvements:
+
+	- Added XML::Compile::Util::type_of_node()
+
+	- some error paths are cleaner, but still a few to be improved.
+
+	- ::compile() new option 'ignore_unused_tags", requested by
+	  rt.cpan.org#31539 [Slaven Rezic]
 
 version 0.62: Tue Nov 27 12:23:38 CET 2007
 

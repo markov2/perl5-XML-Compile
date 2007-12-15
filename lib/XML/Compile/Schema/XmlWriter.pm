@@ -7,7 +7,8 @@ no warnings 'once';
 
 use Log::Report 'xml-compile', syntax => 'SHORT';
 use List::Util    qw/first/;
-use XML::Compile::Util qw/pack_type unpack_type odd_elements block_label/;
+use XML::Compile::Util qw/pack_type unpack_type odd_elements
+   block_label type_of_node/;
 
 =chapter NAME
 
@@ -354,6 +355,7 @@ sub complex_element
     my @elems = odd_elements @$elems;
     my @attrs = @$attrs;
     my @anya  = @$any_attr;
+    my $ignore_unused_tags = $args->{ignore_unused_tags};
 
     sub { my ($doc, $data) = @_;
           unless(UNIVERSAL::isa($data, 'HASH'))
@@ -377,7 +379,8 @@ sub complex_element
           if(my @not_used = sort keys %$copy)
           {   mistake __xn "tag `{tags}' not used at {path}"
                 , "unused tags {tags} at {path}"
-                , scalar @not_used, tags => \@not_used, path => $path;
+                , scalar @not_used, tags => \@not_used, path => $path
+                   unless $ignore_unused_tags;
           }
 
           my $node  = $doc->createElement($tag);
@@ -670,12 +673,11 @@ sub anyAttribute
               @$attrs or next;
 
               foreach my $node (@$attrs)
-              {   my $nodens = $node->namespaceURI;
-                  my $name   = $node->localName;
-                  next if $nodens eq $ns && $name eq $local;
+              {   my $nodetype = type_of_node $node;
+                  next if $nodetype eq $type;
 
                   error __x"provided 'anyAttribute' node has type {type}, but labeled with {other} at {path}"
-                     , type => packtype($nodens, $name), other => $type, path => $path
+                     , type => $nodetype, other => $type, path => $path
               }
 
               push @res, @$attrs;
@@ -714,11 +716,11 @@ sub anyElement
               {   my $nodens = $node->namespaceURI;
                   defined $nodens or next; # see README.todo work-around
 
-                  my $name   = $node->localName;
-                  next if $nodens eq $ns && $name eq $local;
+                  my $nodetype = type_of_node $node;
+                  next if $nodetype eq $type;
 
                   error __x"provided 'any' element node has type {type}, but labeled with {other} at {path}"
-                     , type => pack_type($nodens, $name), other => $type, path => $path
+                     , type => $nodetype, other => $type, path => $path
               }
 
               push @res, @$elems;
