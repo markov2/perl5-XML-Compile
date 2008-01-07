@@ -8,7 +8,7 @@ use TestTools;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 166;
+use Test::More tests => 175;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -156,6 +156,11 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
     </sequence>
   </complexType>
 </element>
+
+<element name="test13">
+  <complexType />
+</element>
+
 </schema>
 __SCHEMA__
 
@@ -379,4 +384,10 @@ __XML
 
 test_rw($schema, test12 => <<__XML, {});
 <test12/>
+__XML
+
+### test 13
+
+test_rw($schema, test13 => <<__XML, {});
+<test13/>
 __XML

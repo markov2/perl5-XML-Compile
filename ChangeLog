@@ -4,6 +4,28 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.64: Mon Jan  7 11:49:49 CET 2008
+
+	Fixes:
+
+	- ::BuiltInFacets requires Math::Big{Int,Float}
+
+	- template() made mistake when a prohibited attribute was
+	  encountered.
+
+	- empty complexTypes are acceptable. [Kaare Rasmussen]
+
+	- typo: implemented base64binary, but should have been
+	  base64Binary.  Detected by [Gert Doering]
+
+	Improvements:
+
+	- perl template output with a long list of sequence element
+	  names now split over multiple lines.
+
+	- XML::Compile::Schema now explains how to use xsd files and
+	  imports/includes found in them.
+
 version 0.63: Sat Dec 15 15:15:43 CET 2007
 
 	Changes:

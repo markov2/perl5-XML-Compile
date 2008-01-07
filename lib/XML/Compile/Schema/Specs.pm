@@ -90,7 +90,7 @@ my @builtin_extra_2001  = qw/
  anySimpleType
  anyType
  anyURI
- base64binary
+ base64Binary
  dateTime
  dayTimeDuration
  gDay

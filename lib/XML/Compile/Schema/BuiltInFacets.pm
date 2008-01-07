@@ -8,6 +8,9 @@ use Log::Report 'xml-compile', syntax => 'SHORT';
 
 our @EXPORT = qw/builtin_facet/;
 
+use Math::BigInt;
+use Math::BigFloat;
+
 use constant DBL_MAX_DIG => 15;
 use constant DBL_MAX_EXP => 307;
 

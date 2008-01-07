@@ -43,7 +43,6 @@ Three serious WARNINGS:
 =over 4
 
 =item .
-
 The compiler B<only supports namespace schemas>.  It is possible,
 but generally seen as weakness, to make schemas which do not use
 namespaces, but for the moment, XML::Compile does not handle those.
@@ -51,17 +50,21 @@ Check for a C<targetNamespace> attribute on C<schema> in your C<xsd>
 file.
 
 =item .
-
 The focus is on B<data-centric XML>, which means that mixed elements
 are not understood automatically.  However, with using hooks you can
 work around this.
 
 =item .
-
 The provided B<schema is not validated>.  In many cases, compile-time
 errors will get reported.  On the other hand, the processed B<data is
 strictly validated>: both input and output will follow the specs closely
 (unless disabled).
+
+=item .
+Imports and includes as specified in schemas are NOT performed
+automaticly, and schema's and such are NOT collected from internet
+dynamically; you have to call M<XML::Compile::Schema::importDefinitions()>
+explictly with locally stored filenames.
 
 =back
 
@@ -73,13 +76,14 @@ are support packages):
 =item M<XML::Compile::Schema>
 Interpret schema elements and types: process XML messages.
 
-=item M<XML::Compile::WSDL11> and M<XML::Compile::SOAP>
-Use the SOAP protocol, client side.  Requires the installation of
-the XML-Compile-SOAP distribition.  Implementation in progress.
+=item M<XML::Compile::SOAP>
+Use the SOAP protocol, client side.
+
+=item M<XML::Compile::WSDL11>
+Use SOAP with a WSDL version 1.1 communication specification file.
 
 =item M<XML::Compile::SOAP::Daemon>
-Create a SOAP daemon.  Requires the installation of the
-XML-Compile-SOAP-Daemon distribition.  Implementation in progress.
+Create a SOAP daemon, directly from a WSDL file. Implementation in progress.
 
 =item M<XML::Compile::Dumper>
 Enables you to save pre-compiled XML handlers, the results of any

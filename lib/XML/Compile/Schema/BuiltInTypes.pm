@@ -328,12 +328,12 @@ $builtin_types{double} =
 
 =section Binary
 
-=function base64binary
+=function base64Binary
 In the hash, it will be kept as binary data.  In XML, it will be
 base64 encoded.
 =cut
 
-$builtin_types{base64binary} =
+$builtin_types{base64Binary} =
  { parse   => sub { eval { decode_base64 $_[0] } }
  , format  => sub { eval { encode_base64 $_[0] } }
  , check   => sub { !$@ }

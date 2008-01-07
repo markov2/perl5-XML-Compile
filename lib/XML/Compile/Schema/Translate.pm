@@ -881,7 +881,8 @@ sub attributeOne($)
      :                       'attribute';
 
     my $value = defined $default ? $default : $fixed;
-    ($name => $self->make($generate => $path, $ns, $tag, $st, $value));
+    my $do    = $self->make($generate => $path, $ns, $tag, $st, $value);
+    defined $do ? ($name => $do) : ();
 }
 
 sub attributeGroup($)
@@ -993,9 +994,6 @@ sub translateNsLimits($$)
 
 sub complexType($)
 {   my ($self, $tree) = @_;
-
-    $tree->nrChildren
-        or error __x"empty complexType at {where}", where => $tree->path;
 
     # Full content:
     #    annotation?

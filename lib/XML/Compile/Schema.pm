@@ -578,6 +578,71 @@ sub elements()
 
 =chapter DETAILS
 
+=section Collecting definitions
+
+When starting an application, you will need to read the schema
+definitions.  This is done by instantiating an object via
+M<XML::Compile::Schema::new()> or M<XML::Compile::WSDL11::new()>.
+The WSDL11 object has a schema object internally.
+
+Schemas may contains C<import> and C<include> statements, which
+specify other resources for definitions.  In the idea of the XML design
+team, those files should be retrieved automatically via an internet
+connection from the C<schemaLocation>.  However, this is a bad concept; in
+XML::Compile modules you will have to explictly provide filenames on local
+disk using M<importDefinitions()> or M<XML::Compile::WSDL11::addWSDL()>.
+
+There are various reasons why I, the author of this module, think the
+dynamic automatic internet imports are a bad idea.  First: you do not
+always have a working internet connection (travelling with a laptop in
+a train).  Your implementation should work the same way under all
+environmental circumstances!  Besides, I do not trust remote files on
+my system, without inspecting them.  Most important: I want to run my
+regression tests before using a new version of the definitions, so I do
+not want to have a remote server change the agreements without my
+knowledge.
+
+So: before you start, you will need to scan (recursively) the initial
+schema or wsdl file for C<import> and C<include> statements, and
+collect all these files from their C<schemaLocation> into files on
+local disk.  In your program, call M<importDefinitions()> on all of
+them -in any order- before you call M<compileClient()>.
+
+=subsection Organizing your definitions
+
+One nice feature to help you organize (especially useful when you
+package your code in a distribution), is to add these lines to the
+beginning of your code:
+
+  package My::Package;
+  XML::Compile->addSchemaDirs(__FILE__);
+  XML::Compile->knownNamespace('http://myns' => 'myns.xsd', ...);
+
+Now, if the package file is located at C<SomeThing/My/Package.pm>,
+the definion of the namespace should be kept in
+C<SomeThing/My/Package/xsd/myns.xsd>.
+
+Somewhere in your program, you have to load these definitions:
+
+  # absolute or relative path is always possible
+  $schema->importDefinitions('SomeThing/My/Package/xsd/myns.xsd');
+
+  # relative search path extended by addSchemaDirs
+  $schema->importDefinitions('myns.xsd');
+
+  # knownNamespace improves abstraction
+  $schema->importDefinitions('http://myns');
+
+Very probably, the namespace is already in some variable:
+
+  use XML::Compile::Schema;
+  use XML::Compile::Util  'pack_type';
+
+  my $myns   = 'http://some-very-long-uri';
+  my $schema = XML::Compile::Schema->new($myns);
+  my $mytype = pack_type $myns, $myelement;
+  my $reader = $schema->compileClient(READER => $mytype);
+
 =section Addressing components
 
 Normally, external users can only address elements within a schema,
