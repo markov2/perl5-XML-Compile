@@ -1243,14 +1243,12 @@ sub rel2abs($$$)
 {   my ($self, $where, $node, $type) = @_;
     return $type if substr($type, 0, 1) eq '{';
 
-    my ($url, $local)
-     = $type =~ m/^(.+?)\:(.*)/
-     ? ($node->lookupNamespaceURI($1), $2)
-     : ($node->lookupNamespaceURI(''), $type);
+    my ($prefix, $local) = $type =~ m/^(.+?)\:(.*)/ ? ($1, $2) : ('', $type);
+    my $url = $node->lookupNamespaceURI($prefix);
 
-     defined $url
-         or error __x"No namespace for type '{type}' at {where}"
-                , type => $type, where => $where;
+    error __x"No namespace for prefix `{prefix}' in `{type}' at {where}"
+      , prefix => $prefix, type => $type, where => $where
+        if length $prefix && !defined $url;
 
      pack_type $url, $local;
 }

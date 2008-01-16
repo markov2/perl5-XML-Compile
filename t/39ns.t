@@ -12,9 +12,10 @@ use Test::More tests => 49;
 
 my $NS2 = "http://test2/ns";
 
+# <wsdl> as wrapper to group two schema's, is ignored.
+
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <wsdl>
-
 <xs:schema targetNamespace="$TestNS"
         xmlns:xs="$SchemaNS"
         xmlns:me="$TestNS">

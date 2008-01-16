@@ -408,6 +408,12 @@ message which is created; this will show structural problems.  However,
 in some cases, you may want to play tricks with the data-structure and
 therefore disable this precausion.
 
+=option  interpret_nillable_as_optional BOOLEAN
+=default interpret_nillable_as_optional <false>
+Found in the wild-life, people who think that nillable means optional.
+Not too hard to fix.  For the WRITER, you still have to state NIL
+explicitly, but the elements are not constructed.  The READER will
+output NIL when the nillable elements are missing.
 =cut
 
 sub compile($$@)
@@ -606,7 +612,7 @@ So: before you start, you will need to scan (recursively) the initial
 schema or wsdl file for C<import> and C<include> statements, and
 collect all these files from their C<schemaLocation> into files on
 local disk.  In your program, call M<importDefinitions()> on all of
-them -in any order- before you call M<compileClient()>.
+them -in any order- before you call M<compile()>.
 
 =subsection Organizing your definitions
 
@@ -661,6 +667,11 @@ refers to the built-in C<int> data-type.  You may also start with
  http://www.w3.org/2001/XMLSchema#float
 
 as long as this ID refers to an element.
+
+When you use a schema without C<targetNamespace> (which is bad practice,
+but sometimes people really do not understand the beneficial aspects of
+the use of namespaces) then the elements can be addressed as C<{}name>
+or simple C<name>.
 
 =section Representing data-structures
 

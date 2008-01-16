@@ -382,6 +382,9 @@ sub element_fixed
 sub element_nillable
 {   my ($path, $args, $ns, $childname, $do) = @_;
 
+    # some people cannot read the specs.
+    my $inas = $args->{interpret_nillable_as_optional};
+
     sub { my $tree = shift;
           my $value;
           if(defined $tree && $tree->nodeLocal eq $childname)
@@ -390,9 +393,8 @@ sub element_nillable
                   if $nil eq 'true' || $nil eq '1';
               $value = $do->($tree);
           }
-          else
-          {   $value = $do->(undef);
-          }
+          elsif($inas) { return ($childname => undef) }
+          else { $value = $do->(undef) }
 
           defined $value ? ($childname => $value) : ();
         };

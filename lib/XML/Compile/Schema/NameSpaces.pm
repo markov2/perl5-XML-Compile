@@ -98,8 +98,8 @@ The ADDRESS is constructed as C< {uri}name > or as seperate URI and NAME.
 
 sub find($$;$)
 {   my ($self, $kind) = (shift, shift);
-    my ($label, $ns, $name)
-      = @_==1 ? ($_[0], unpack_type $_[0]) : (pack_type($_[0], $_[1]), @_);
+    my ($ns, $name) = @_==1 ? (unpack_type $_[0]) : @_;
+    my $label = pack_type $ns, $name; # re-pack unpacked for consistency
 
     defined $ns or return undef;
 

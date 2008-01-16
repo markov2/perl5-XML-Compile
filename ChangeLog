@@ -4,6 +4,22 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.65: Wed Jan 16 10:28:53 CET 2008
+
+	Fixes:
+
+	- fix an error "isa on unblessed" in XmlWriter.  An error will
+	  be produced when an ARRAY or HASH is found where a simple
+	  element value is expected.
+
+	Improvements:
+
+	- support schemas without targetNamespace.  Tests in t/71nons.t.
+
+	- ::Schema::compile(interpret_nillable_as_optional) added, for
+	  broken schemas, where people have interpreted the Schema
+	  specs wrongly. Reported by [Christian Mueller]
+
 version 0.64: Mon Jan  7 11:49:49 CET 2008
 
 	Fixes:

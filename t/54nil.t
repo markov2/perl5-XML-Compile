@@ -8,7 +8,7 @@ use TestTools;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 46;
+use Test::More tests => 55;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -54,7 +54,7 @@ __XMLWriter
 {   my $error = reader_error($schema, test1 => <<__XML__);
 <test1><e1></e1><e2 nil="true"/><e3>45</e3></test1>
 __XML__
-    is($error, "illegal value `' for type {http://www.w3.org/2001/XMLSchema}int");
+   is($error,"illegal value `' for type {http://www.w3.org/2001/XMLSchema}int");
 }
 
 {   my %t1b = (e1 => undef, e2 => undef, e3 => 45);
@@ -69,3 +69,16 @@ __XML__
     is($error, "data for `e2' missing at {http://test-types}test1");
 }
 
+#
+# fix broken specifications
+#
+
+push @run_opts, interpret_nillable_as_optional => 1;
+
+my %t1d = (e1 => 89, e2 => undef, e3 => 90);
+my %t1e = (e1 => 91, e2 => 'NIL', e3 => 92);
+my $error = test_rw($schema, test1 => <<__XML, \%t1d, <<__XML, \%t1e);
+<test1><e1>89</e1><e3>90</e3></test1>
+__XML
+<test1><e1>91</e1><e3>92</e3></test1>
+__XML
