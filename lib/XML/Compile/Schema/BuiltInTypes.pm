@@ -81,6 +81,7 @@ sub _replace  { $_[0] =~ s/[\t\r\n]/ /gs; $_[0]}
 
 sub bigint   { $_[0] =~ s/\s+//g;
    my $v = Math::BigInt->new($_[0]); $v->is_nan ? undef : $v }
+
 sub bigfloat { $_[0] =~ s/\s+//g;
    my $v = Math::BigFloat->new($_[0]); $v->is_nan ? undef : $v }
 

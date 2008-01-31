@@ -51,6 +51,9 @@ sub init($)
 
     $self->{$_} = {} for @defkinds, 'sgs';
 
+    $self->{import}  = {};
+    $self->{include} = [];
+
     $self->_collectTypes($top);
     $self;
 }
@@ -77,6 +80,12 @@ Returns one global element definition.
 =cut
 
 sub element($) { $_[0]->{elements}{$_[1]} }
+
+=method id STRING
+Returns one global element, selected by ID.
+=cut
+
+sub id($) { $_[0]->{ids}{$_[1]} }
 
 =method ids
 Returns a list of all found ids.
@@ -135,8 +144,7 @@ sub substitutionGroupMembers($)
 =section Index
 =cut
 
-my %skip_toplevel = map { ($_ => 1) }
-   qw/annotation import notation include redefine/;
+my %skip_toplevel = map { ($_ => 1) } qw/annotation notation redefine/;
 
 sub _collectTypes($)
 {   my ($self, $schema) = @_;
@@ -164,11 +172,26 @@ sub _collectTypes($)
     $self->{types} = {};
     $self->{ids}   = {};
 
+  NODE:
     foreach my $node ($schema->childNodes)
     {   next unless $node->isa('XML::LibXML::Element');
         my $local = $node->localName;
 
         next if $skip_toplevel{$local};
+
+        if($local eq 'import')
+        {   my $namespace = $node->getAttribute('namespace')      || $tns;
+            my $location  = $node->getAttribute('schemaLocation') || '';
+            push @{$self->{import}{$namespace}}, $location;
+            next NODE;
+        }
+
+        if($local eq 'include')
+        {   my $location  = $node->getAttribute('schemaLocation')
+                or error __x"include requires schemaLocation attribute";
+            push @{$self->{include}}, $location;
+            next NODE;
+        }
 
         my $tag   = $node->getAttribute('name');
         my $ref;
@@ -228,6 +251,29 @@ sub _collectTypes($)
     }
 
     $self;
+}
+
+=method includeLocations
+Returns a list of all schemaLocations which where specified with include
+statements.
+=cut
+
+sub includeLocations() { @{shift->{include}} }
+
+=method imports
+Returns a list with all namespaces which need to be imported.
+=cut
+
+sub imports() { keys %{shift->{import}} }
+
+=method importLocations NAMESPACE
+Returns a list of all schemaLocations specified with the import NAMESPACE
+(one of the values returned by M<imports()>).
+=cut
+
+sub importLocations($)
+{   my $locs = $_[0]->{import}{$_[1]};
+    $locs ? @$locs : ();
 }
 
 =method printIndex [FILEHANDLE]

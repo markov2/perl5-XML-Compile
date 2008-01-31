@@ -9,7 +9,7 @@ use TestTools;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 21;
+use Test::More tests => 48;
 
 my $TestNS2 = "http://second-ns";
 
@@ -30,15 +30,24 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
   </complexType>
 </element>
 
+<element name="test2">
+  <complexType>
+    <sequence>
+      <element ref="one:head" minOccurs="0" maxOccurs="3" />
+      <element name="id2" type="int" />
+    </sequence>
+  </complexType>
+</element>
+
 <!-- more schemas below -->
 </schema>
 __SCHEMA__
 
 ok(defined $schema);
 
-eval { test_rw($schema, test1 => <<__XML__, undef) };
+eval { test_rw($schema, test1 => <<__XML, undef) };
 <test1><t1>42</t1><t2>43</t2><t3>44</t3></test1>
-__XML__
+__XML
 
 ok($@, 'compile-time error');
 my $error = $@;
@@ -83,11 +92,54 @@ $schema->importDefinitions( <<__EXTRA__ );
 __EXTRA__
 
 my %t1 = (t1 => 42, alt1 => {a1 => 43}, t3 => 44);
-test_rw($schema, "test1" => <<__XML__, \%t1);
+test_rw($schema, test1 => <<__XML, \%t1);
 <test1><t1>42</t1><alt1><a1>43</a1></alt1><t3>44</t3></test1>
-__XML__
+__XML
 
 my %t2 = (t1 => 45, alt2 => {a2 => 46}, t3 => 47);
-test_rw($schema, "test1" => <<__XML__, \%t2);
+test_rw($schema, test1 => <<__XML, \%t2);
 <test1><t1>45</t1><alt2><a2>46</a2></alt2><t3>47</t3></test1>
-__XML__
+__XML
+
+### test2
+
+my %t3 =
+ ( head =>
+   [ {alt1 => {a1 => 50}}
+   , {alt1 => {a1 => 51}}
+   , {alt2 => {a2 => 52}}
+   ]
+ , id2 => 53
+ );
+
+test_rw($schema, test2 => <<__XML, \%t3);
+<test2>
+  <alt1><a1>50</a1></alt1>
+  <alt1><a1>51</a1></alt1>
+  <alt2><a2>52</a2></alt2>
+  <id2>53</id2>
+</test2>
+__XML
+
+my %t4 = (id2 => 54);
+test_rw($schema, test2 => <<__XML, \%t4);
+<test2>
+  <id2>54</id2>
+</test2>
+__XML
+
+my %t5 =
+ ( head =>
+   [ {alt2 => {a2 => 55}}
+   , {alt1 => {a1 => 56}}
+   ]
+ , id2 => 57
+ );
+
+test_rw($schema, test2 => <<__XML, \%t5);
+<test2>
+  <alt2><a2>55</a2></alt2>
+  <alt1><a1>56</a1></alt1>
+  <id2>57</id2>
+</test2>
+__XML

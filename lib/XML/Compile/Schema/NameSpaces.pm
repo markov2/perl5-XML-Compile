@@ -20,7 +20,8 @@ XML::Compile::Schema::NameSpaces - Connect name-spaces from schemas
 
 =chapter DESCRIPTION
 
-This module keeps overview on a set of schemas.
+This module keeps overview on a set of namespaces, collected from
+various schema files.
 
 =chapter METHODS
 
@@ -76,10 +77,7 @@ We need the name-space; when it is lacking then import must help, but that
 must be called explictly.
 =cut
 
-sub schemas($)
-{   my ($self, $ns) = @_;
-    $self->namespace($ns);
-}
+sub schemas($) { $_[0]->namespace($_[1]) }
 
 =method allSchemas
 Returns a list of all known schema instances.

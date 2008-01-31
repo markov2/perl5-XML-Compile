@@ -34,9 +34,10 @@ XML::Compile - Compilation based XML processing
 =chapter DESCRIPTION
 
 Many (professional) applications process XML based on a formal
-specification, expressed as XML Schema.  XML::Compile processes XML with
+specification expressed as XML Schema.  XML::Compile processes XML with
 the help of such schemas.  The Perl program only handles a tree of nested
-HASHes and ARRAYs.
+HASHes and ARRAYs, and does not need to understand namespaces and
+schema nastiness.
 
 Three serious WARNINGS:
 
@@ -48,16 +49,18 @@ are not understood automatically.  However, with using hooks you can
 work around this.
 
 =item .
-The provided B<schema is not strictly validated>.  In many cases,
-compile-time errors will get reported.  On the other hand, the processed
-B<data is strictly validated>: both input and output will follow the
-specs closely (unless disabled).
+The B<schema is not strictly validated>.  In many cases, compile-time
+errors will get reported.  On the other hand, the processed B<data is
+strictly validated> against the schema: both input and output will follow
+the specs closely (unless disabled).
 
 =item .
 Imports and includes as specified in schemas are NOT performed
 automaticly, and schema's and such are NOT collected from internet
 dynamically; you have to call M<XML::Compile::Schema::importDefinitions()>
-explictly with locally stored filenames.
+explictly with locally stored filenames.  Includes only work if they
+have a targetNamespace defined, which is the same as that of the schema
+it is included into.
 
 =back
 
@@ -129,21 +132,37 @@ sub init($)
 
 =section Accessors
 
-=ci_method addSchemaDirs DIRECTORIES
+=ci_method addSchemaDirs DIRECTORIES|PACKAGE
 Each time this method is called, the specified DIRECTORIES will be added
 in front of the list of already known schema directories.  Initially,
 the value of the environment variable C<SCHEMA_DIRECTORIES> is added
-(therefore used last), then the constructor option C<schema_dirs>
-is processed.
+(therefore tried as last resort). The constructor option C<schema_dirs>
+is processed first.
 
-If a pm filename is provided, then the directory to be used is
-calculated from it (platform independent).  So, C<lib/XML/Compile.pm>
-becomes C<lib/XML/Compile/xsd/>.  This way, modules can simply add
-their definitions via C<< XML::Compile->addSchemaDirs(__FILE__) >>
-
-Values which are C<undef> are skipped.  ARRAYs are flattened.  
-Arguments are split on colons (only when on UNIX) after flattening.
+Values which are C<undef> are skipped.  ARRAYs are flattened.  Arguments
+are split at colons (on UNIX) or semi-colons (windows) after flattening.
 The list of directories is returned, in all but VOID context.
+
+When a C<.pm> PACKAGE filename is provided, then the directory to be used is
+calculated from it (platform independent).  So, C<something/XML/Compile.pm>
+becomes C<something/XML/Compile/xsd/>.  This way, modules can simply add
+their definitions via C<< XML::Compile->addSchemaDirs(__FILE__) >> in a
+BEGIN block or in main.  M<ExtUtils::MakeMaker> will install everything
+what is found in the C<lib/> tree, so also xsd files.  Probably, you also
+want to use M<knownNamespace()>.
+
+=example adding xsd's from your own distribution
+  # file ..../My/Package.pm
+  package My::Package;
+
+  use XML::Compile;
+  XML::Compile->addSchemaDirs(__FILE__);
+  # now ...../My/Package/xsd/ is also in the schema search path
+
+  use constant MYNS => 'http://my-namespace-uri';
+  XML::Compile->knownNamespace
+   ( &MYNS => 'relative-filename-in-schemadir'
+   );
 =cut
 
 my @schema_dirs;
@@ -152,7 +171,8 @@ sub addSchemaDirs(@)
     foreach (@_)
     {   my $dir  = shift;
         my @dirs = grep {defined} ref $dir eq 'ARRAY' ? @$dir : $dir;
-        foreach ($^O eq 'MSWin32' ? @dirs : map { split /\:/ } @dirs)
+        my $sep  = $^O eq 'MSWin32' ? qr/\;/ : qr/\:/;
+        foreach (map { split $sep } @dirs)
         {   my $el = $_;
             $el = File::Spec->catfile($el, 'xsd') if $el =~ s/\.pm$//i;
             push @schema_dirs, $el;
@@ -167,7 +187,11 @@ distribution (not the full path) which contains the definition.
 
 When PAIRS of NAMESPACE-FILENAME are given, then those get defined.
 This is typically called during the initiation of modules, like
-XML::Compile and XML::Compile::SOAP.  The definitions are global.
+M<XML::Compile::WSDL> and M<XML::Compile::SOAP>.  The definitions
+are global: not related to specific instances.
+
+The FILENAMES are relative to the directories as specified with some
+M<addSchemaDirs()> call.
 =cut
 
 my %namespace_file;
@@ -185,21 +209,22 @@ sub knownNamespace($;@)
 =method findSchemaFile FILENAME
 Runs through all defined schema directories (see M<addSchemaDirs()>)
 in search of the specified FILENAME.  When the FILENAME is absolute,
-that will be used, and no search will take place.  An C<undef> is returned
-when the file is not found or not readible, otherwise a full path to
-the file is returned to the caller.
+that will be used, and no search is needed.  An C<undef> is returned when
+the file is not found, otherwise a full path to the file is returned to
+the caller.
+
+Although the file may be found, it still could be unreadible.
 =cut
 
 sub findSchemaFile($)
 {   my ($self, $fn) = @_;
 
-    return (-r $fn ? $fn : undef)
+    return (-f $fn ? $fn : undef)
         if File::Spec->file_name_is_absolute($fn);
 
     foreach my $dir (@schema_dirs)
     {   my $full = File::Spec->catfile($dir, $fn);
-        next unless -e $full;
-        return -r $full ? $full : undef;
+        return $full if -f $full;
     }
 
     undef;

@@ -134,6 +134,9 @@ Collect schema information.  Details about many name-spaces can be
 organized with only a single schema object (actually, the data is
 administered in an internal M<XML::Compile::Schema::NameSpaces> object)
 
+When TOP is C<undef>, you will have to call M<importDefinitions()> before
+compiling anything.
+
 =option  hook ARRAY-WITH-HOOKDATA | HOOK
 =default hook C<undef>
 See M<addHook()>.  Adds one HOOK (HASH).
@@ -172,12 +175,14 @@ to collect schemas.
 sub namespaces() { shift->{namespaces} }
 
 =method addSchemas XML, OPTIONS
-Collect all the schemas defined in the XML data.  The XML parameter
-must be a M<XML::LibXML> node, therefore it is adviced to use
-M<importDefinitions()>, which has a much more flexible way to
+Collect all the schemas defined in the XML data.  No OPTIONS are defined,
+on the moment.  Returns is a list of all found schema's, a list of
+M<XML::Compile::Schema::Instance> objects.
+
+The XML parameter must be a M<XML::LibXML> node, therefore it is adviced
+to use M<importDefinitions()>, which has a much more flexible way to
 specify the data.
 
-No OPTIONS are defined, on the moment.
 =cut
 
 sub addSchemas($@)
@@ -191,6 +196,7 @@ sub addSchemas($@)
         if $node->isa('XML::LibXML::Document');
 
     my $nss = $self->namespaces;
+    my @schemas;
 
     $self->walkTree
     ( $node,
@@ -204,15 +210,21 @@ sub addSchemas($@)
 #warn $schema->targetNamespace;
 #$schema->printIndex(\*STDERR);
             $nss->add($schema);
+            push @schemas, $schema;
             return 0;
           }
     );
+
+    @schemas;
 }
 
 =method importDefinitions XMLDATA, OPTIONS
 Import (include) the schema information included in the XMLDATA.  The
 XMLDATA must be acceptable for M<dataToXML()>.  The resulting node
 and the OPTIONS are passed to M<addSchemas()>.
+
+Returned is a list of M<XML::Compile::Schema::Instance> objects,
+for each component read.
 =cut
 
 sub importDefinitions($@)
@@ -658,15 +670,15 @@ same name.
 
 The compiler requires a starting-point.  This can either be an
 element name or an element's id.  The format of the element name
-is C<{url}name>, for instance
+is C<{namespace-url}local-name>, for instance
 
  {http://library}book
 
-refers to the built-in C<int> data-type.  You may also start with
+You may also start with
 
  http://www.w3.org/2001/XMLSchema#float
 
-as long as this ID refers to an element.
+as long as this ID refers to a top-level element.
 
 When you use a schema without C<targetNamespace> (which is bad practice,
 but sometimes people really do not understand the beneficial aspects of
@@ -841,7 +853,9 @@ the white-space rules where applied).
 =section Repetative blocks
 
 Particle blocks come in four shapes: C<sequence>, C<choice>, C<all>,
-and C<group> (an indirect block).  In situations like this:
+and C<group> (an indirect block).  This also affects C<substitutionGroups>.
+
+In situations like this:
 
   <element name="example">
     <complexType>
@@ -886,14 +900,31 @@ the repeated block.  This array needs to have a name, because more of
 these blocks may appear together in a construct.  The B<name of the
 block> is derived from the I<type of block> and the name of the I<first
 element> in the block, regardless whether that element is present in
-the data or not.  See M<XML::Compile::Util::block_label()>.  So, about data
-is translated into (and vice versa)
+the data or not.  See M<XML::Compile::Util::block_label()>.
+
+So, our example data is translated into (and vice versa)
 
   example =>
     { a     => 1
     , seq_b => [ {b => 2}, {b => 3}, {b => 4}
     , c     => 5
     }
+
+For B<substitutionGroup>s which are repeating, the I<name of the base
+element> is used (the element which has attribute C<<abstract="true">>.
+We do need this array, because the order of the elements within the group
+may be important; we cannot group the elements based to the extended
+element's name.
+
+In an example substitutionGroup, the Perl representation will be
+something like this:
+
+  base-element-name =>
+    [ { extension-name  => $data1 }
+    , { other-extension => $data2 }
+    ]
+
+Each HASH has only one key.
 
 =example always an array with maxOccurs E<gt> 1
 

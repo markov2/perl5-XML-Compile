@@ -4,6 +4,40 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.66: Thu Jan 31 09:32:00 CET 2008
+
+	Fixes:
+
+	- added a few tests to t/48subst.t to prove that min/maxOccurs
+	  works with substitutionGroups. Had to remove two error checks.
+
+	- ::Namespaces::findID() failed, because ::Instance::id()
+	  was missing. [Philippe B]
+
+	- ignore element when maxOccurs==0 [Allan Wind]
+
+	Improvements:
+
+	- added xml2yaml script, based on code by [Slaven Rezic]
+
+	- XSD search path will split on ';' on Windows.
+
+	- refrased start text of XML::Compile.  Suggested by [Sander Hulst]
+
+	- looking for schema files with XML::Compile::findSchemaFile(),
+	  will not check for readability, because using "-r" is useless.
+	  So, the existence of the file suffices.
+
+	- describe syntax of repetative substitutionGroups.
+
+	- all errors in ::Schema are either marked in class 'usage', or
+	  in class 'schema'.  Errors in other packages still need
+	  classification.
+
+	- ::Schema::Instance now reports include and import information.
+
+	- reformulation in {url}name explanation, spotted by [Allan Wind]
+
 version 0.65: Wed Jan 16 10:28:53 CET 2008
 
 	Fixes:

@@ -8,7 +8,7 @@ use TestTools;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 175;
+use Test::More tests => 186;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -159,6 +159,29 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 
 <element name="test13">
   <complexType />
+</element>
+
+<element name="test14">
+  <complexType>
+    <element name="t14" type="int" />
+  </complexType>
+</element>
+
+<element name="test15">
+  <complexType>
+    <complexContent>
+       <element name="t15" type="int" />
+    </complexContent>
+  </complexType>
+</element>
+
+<element name="test16">
+  <complexType>
+    <sequence>  <!-- minOccurs=0 is required, but you know... -->
+      <element name="t16a" type="int" maxOccurs="0" />
+      <element name="t16b" type="int" />
+    </sequence>
+  </complexType>
 </element>
 
 </schema>
@@ -390,4 +413,20 @@ __XML
 
 test_rw($schema, test13 => <<__XML, {});
 <test13/>
+__XML
+
+### test 14
+
+eval { reader_error($schema, test14 => '') };
+is($@, "error: complexType contains particles, simpleContent or complexContent, not `element' at {http://test-types}test14\n");
+
+### test 15
+
+eval { reader_error($schema, test15 => '') };
+is($@, "error: complexContent expects either an extension or restriction, not `element' at {http://test-types}test15\n");
+
+### test 16
+
+test_rw($schema, test16 => <<__XML, {t16b => 51});
+<test16><t16b>51</t16b></test16>
 __XML

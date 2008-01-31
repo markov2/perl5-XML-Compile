@@ -55,37 +55,37 @@ __SCHEMA__
 ok(defined $schema);
 my $error;
 
-test_rw($schema, "test1" => <<__XML__, 1 );
+test_rw($schema, "test1" => <<__XML, 1 );
 <test1>1</test1>
-__XML__
+__XML
 
-test_rw($schema, "test1" => <<__XML__, 'unbounded');
+test_rw($schema, "test1" => <<__XML, 'unbounded');
 <test1>unbounded</test1>
-__XML__
+__XML
 
-$error = reader_error($schema, test1 => <<__XML__);
+$error = reader_error($schema, test1 => <<__XML);
 <test1>other</test1>
-__XML__
+__XML
 is($error, "no match for `other' in union at {http://test-types}test1#union");
 
 $error = writer_error($schema, test1 => 'other');
 is($error, "no match for `other' in union at {http://test-types}test1#union");
 
-test_rw($schema, "test3" => <<__XML__, 1 );
+test_rw($schema, "test3" => <<__XML, 1 );
 <test3>1</test3>
-__XML__
+__XML
 
-test_rw($schema, "test3" => <<__XML__, 'any');
+test_rw($schema, "test3" => <<__XML, 'any');
 <test3>any</test3>
-__XML__
+__XML
 
-test_rw($schema, "test3" => <<__XML__, 'none');
+test_rw($schema, "test3" => <<__XML, 'none');
 <test3>none</test3>
-__XML__
+__XML
 
-$error = reader_error($schema, test3 => <<__XML__);
+$error = reader_error($schema, test3 => <<__XML);
 <test3>other</test3>
-__XML__
+__XML
 is($error, "no match for `other' in union at {http://test-types}test3#union");
 
 $error = writer_error($schema, test3 => 'other');

@@ -555,9 +555,6 @@ sub substgroup
 
               return $do{$take}->($doc, $subst);
           }
-
-          error __x"no substitute for {type} found at {path}"
-             , type => $type, path => $path;
         }, 'BLOCK';
 }
 

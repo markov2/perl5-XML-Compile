@@ -619,8 +619,7 @@ sub substgroup
                     , type => $type, path => $path;
 
           my $do    = $do{$local}
-              or error __x"no substitute for {type} found at {path}"
-                    , type => $type, path => $path;
+              or return;
 
           my @subst = $do->($tree->descend);
           $tree->nextChild;

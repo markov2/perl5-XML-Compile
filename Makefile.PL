@@ -4,7 +4,7 @@ use 5.008;
 
 WriteMakefile
  ( NAME	 	=> 'XML::Compile'
- , VERSION	=> '0.65'
+ , VERSION	=> '0.66'
  , PREREQ_PM    =>
    { XML::LibXML               => 1.65
    , Math::BigInt              => 1.77
@@ -15,6 +15,9 @@ WriteMakefile
    , Test::Deep                => 0.095
    , Test::Pod                 => '1.00'
    }
+ , EXE_FILES    =>
+   [ 'bin/xml2yaml'
+   ]
  , AUTHOR       => 'Mark Overmeer'
  , ABSTRACT     => 'Compilation based XML processing'
  , LICENSE      => 'perl'
