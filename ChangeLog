@@ -4,6 +4,32 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.68: Fri Feb  8 09:32:20 CET 2008
+
+	Fixes:
+
+	- ref element did not switch to settings of destination namespace.
+	  Reported by [Sander Hulst]
+
+	- ref attribute idem.
+
+	- ref attributes should lookup namespace in destination schema,
+	  not source schema.
+
+	Improvements:
+
+	- added ::Namespaces::printIndex() to list defined toplevel items.
+
+	- XML::Compile::dataToXML() returns information about the source if
+	  requested.
+
+version 0.67: Mon Feb  4 09:31:17 CET 2008
+
+	Fixes:
+
+	- use of boolean 0 produced an error. [Allan Wind]
+	  tests in t/21types.t
+
 version 0.66: Thu Jan 31 09:32:00 CET 2008
 
 	Fixes:

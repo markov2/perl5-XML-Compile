@@ -670,7 +670,6 @@ sub anyAttribute
 
 sub anyElement
 {   my ($path, $args, $handler, $yes, $no, $process, $min, $max) = @_;
-
     $handler ||= 'SKIP_ALL';
 
     my %yes = map { ($_ => 1) } @{$yes || []};

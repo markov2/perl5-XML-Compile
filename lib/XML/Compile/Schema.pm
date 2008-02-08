@@ -37,6 +37,9 @@ XML::Compile::Schema - Compile a schema into CODE
  $schema->importDefinitions('http://www.w3.org/2001/XMLSchema');
  $schema->importDefinitions('2001-XMLSchema.xsd');
 
+ # see what is defined
+ $schema->namespaces->printIndex;
+
  # create and use a reader
  my $read   = $schema->compile(READER => '{myns}mytype');
  my $hash   = $read->($xml);
@@ -175,19 +178,31 @@ to collect schemas.
 sub namespaces() { shift->{namespaces} }
 
 =method addSchemas XML, OPTIONS
-Collect all the schemas defined in the XML data.  No OPTIONS are defined,
-on the moment.  Returns is a list of all found schema's, a list of
-M<XML::Compile::Schema::Instance> objects.
+Collect all the schemas defined in the XML data.  Returns is a list of
+all found schema's, a list of M<XML::Compile::Schema::Instance> objects.
 
 The XML parameter must be a M<XML::LibXML> node, therefore it is adviced
 to use M<importDefinitions()>, which has a much more flexible way to
 specify the data.
 
+=option  source STRING
+=default source C<undef>
+An indication where this schema data was found.  If you use M<dataToXML()>
+in LIST context, you get such an indication.
+
+=option  filename FILENAME
+=default filename C<undef>
+Explicitly state from which file the data is coming.
+
 =cut
 
 sub addSchemas($@)
-{   my $self = shift;
-    my $node = shift or return ();
+{   my ($self, $node, %opts) = @_;
+    defined $node or return ();
+
+    my @nsopts;
+    push @nsopts, source   => delete $opts{source}   if $opts{source};
+    push @nsopts, filename => delete $opts{filename} if $opts{filename};
 
     ref $node && $node->isa('XML::LibXML::Node')
         or error __x"required is a XML::LibXML::Node";
@@ -204,7 +219,7 @@ sub addSchemas($@)
             return 1 unless $this->isa('XML::LibXML::Element')
                          && $this->localname eq 'schema';
 
-            my $schema = XML::Compile::Schema::Instance->new($this)
+            my $schema = XML::Compile::Schema::Instance->new($this, @nsopts)
                 or next;
 
 #warn $schema->targetNamespace;
@@ -221,17 +236,21 @@ sub addSchemas($@)
 =method importDefinitions XMLDATA, OPTIONS
 Import (include) the schema information included in the XMLDATA.  The
 XMLDATA must be acceptable for M<dataToXML()>.  The resulting node
-and the OPTIONS are passed to M<addSchemas()>.
+and the OPTIONS are passed to M<addSchemas()>.  The schema node does
+not need to be the top element: any schema node found in the data
+will be decoded.
 
 Returned is a list of M<XML::Compile::Schema::Instance> objects,
-for each component read.
+for each processed schema component.
 =cut
 
 sub importDefinitions($@)
 {   my $self  = shift;
     my $thing = shift or return;
-    my $tree  = $self->dataToXML($thing) or return;
-    $self->addSchemas($tree, @_);
+    my ($tree, @details) = $self->dataToXML($thing);
+    defined $tree or return;
+
+    $self->addSchemas($tree, @details, @_);
 }
 
 =method addHook HOOKDATA|HOOK|undef
@@ -447,7 +466,6 @@ sub compile($$@)
             if $@;
     }
 
-
     my $outns = $args{output_namespaces} ||= {};
     if(ref $outns eq 'ARRAY')
     {   my @ns = @$outns;
@@ -590,7 +608,7 @@ List all elements, defined by all schemas sorted alphabetically.
 sub elements()
 {   my $nss = shift->namespaces;
     sort map {$_->elements}
-          map {$nss->schemas($_)}
+         map {$nss->schemas($_)}
              $nss->list;
 }
 

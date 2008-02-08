@@ -81,7 +81,7 @@ See chapter L</DETAILS> for more on how the tune the translator.
 
 =chapter METHODS
 
-=c_method compileTree ELEMENT|ATTRIBUTE, OPTIONS
+=c_method compileTree ELEMENT|ATTRIBUTE|TYPE, OPTIONS
 Do not call this function yourself, but use
 M<XML::Compile::Schema::compile()> (or wrappers around that).
 
@@ -98,13 +98,13 @@ a table of types.
 =cut
 
 sub compileTree($@)
-{   my ($class, $element, %args) = @_;
+{   my ($class, $item, %args) = @_;
 
-    my $path   = $element;
+    my $path   = $item;
     my $self   = bless \%args, $class;
 
-    ref $element
-        and panic "expecting an element name as point to start at $path";
+    ref $item
+        and panic "expecting an item as point to start at $path";
 
     $self->{bricks}
         or panic "no bricks to build";
@@ -118,19 +118,13 @@ sub compileTree($@)
     $self->{action}
         or panic "action type is needed";
 
-    if(my $def = $self->namespaces->findID($element))
-    {   my $node  = $def->{node};
-        my $name  = $node->localName;
-
-           $name eq 'element'
-        or $name eq 'attribute'
-        or error __x"ID {id} must be an element or attribute, but is {name}"
-              , id => $element, name => $name, class => 'usage';
-
-        $element  = $def->{full};
+    if(my $def = $self->namespaces->findID($item))
+    {   my $node = $def->{node};
+        my $name = $node->localName;
+        $item    = $def->{full};
     }
 
-    my $produce = $self->topLevel($path, $element);
+    my $produce = $self->topLevel($path, $item);
 
       $self->{include_namespaces}
     ? $self->make(wrapper_ns => $path, $produce, $self->{output_namespaces})
@@ -508,7 +502,7 @@ sub element($)
 
     # attributes: abstract, default, fixed, form, id, maxOccurs, minOccurs
     #           , name, nillable, ref, substitutionGroup, type
-    # ignored: block, final
+    # ignored: block, final, targetNamespace additional restrictions
     # content: annotation?
     #        , (simpleType | complexType)?
     #        , (unique | key | keyref)*
@@ -525,7 +519,6 @@ sub element($)
     my $nodeid = $$node;  # the internal SCALAR value; the C struct
     if(exists $self->{nest}{$nodeid})
     {   my $outer = \$self->{nest}{$nodeid};
-#warn "Recursion detected for $nodeid";
         return sub { $$outer->(@_) };
     }
     $self->{nest}{$nodeid} = undef;
@@ -744,6 +737,22 @@ sub particleElement($)
             or error __x"cannot find element '{name}' at {where}"
                    , name => $refname, where => $where, class => 'schema';
 
+        local $self->{tns} = $def->{ns};
+        my $elems_qual = $def->{efd} eq 'qualified';
+        if(exists $self->{elements_qualified})
+        {   my $qual = $self->{elements_qualified} || 0;
+            $elems_qual = $qual eq 'ALL' ? 1 : $qual eq 'NONE' ? 0 : $qual;
+        }
+        local $self->{elems_qual} = $elems_qual;
+
+        my $attrs_qual = $def->{efd} eq 'qualified';
+        if(exists $self->{attributes_qualified})
+        {   my $qual = $self->{attributes_qualified} || 0;
+            $attrs_qual = $qual eq 'ALL' ? 1 : $qual eq 'NONE' ? 0 : $qual;
+        }
+        local $self->{attrs_qual} = $attrs_qual;
+
+
         my $refnode  = $def->{node};
         my $abstract = $refnode->getAttribute('abstract') || 'false';
         $self->assertType($where, abstract => boolean => $abstract);
@@ -805,11 +814,19 @@ sub attributeOne($)
                  , name => $refname, where => $tree->path, class => 'schema';
 
         $ref        = $def->{node};
+        local $self->{tns} = $def->{ns};
+        my $attrs_qual = $def->{efd} eq 'qualified';
+        if(exists $self->{attributes_qualified})
+        {   my $qual = $self->{attributes_qualified} || 0;
+            $attrs_qual = $qual eq 'ALL' ? 1 : $qual eq 'NONE' ? 0 : $qual;
+        }
+        local $self->{attrs_qual} = $attrs_qual;
+
         $name       = $ref->getAttribute('name')
             or error __x"ref attribute without name at {where}"
                  , where => $tree->path, class => 'schema';
 
-        if($typeattr = $ref->getAttribute('type'))
+        if(my $typeattr = $ref->getAttribute('type'))
         {   # postpone interpretation
         }
         else
@@ -819,7 +836,8 @@ sub attributeOne($)
                      , type => $refname, class => 'schema';
             $type   = $self->simpleType($other->descend);
         }
-        $form       = $ref->getAttribute('form');
+        $form = $ref->getAttribute('form');
+        $node = $ref;
     }
     elsif($tree->nrChildren==1)
     {   $tree->currentLocal eq 'simpleType'
@@ -852,7 +870,7 @@ sub attributeOne($)
     my $path    = $tree->path . "/at($name)";
 
     unless($type)
-    {    my $typename = defined $typeattr
+    {   my $typename = defined $typeattr
           ? $self->rel2abs($path, $node, $typeattr)
           : $self->anyType($node);
 

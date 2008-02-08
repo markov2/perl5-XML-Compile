@@ -36,6 +36,13 @@ process it.
 Get's the top of an XML::LibXML tree, which must be a schema element.
 The tree is parsed: the information collected.
 
+=option  source STRING
+=default source C<undef>
+An indication where this information came from.
+
+=option  filename FILENAME
+=default filename C<undef>
+When the source is some file, this is its name.
 =cut
 
 sub new($@)
@@ -49,10 +56,11 @@ sub init($)
     defined $top && $top->isa('XML::LibXML::Node')
         or panic "instance is based on XML node";
 
-    $self->{$_} = {} for @defkinds, 'sgs';
+    $self->{filename} = $args->{filename};
+    $self->{source}   = $args->{source};
 
-    $self->{import}  = {};
-    $self->{include} = [];
+    $self->{$_}       = {} for @defkinds, 'sgs', 'import';
+    $self->{include}  = [];
 
     $self->_collectTypes($top);
     $self;
@@ -63,11 +71,15 @@ sub init($)
 =method targetNamespace
 =method schemaNamespace
 =method schemaInstance
+=method source
+=method filename
 =cut
 
 sub targetNamespace { shift->{tns} }
 sub schemaNamespace { shift->{xsd} }
 sub schemaInstance  { shift->{xsi} }
+sub source          { shift->{source} }
+sub filename        { shift->{filename} }
 
 =method type URI
 Returns the type definition with the specified name.
@@ -282,10 +294,17 @@ selected FILEHANDLE.
 =cut
 
 sub printIndex(;$)
-{   my $self  = shift;
-    my $fh    = shift || select;
+{   my $self   = shift;
+    my $fh     = shift || select;
 
     $fh->print("namespace: ", $self->targetNamespace, "\n");
+    if(defined(my $source = $self->source))
+    {   $fh->print("  source: $source\n");
+    }
+    if(defined(my $filename = $self->filename))
+    {   $fh->print("  filename: $filename\n");
+    }
+
     foreach my $kind (@defkinds)
     {   my $table = $self->{$kind};
         keys %$table or next;

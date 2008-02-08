@@ -13,15 +13,18 @@ use XML::Compile::Util qw/pack_type unpack_type pack_id unpack_id/;
 XML::Compile::Schema::NameSpaces - Connect name-spaces from schemas
 
 =chapter SYNOPSIS
-
  # Used internally by XML::Compile::Schema
  my $nss = XML::Compile::Schema::NameSpaces->new;
  $nss->add($schema);
 
 =chapter DESCRIPTION
 
-This module keeps overview on a set of namespaces, collected from
-various schema files.
+This module keeps overview on a set of namespaces, collected from various
+schema files.  Per XML namespace, it will collect a list of fragments
+which contain definitions for the namespace, each fragment comes from a
+different source.  These fragments are searched in reverse order when
+an element or type is looked up (the last definitions overrule the
+older definitions).
 
 =chapter METHODS
 
@@ -44,7 +47,7 @@ sub init($)
 =section Accessors
 
 =method list
-Returns the list of name-space names defined until now.
+Returns the list of name-space URIs defined.
 =cut
 
 sub list() { keys %{shift->{tns}} }
@@ -55,8 +58,7 @@ the URI as target namespace.
 =cut
 
 sub namespace($)
-{   my $self = shift;
-    my $nss  = $self->{tns}{(shift)};
+{   my $nss  = $_[0]->{tns}{$_[1]};
     $nss ? @$nss : ();
 }
 
@@ -142,6 +144,35 @@ sub findID($;$)
     }
 
     undef;
+}
+
+=method printIndex [FILEHANDLE]
+Show all definitions from all namespaces, for debugging purposes, by
+default to the STDOUT.
+
+=option  namespace URI|ARRAY-of-URI
+=default <ALL>
+Show only information about the indicate namespaces.
+
+=examples
+ my $nss = $schema->namespaces;
+ $nss->printIndex(\*MYFILE);
+ $nss->printIndex(namespace => "my namespace");
+
+ # types defined in the wsdl schema
+ use XML::Compile::SOAP::Util qw/WSDL11/;
+ $nss->printIndex(\*STDERR, namespace => WSDL11);
+=cut
+
+sub printIndex(@)
+{   my $self = shift;
+    my $fh   = @_ % 2 ? shift : \*STDOUT;
+    my %opts = @_;
+
+    my $nss  = $opts{namespace} || [$self->list];
+    foreach my $nsuri (ref $nss eq 'ARRAY' ? @$nss : $nss)
+    {   $_->printIndex($fh) for $self->namespace($nsuri);
+    }
 }
 
 1;
