@@ -745,7 +745,7 @@ sub particleElement($)
         }
         local $self->{elems_qual} = $elems_qual;
 
-        my $attrs_qual = $def->{efd} eq 'qualified';
+        my $attrs_qual = $def->{afd} eq 'qualified';
         if(exists $self->{attributes_qualified})
         {   my $qual = $self->{attributes_qualified} || 0;
             $attrs_qual = $qual eq 'ALL' ? 1 : $qual eq 'NONE' ? 0 : $qual;

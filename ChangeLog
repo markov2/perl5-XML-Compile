@@ -4,6 +4,13 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.69: Tue Feb 12 09:59:30 CET 2008
+
+	Fixes:
+
+	- name-space switch accidentally took 'qualified' on elements
+	  to be used for attributes. Detected by [Sander Hulst]
+
 version 0.68: Fri Feb  8 09:32:20 CET 2008
 
 	Fixes:
