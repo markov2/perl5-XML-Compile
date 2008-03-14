@@ -117,8 +117,7 @@ test1 =>
   # choice of t1_g, t1_h, t1_i
   # occurs 1 <= # <= 3 times
   cho_t1_g => 
-  [
-    { t1_g =>
+  [ { t1_g =>
       { # sequence of t3_a, t3_b
 
         # is a {http://www.w3.org/2001/XMLSchema}anyType
@@ -129,13 +128,13 @@ test1 =>
         t3_b => 42,
 
         # is a {http://www.w3.org/2001/XMLSchema}int
-        a3_a => 42, }, },
+        a3_a => 42, },
 
-    { # is a {http://www.w3.org/2001/XMLSchema}int
+      # is a {http://www.w3.org/2001/XMLSchema}int
       # is optional
-      t1_h => 42, },
+      t1_h => 42,
 
-    { # is a {http://www.w3.org/2001/XMLSchema}negativeInteger
+      # is a {http://www.w3.org/2001/XMLSchema}negativeInteger
       # occurs 1 <= # <= unbounded times
       t1_i =>  [ -1, ], },
   ], }
@@ -156,15 +155,12 @@ test1 =>
     {   t1_e => "example",
         t1_f =>  [ 3.1415, ], },
     cho_t1_g => 
-    [
-      {   t1_g =>
+    [ {   t1_g =>
           {   t3_a => "anything",
               t3_b => 42,
-              a3_a => 42, }, },
-
-      {   t1_h => 42, },
-
-      {   t1_i =>  [ -1, ], },
+              a3_a => 42, },
+          t1_h => 42,
+          t1_i =>  [ -1, ], },
     ], }
 __TEST1b__
 

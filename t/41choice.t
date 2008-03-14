@@ -8,7 +8,7 @@ use TestTools;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 208;
+use Test::More tests => 235;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -110,6 +110,20 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
     </choice>
   </complexType>
 </element>
+
+<!-- from a bug-report -->
+<element name="test9">
+  <complexType>
+    <choice>
+      <sequence maxOccurs="2">
+        <element name="t9a" type="me:t9t"/>
+        <element name="t9b" type="string" />
+      </sequence>
+      <element name="t9c" type="int"/>
+    </choice>
+  </complexType>
+</element>
+<complexType name="t9t" />
 
 </schema>
 __SCHEMA__
@@ -251,3 +265,29 @@ __XML
 test_rw($schema, test8 => <<__XML, { });
 <test8/>
 __XML
+
+# test 9
+my @t9 = { t9a => {}, t9b => 'monkey'};
+test_rw($schema, test9 => <<__XML, { seq_t9a => \@t9 });
+<test9>
+   <t9a/>
+   <t9b>monkey</t9b>
+</test9>
+__XML
+
+push @t9, { t9a => {}, t9b => 'donkey' };
+test_rw($schema, test9 => <<__XML, { seq_t9a => \@t9 });
+<test9>
+   <t9a/>
+   <t9b>monkey</t9b>
+   <t9a/>
+   <t9b>donkey</t9b>
+</test9>
+__XML
+
+test_rw($schema, test9 => <<__XML, { t9c => 42 });
+<test9>
+   <t9c>42</t9c>
+</test9>
+__XML
+

@@ -5,6 +5,7 @@ package XML::Compile::Schema::Translate;
 
 # Errors are either in class 'usage': called with request
 #                         or 'schema': syntax error in schema
+
 use Log::Report 'xml-compile', syntax => 'SHORT';
 use List::Util  'first';
 
@@ -70,7 +71,8 @@ to interpret the message if you need them.
 A few nuts are still to crack:
  any* processContents always interpreted as lax
  schema version
- element mixed
+ automatic handling of complexType/complexContent mixed
+ openContent
  attribute limitiations (facets) on dates
  full understanding of patterns (now limited)
  final is not protected
@@ -618,8 +620,9 @@ sub particle($)
     $max = 'unbounded'
         if $max ne 'unbounded' && $max > 1 && !$self->{check_occurs};
 
-    return ()
-        if $max ne 'unbounded' && $max==0;
+#??
+#   return ()
+#       if $max ne 'unbounded' && $max==0;
 
     $min = 0
         if $max eq 'unbounded' && !$self->{check_occurs};
@@ -637,8 +640,7 @@ sub particle($)
     defined $label
         or return ();
 
-    return ($label =>
-     $self->make(block_handler => $where, $label, $min, $max, $process, $local))
+    return $self->make(block_handler => $where, $label, $min, $max, $process, $local)
         if ref $process eq 'BLOCK';
 
     my $required = $min==0 ? undef
@@ -773,7 +775,7 @@ sub particleElement($)
     my $nillable = $node->getAttribute('nillable') || 'false';
     $self->assertType($where, nillable => boolean => $nillable);
 
-    my $do       = $self->element($tree->descend($node));
+    my $do       = $self->element($tree->descend($node, $name));
 
     my $generate
      = $self->isTrue($nillable) ? 'element_nillable'
@@ -826,7 +828,7 @@ sub attributeOne($)
             or error __x"ref attribute without name at {where}"
                  , where => $tree->path, class => 'schema';
 
-        if(my $typeattr = $ref->getAttribute('type'))
+        if($typeattr = $ref->getAttribute('type'))
         {   # postpone interpretation
         }
         else
@@ -862,16 +864,14 @@ sub attributeOne($)
         $form       = $node->getAttribute('form');
     }
 
-    my $where = $tree->path.'@'.$name;
+    my $where = $tree->path.'/@'.$name;
     $self->assertType($where, name => NCName => $name);
     $self->assertType($where, type => QName => $typeattr)
         if $typeattr;
 
-    my $path    = $tree->path . "/at($name)";
-
     unless($type)
     {   my $typename = defined $typeattr
-          ? $self->rel2abs($path, $node, $typeattr)
+          ? $self->rel2abs($where, $node, $typeattr)
           : $self->anyType($node);
 
          $type  = $self->typeByName($tree, $typename);
@@ -889,7 +889,7 @@ sub attributeOne($)
             , form => $form, where => $where, class => 'schema';
 
     my $trans   = $qual ? 'tag_qualified' : 'tag_unqualified';
-    my $tag     = $self->make($trans => $path, $node, $name);
+    my $tag     = $self->make($trans => $where, $node, $name);
     my $ns      = $qual ? $self->{tns} : '';
 
     my $use     = $node->getAttribute('use') || '';
@@ -909,7 +909,7 @@ sub attributeOne($)
      :                       'attribute';
 
     my $value = defined $default ? $default : $fixed;
-    my $do    = $self->make($generate => $path, $ns, $tag, $st, $value);
+    my $do    = $self->make($generate => $where, $ns, $tag, $st, $value);
     defined $do ? ($name => $do) : ();
 }
 
@@ -1131,7 +1131,7 @@ sub simpleContent($)
     return $self->simpleContentRestriction($tree->descend)
         if $name eq 'restriction';
 
-     error __x"simpleContent either extension or restriction, not `{name}' at {where}"
+     error __x"simpleContent needs extension or restriction, not `{name}' at {where}"
          , name => $name, where => $tree->path, class => 'schema';
 }
 
@@ -1234,7 +1234,7 @@ sub complexContent($)
     return $self->complexBody($tree->descend)
         if $name eq 'restriction';
 
-    error __x"complexContent expects either an extension or restriction, not `{name}' at {where}"
+    error __x"complexContent needs extension or restriction, not `{name}' at {where}"
         , name => $name, where => $tree->path, class => 'schema';
 }
 
@@ -1364,6 +1364,12 @@ option to C<true> when you are sure that ALL USES of C<integer> in the
 scheme will fit into signed longs (are between -2147483648 and 2147483647
 inclusive)
 
+=item check_values BOOLEAN
+
+Check the validity of the values, before parsing them.  This will
+report errors for the reader, instead of crashes.  The writer will
+not produce invalid data.
+
 =item check_occurs BOOLEAN
 
 Checking whether the number of occurrences for an item are between
@@ -1384,6 +1390,18 @@ better performance.
 Simple type restrictions are not implemented by other XML perl
 modules.  When the schema is nicely detailed, this will give
 extra security.
+
+=item validation BOOLEAN
+
+When used, it overrules the above C<check_values>, C<check_occurs>, and
+C<ignore_facets> options.  A true value enables all checks, a false
+value will disable them all.  Of course, the latter is the fastest but
+also less secure: your program will need to validate the values in some
+other way.
+
+XML::LibXML has its own validate method, but I have not yet seen any
+performance figures on that.  If you use it, however, it is of course
+a good idea to turn XML::Compile's validation off.
 
 =back
 

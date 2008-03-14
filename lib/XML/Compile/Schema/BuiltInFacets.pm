@@ -4,11 +4,11 @@ use strict;
 package XML::Compile::Schema::BuiltInFacets;
 use base 'Exporter';
 
-use Log::Report 'xml-compile', syntax => 'SHORT';
 
 our @EXPORT = qw/builtin_facet/;
 
-use Math::BigInt;
+use Log::Report     'xml-compile', syntax => 'SHORT';
+use Math::BigInt    try => 'GMP';
 use Math::BigFloat;
 
 use constant DBL_MAX_DIG => 15;

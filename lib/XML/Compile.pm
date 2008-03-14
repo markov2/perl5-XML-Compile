@@ -232,7 +232,7 @@ sub findSchemaFile($)
 
 =section Read XML
 
-=method dataToXML NODE|REF-XML-STRING|XML-STRING|FILENAME|KNOWN
+=method dataToXML NODE|REF-XML-STRING|XML-STRING|FILENAME|FILEHANDLE|KNOWN
 Collect XML data, from a wide variety of sources.  In SCALAR context,
 a XML::LibXML::Element or ::Document is returned.  In LIST context,
 pairs of additional information follow the result.
@@ -250,6 +250,10 @@ when this all gets installed.  Either define an environment variable
 named SCHEMA_LOCATION or use M<new(schema_dirs)> (option available to
 all end-user objects) to inform the library where to find these files.
 
+According the XML::LibXML::Parser manual page, passing a FILEHANDLE
+is much slower than pasing a FILENAME.  However, it may be needed to
+open a file with an explicit character-set.
+
 =error cannot find pre-installed name-space files
 Use C<$ENV{SCHEMA_LOCATION}> or M<new(schema_dirs)> to express location
 of installed name-space files, which came with the M<XML::Compile>
@@ -262,6 +266,7 @@ distribution package.
   my ($xml, %details) = $schema->dataToXML($something);
 =cut
 
+my $parser = XML::LibXML->new(line_numbers => 1);
 sub dataToXML($)
 {   my ($self, $thing) = @_;
     defined $thing
@@ -274,6 +279,11 @@ sub dataToXML($)
     }
     elsif(ref $thing eq 'SCALAR')   # XML string as ref
     {   $xml    = $self->_parse($thing);
+        $source = ref $thing;
+    }
+    elsif(ref $thing eq 'GLOB')     # from file-handle
+    {   $xml    = $parser->parse_fh($thing);
+        $xml    = $xml->documentElement if defined $xml;
         $source = ref $thing;
     }
     elsif($thing =~ m/^\s*\</)      # XML starts with '<', rare for files
@@ -306,13 +316,13 @@ sub dataToXML($)
 
 sub _parse($)
 {   my ($thing, $data) = @_;
-    my $xml = XML::LibXML->new->parse_string($$data);
+    my $xml = $parser->parse_string($$data);
     defined $xml ? $xml->documentElement : undef;
 }
 
 sub _parseFile($)
 {   my ($thing, $fn) = @_;
-    my $xml = XML::LibXML->new->parse_file($fn);
+    my $xml = $parser->parse_file($fn);
     defined $xml ? $xml->documentElement : undef;
 }
 

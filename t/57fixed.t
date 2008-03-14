@@ -70,11 +70,11 @@ __XML__
 $error = reader_error($schema, test2 => <<__XML__);
 <test2 t2a="15" t2b="12"/>
 __XML__
-is($error, "value of attribute `t2b' is fixed to `13', not `12' at {http://test-types}test2/at(t2b)");
+is($error, "value of attribute `t2b' is fixed to `13', not `12' at {http://test-types}test2/\@t2b");
 
 my %t2b     = (t2a => 15, t2b => 12);
 $error = writer_error($schema, test2 => \%t2b);
-is($error, "value of attribute `t2b' is fixed to `13', not `12' at {http://test-types}test2/at(t2b)");
+is($error, "value of attribute `t2b' is fixed to `13', not `12' at {http://test-types}test2/\@t2b");
 
 my %t2c     = (t2a => 17, t2b => 13);
 test_rw($schema, test2 => <<__XML__, \%t2c);

@@ -8,10 +8,11 @@ our @EXPORT = qw/%builtin_types/;
 
 our %builtin_types;
 
-use Log::Report 'xml-compile', syntax => 'SHORT';
+use Log::Report     'xml-compile', syntax => 'SHORT';
+use POSIX           qw/strftime/;
+use Math::BigInt    try => 'GMP';
+use Math::BigFloat;
 use MIME::Base64;
-use POSIX              qw/strftime/;
-# use XML::RegExp;  ### can we use this?
 
 use XML::Compile::Util qw/pack_type unpack_type/;
 
@@ -54,36 +55,50 @@ You B<cannot call> these functions yourself.
 # Parse has a second argument, only for QNAME: the node
 # Format has a second argument for QNAME as well.
 
-sub identity { $_[0] };
-sub str2int
-{   my $v = eval { use warnings FATAL => 'all'; $_[0] + 0};
-    $@ && error __x $@;
-    $v;
-}
-
-sub int2str
-{   my $v = eval { use warnings FATAL => 'all'; sprintf "%ld", $_[0]};
-    $@ && error __x $@;
-    $v;
-}
-
-sub str2num
-{   my $v = eval { use warnings FATAL => 'all'; $_[0] + 0.0};
-    $@ && error __x $@;
-    $v;
-}
-
-sub num2str   { "$_[0]" }
-sub str       { "$_[0]" };
+sub identity  { $_[0] }
+sub str2int   { use warnings FATAL => 'all'; $_[0] + 0 }
+sub int2str   { use warnings FATAL => 'all'; sprintf "%ld", $_[0] }
+sub str       { "$_[0]" }
 sub _collapse { $_[0] =~ s/\s+//g; $_[0]}
 sub _preserve { for($_[0]) {s/\s+/ /g; s/^ //; s/ $//}; $_[0]}
 sub _replace  { $_[0] =~ s/[\t\r\n]/ /gs; $_[0]}
 
-sub bigint   { $_[0] =~ s/\s+//g;
-   my $v = Math::BigInt->new($_[0]); $v->is_nan ? undef : $v }
+# a real check() produces a nice error message with name of the
+# variable, however checking floats is extremely expensive.  Therefore,
+# we use the result of the conversion which does not show the variable
+# name.
 
-sub bigfloat { $_[0] =~ s/\s+//g;
-   my $v = Math::BigFloat->new($_[0]); $v->is_nan ? undef : $v }
+sub str2num
+{   my $v = eval {use warnings FATAL => 'all'; $_[0] + 0.0};
+    error __x"Value `{val}' is not a float", val => $_[0] if $@;
+    $v;
+}
+
+sub num2str
+{   my $f = shift;
+    if(ref $f && ($f->isa('Math::BigInt') || $f->isa('Math::BigFloat')))
+    {   error __"float is NaN" if $f->is_nan;
+        return $f->bstr;
+    }
+    my $v = eval {use warnings FATAL => 'all'; $f + 0.0};
+    $@ && error __x"Value `{val}' is not a float", val => $f;
+    $f;
+}
+
+sub bigint
+{   $_[0] =~ s/\s+//g;
+    my $v = Math::BigInt->new($_[0]);
+    error __x"Value `{val}' is not a (big) integer", val => $v if $v->is_nan;
+    $v;
+}
+
+sub bigfloat
+{   $_[0] =~ s/\s+//g;
+    my $v = Math::BigFloat->new($_[0]);
+print STDERR "$_[0];$v";
+    error __x"Value `{val}' is not a (big) float", val => $v if $v->is_nan;
+    $v;
+}
 
 =function anySimpleType
 =function anyType
@@ -122,7 +137,7 @@ the produced code considerably: all integers then shall be between
 -2G and +2G.
 
 =function integer
-An integer with an undertermined, but maximally huge number of
+An integer with an undertermined (but possibly large) number of
 digits.
 =cut
 
@@ -308,7 +323,7 @@ object here.
 
 $builtin_types{decimal} =
  { parse   => \&bigfloat
- , check   => sub { my $x = eval {$_[0] + 0.0}; !$@ }
+ # checked when reading
  , example => '3.1415'
  };
 
@@ -324,7 +339,7 @@ $builtin_types{float} =
 $builtin_types{double} =
  { parse   => \&str2num
  , format  => \&num2str
- , check   => sub { my $val = eval {$_[0] + 0.0}; !$@ }
+ # check by str2num
  , example => '3.1415'
  };
 

@@ -37,7 +37,7 @@ components, which on their own may be unrelated.
 
 =section Constants
 
-The followinf URI are exported as constants, to avoid typinng
+The following URIs are exported as constants, to avoid typing
 in the same long URIs each time again: XMLNS, SCHEMA1999,
 SCHEMA2000, SCHEMA2001, and SCHEMA2001i.
 

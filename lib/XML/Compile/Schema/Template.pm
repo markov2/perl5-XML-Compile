@@ -10,9 +10,6 @@ no warnings 'once';
 use XML::Compile::Util qw/odd_elements block_label/;
 use Log::Report 'xml-compile', syntax => 'SHORT';
 
-use Data::Dumper;
-$Data::Dumper::Indent = 1;
-
 =chapter NAME
 
 XML::Compile::Schema::Template - bricks to create an XML or PERL example
@@ -76,6 +73,7 @@ sub all      { _block(all      => @_) }
 sub block_handler
 {   my ($path, $args, $label, $min, $max, $proc, $kind) = @_;
 
+    my $code =
     sub { my $data = $proc->();
           my $occur
            = $max eq 'unbounded' && $min==0 ? 'occurs any number of times'
@@ -94,6 +92,7 @@ sub block_handler
           }
           $data;
         };
+    ($label => $code);
 }
 
 sub element_handler
@@ -326,8 +325,8 @@ sub perl_any($$)
         push @lines, @struct;
     }
     push @lines, "# is a $ast->{type}" if $ast->{type} && $args->{show_type};
-    push @lines, "# $ast->{occur}"  if $ast->{occur}  && $args->{show_occur};
-    push @lines, "# $ast->{facets}" if $ast->{facets} && $args->{show_facets};
+    push @lines, "# $ast->{occur}"  if $ast->{occur}   && $args->{show_occur};
+    push @lines, "# $ast->{facets}" if $ast->{facets}  && $args->{show_facets};
 
     my @childs;
     push @childs, @{$ast->{attrs}}  if $ast->{attrs};
@@ -346,12 +345,6 @@ sub perl_any($$)
         {   s/^(.)/$args->{indent}$1/ for @sub;
         }
 
-        if(ref $ast eq 'REP-BLOCK')
-        {  # repeated block
-           $sub[0]  =~ s/^  /{ /;
-           $sub[-1] =~ s/$/ },/;
-        }
-
         # seperator blank, sometimes
         unshift @sub, '' if $sub[0] =~ m/^\s*[#{]/;  # } 
 
@@ -359,9 +352,24 @@ sub perl_any($$)
     }
 
     if(ref $ast eq 'REP-BLOCK')
+    {  # repeated block
+       @subs or @subs = '';
+       $subs[0]  =~ s/^  /{ /;
+       $subs[-1] =~ s/$/ },/;
+    }
+
+    # XML does not permit difficult tags, but we still check.
+    my $tag = $ast->{tag};
+    if(defined $tag && $tag !~ m/^[\w_][\w\d_]+$/)
+    {   $tag =~ s/\\/\\\\/g;
+        $tag =~ s/'/\\'/g;
+        $tag = qq{'$tag'};
+    }
+    
+    if(ref $ast eq 'REP-BLOCK')
     {   s/^(.)/  $1/ for @subs;
         $subs[0] =~ s/^ ?/[/;
-        push @lines, $ast->{tag}. ' => ', @subs , ']';
+        push @lines, "$tag => ", @subs , ']';
     }
     elsif(ref $ast eq 'BLOCK')
     {   push @lines, @subs;
@@ -372,19 +380,24 @@ sub perl_any($$)
         {   s/^(.)/  $1/ for @subs;
             $subs[0]  =~ s/^[ ]{0,3}/[ {/;
             $subs[-1] =~ s/$/ }, ]/;
-            push @lines, "$ast->{tag} =>", @subs;
+            push @lines, "$tag =>", @subs;
         }
         else
         {   $subs[0]  =~ s/^  /{ /;
             $subs[-1] =~ s/$/ },/;
-            push @lines, "$ast->{tag} =>", @subs;
+            push @lines, "$tag =>", @subs;
         }
     }
-    else
-    {   my $example = $ast->{example};
-        $example = qq{"$example"} if $example !~ m/^[+-]?\d+(?:\.\d+)?$/;
-        push @lines, "$ast->{tag} => "
+    elsif(my $example = $ast->{example})
+    {   $example = qq{"$example"} if $example !~ m/^[+-]?\d+(?:\.\d+)?$/;
+        push @lines, "$tag => "
           . ($ast->{is_array} ? " [ $example, ]" : $example);
+    }
+    elsif($ast->{kind} eq 'complex')  # empty complex-type
+    {   push @lines, "$tag => {}";
+    }
+    else
+    {   push @lines, "$tag => TEMPLATE-ERROR";
     }
 
     @lines;

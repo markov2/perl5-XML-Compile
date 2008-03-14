@@ -165,8 +165,8 @@ sub block_handler
     # flatten the HASH: when a block appears only once, there will
     # not be an additional nesting in the output tree.
     if($max ne 'unbounded' && $max==1)
-    {   return $process if $min==1;
-        return bless     # $min==0
+    {   return ($label => $process) if $min==1;
+        my $code =      # $min==0
         sub { my $tree    = shift or return ();
               my $starter = $tree->currentChild or return;
               my @pairs   = try { $process->($tree) };
@@ -179,11 +179,12 @@ sub block_handler
               elsif($@) {$@->reportAll};
 
               @pairs;
-            }, 'BLOCK';
+            };
+         return ($label => bless($code, 'BLOCK'));
     }
 
     if($max ne 'unbounded' && $min>=$max)
-    {   return bless
+    {   my $code =
         sub { my $tree = shift;
               my @res;
               while(@res < $min)
@@ -191,11 +192,12 @@ sub block_handler
                   push @res, {@pairs};
               }
               ($multi => \@res);
-            }, 'BLOCK';
+            };
+         return ($label => bless($code, 'BLOCK'));
     }
 
     if($min==0)
-    {   return bless
+    {   my $code =
         sub { my $tree = shift or return ();
               my @res;
               while($max eq 'unbounded' || @res < $max)
@@ -214,10 +216,11 @@ sub block_handler
               }
 
               @res ? ($multi => \@res) : ();
-            }, 'BLOCK';
+            };
+         return ($label => bless($code, 'BLOCK'));
     }
 
-    bless
+    my $code =
     sub { my $tree = shift or error __xn
              "block with `{name}' is required at least once at {path}"
            , "block with `{name}' is required at least {_count} times at {path}"
@@ -243,11 +246,14 @@ sub block_handler
               push @res, {@pairs};
           }
           ($multi => \@res);
-        }, 'BLOCK';
+        };
+
+    ($label => bless($code, 'BLOCK'));
 }
 
 sub element_handler
 {   my ($path, $args, $label, $min, $max, $required, $optional) = @_;
+    $max eq "0" and return sub {};
 
     if($max ne 'unbounded' && $max==1)
     {   return $min==1

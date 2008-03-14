@@ -37,7 +37,7 @@ XML::Compile::Schema - Compile a schema into CODE
  $schema->importDefinitions('http://www.w3.org/2001/XMLSchema');
  $schema->importDefinitions('2001-XMLSchema.xsd');
 
- # see what is defined
+ # see what types are defined
  $schema->namespaces->printIndex;
 
  # create and use a reader
@@ -308,6 +308,13 @@ returns a M<XML::LibXML::Node>.
 Most options below are B<explained in more detailed> in the manual-page
 M<XML::Compile::Schema::Translate>, which implements the compilation.
 
+=option  validation BOOLEAN
+=default validation <true>
+XML message must be validated, to lower the chance on abuse.  However,
+of course, it costs performance which is only partially compensated by
+fewer checks in your code.  This flag overrules the C<check_values>,
+C<check_occurs>, and C<ignore_facets>.
+
 =option  check_values BOOLEAN
 =default check_values <true>
 Whether code will be produce to check that the XML fields contain
@@ -318,7 +325,7 @@ Turning this off will improve the processing speed significantly, but is
 external sources: validation is a crucial requirement for XML.
 
 =option  check_occurs BOOLEAN
-=default check_occurs <false>
+=default check_occurs <true>
 Whether code will be produced to do bounds checking on elements and blocks
 which may appear more than once. When the schema says that maxOccurs is 1,
 then that element becomes optional.  When the schema says that maxOccurs
@@ -362,7 +369,8 @@ Can be used to predefine an output namespace (when 'WRITER') for instance
 to reserve common abbreviations like C<soap> for external use.  Each
 entry in the hash has as key the namespace uri.  The value is a hash
 which contains C<uri>, C<prefix>, and C<used> fields.  Pass a reference
-to a private hash to catch this index.
+to a private hash to catch this index. An ARRAY with prefix, uri PAIRS
+is simpler.
 
 =option  include_namespaces BOOLEAN
 =default include_namespaces <true>
@@ -395,8 +403,11 @@ Be aware that C<Math::BigInt> and C<Math::BigFloat> objects are nearly
 but not fully transparent mimicing the behavior of Perl's ints and
 floats.  See their respective manual-pages.  Especially when you wish
 for some performance, you should optimize access to these objects to
-avoid expensive copying which is exactly the spot where the difference
+avoid expensive copying which is exactly the spot where the differences
 are.
+
+You can also improve the speed of Math::BigInt by installing
+Math::BigInt::GMP.
 
 =option  anyElement CODE
 =default anyElement C<undef>
@@ -451,10 +462,17 @@ sub compile($$@)
 {   my ($self, $action, $type, %args) = @_;
     defined $type or return ();
 
-    exists $args{check_values}       or $args{check_values} = 1; 
-    exists $args{check_occurs}       or $args{check_occurs} = 1;
-    exists $args{include_namespaces} or $args{include_namespaces} = 1;
+    if(exists $args{validation})
+    {   $args{check_values}  =   $args{validation};
+        $args{check_occurs}  =   $args{validation};
+        $args{ignore_facets} = ! $args{validation};
+    }
+    else
+    {   exists $args{check_values}   or $args{check_values} = 1; 
+        exists $args{check_occurs}   or $args{check_occurs} = 1;
+    }
 
+    exists $args{include_namespaces} or $args{include_namespaces} = 1;
     $args{sloppy_integers}   ||= 0;
     unless($args{sloppy_integers})
     {   eval "require Math::BigInt";
@@ -831,7 +849,7 @@ An error is produced when the number of elements found is less than
 C<minOccurs> (defaults to 1) or more than C<maxOccurs> (defaults to 1),
 unless M<compile(check_occurs)> is C<false>.
 
-=example elements with maxOccurs E<gt> 1
+=example elements with maxOccurs larger than 1
 In the schema:
  <element name="a" type="int" maxOccurs="unbounded" />
  <element name="b" type="int" />
@@ -924,7 +942,7 @@ So, our example data is translated into (and vice versa)
 
   example =>
     { a     => 1
-    , seq_b => [ {b => 2}, {b => 3}, {b => 4}
+    , seq_b => [ {b => 2}, {b => 3}, {b => 4} ]
     , c     => 5
     }
 
@@ -944,7 +962,7 @@ something like this:
 
 Each HASH has only one key.
 
-=example always an array with maxOccurs E<gt> 1
+=example always an array with maxOccurs larger than 1
 
 Even when there is only one element found, it will be returned as
 ARRAY (of one element).  Therefore, you can write
@@ -952,7 +970,7 @@ ARRAY (of one element).  Therefore, you can write
  my $data = $reader->($xml);
  foreach my $a ( @{$data->{a}} ) {...}
 
-=example blocks with maxOccurs E<gt> 1
+=example blocks with maxOccurs larger than 1
 In the schema:
  <sequence maxOccurs="5">
    <element name="a" type="int" />

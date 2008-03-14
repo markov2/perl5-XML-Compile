@@ -9,7 +9,7 @@ use TestTools;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 300;
+use Test::More tests => 308;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -95,6 +95,14 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
       <totalDigits value="4" />
     </restriction>
   </simpleType>
+</element>
+
+<element name="test11">
+  <complexType>
+    <sequence>
+      <element name="t11" type="me:t2" />
+    </sequence>
+  </complexType>
 </element>
 
 </schema>
@@ -251,3 +259,8 @@ test_rw($schema, test10 => '<test10>12.34</test10>', 12.34);
 test_rw($schema, test10 => '<test10>123.4</test10>', 123.4);
 
 test_rw($schema, test10 => '<test10>1234</test10>', 1234);
+
+### test11 (from bug reported by Allan Wind)
+
+$error = writer_error($schema, test11 => {t11 => 3});
+is($error, 'too small inclusive 3, min 12 at {http://test-types}test11/t11#facet');

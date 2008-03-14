@@ -200,7 +200,9 @@ sub _collectTypes($)
 
         if($local eq 'include')
         {   my $location  = $node->getAttribute('schemaLocation')
-                or error __x"include requires schemaLocation attribute";
+                or error __x"include requires schemaLocation attribute at line {linenr}"
+                   , linenr => $node->line_number;
+
             push @{$self->{include}}, $location;
             next NODE;
         }
@@ -209,8 +211,9 @@ sub _collectTypes($)
         my $ref;
         unless(defined $tag && length $tag)
         {   $ref = $tag = $node->getAttribute('ref')
-               or error __x"schema component {local} without name or ref"
-                      , local => $local;
+               or error __x"schema component {local} without name or ref at line {linenr}"
+                    , local => $local, linenr => $node->line_number;
+
             $tag =~ s/.*?\://;
         }
 

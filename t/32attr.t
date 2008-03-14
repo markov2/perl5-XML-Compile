@@ -103,7 +103,7 @@ my $error = reader_error($schema, test1 => <<__XML__);
   <t1_b>26</t1_b>
 </test1>
 __XML__
-is($error, "attribute `a1_b' is required at {http://test-types}test1/at(a1_b)");
+is($error, "attribute `a1_b' is required at {http://test-types}test1/\@a1_b");
 
 my %t1_c = (a1_b => 24, t1_a => 25);
 $error = writer_error($schema, test1 => \%t1_c);
@@ -130,10 +130,10 @@ $error = reader_error($schema, test2 => <<__XML__);
 <test2 a2_c="29" a2_e="666"><t2_b>102</t2_b></test2>
 __XML__
 
-is($error, "attribute `a2_e' is prohibited at {http://test-types}test2/at(a2_e)");
+is($error, "attribute `a2_e' is prohibited at {http://test-types}test2/\@a2_e");
 
 $error = writer_error($schema, test2 => {a2_c => 29, a2_e => 666, t2_b => 77} );
-is($error, "attribute `a2_e' is prohibited at {http://test-types}test2/at(a2_e)");
+is($error, "attribute `a2_e' is prohibited at {http://test-types}test2/\@a2_e");
 
 test_rw($schema, test3 => '<test3 a3="41"/>', { a3 => 41 });
 

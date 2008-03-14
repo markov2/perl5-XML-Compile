@@ -423,7 +423,7 @@ is($@, "error: complexType contains particles, simpleContent or complexContent, 
 ### test 15
 
 eval { reader_error($schema, test15 => '') };
-is($@, "error: complexContent expects either an extension or restriction, not `element' at {http://test-types}test15\n");
+is($@, "error: complexContent needs extension or restriction, not `element' at {http://test-types}test15\n");
 
 ### test 16
 

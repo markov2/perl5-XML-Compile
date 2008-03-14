@@ -4,6 +4,55 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.70: Fri Mar 14 17:35:22 CET 2008
+
+	Fixes:
+
+	- document that ::Schema::compile(check_occurs) default value
+	  is true, not false.
+
+	- maxOccurs==0 now works.  Some tools use it, but it is silly.
+
+	- more name-space switches.
+
+	- missed an element component in simpleType facet related error
+	  messages.  Spotted by [Allan Wind]
+
+	- die when illegal float value [Sander Hulst]
+
+	- template example for empty complexType incorrect.
+
+	- template example for repeated blocks incorrect.
+
+	- repeated particle blocks within particle blocks caused
+	  problems. rt.cpan.org#34079 [Drew Taylor]
+
+	Improvements:
+
+	- minor typos in man-pages [Allan Wind]
+
+	- ::Translate::compileTree() can start with a type.
+
+	- path displayed in error-messages now use @ before attributes,
+	  not at()
+
+	- more docs on how substitutionGroups are represented.
+
+	- new option ::Schema::compile(validation), which covers the
+	  existing three flags for partial validations.
+
+	- option check_values was not documented in ::Translate
+
+	- template Perl did not use Data::Dumper; don't invoke it.
+
+	- protect difficult characters in perl template keys.
+
+	- The writer now accepts a prepared XML element, not only a HASH
+	  or single value, for any simple or complex type element.
+
+	- Math::BigInt uses Math::BigInt::GMP for more performance, if
+	  installed.
+
 version 0.69: Tue Feb 12 09:59:30 CET 2008
 
 	Fixes:
@@ -69,7 +118,7 @@ version 0.66: Thu Jan 31 09:32:00 CET 2008
 
 	- ::Schema::Instance now reports include and import information.
 
-	- reformulation in {url}name explanation, spotted by [Allan Wind]
+	- reformulation in "{url}name" explanation, spotted by [Allan Wind]
 
 version 0.65: Wed Jan 16 10:28:53 CET 2008
 

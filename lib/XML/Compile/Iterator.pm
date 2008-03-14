@@ -101,7 +101,7 @@ sub path() {shift->{path}}
 =section Scanning
 
 =method childs
-Returns the child nodes which fulfill the filter requirements.  In LIST
+Returns the child nodes which fulfil the filter requirements.  In LIST
 context as list, in SCALAR context as reference to an ARRAY.
 =cut
 
