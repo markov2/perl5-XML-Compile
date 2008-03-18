@@ -16,9 +16,14 @@ BEGIN {
    if($@)
    {   plan skip_all => "Math::BigInt not installed";
    }
-   else
-   {   plan tests => 86;
+
+   eval "require Math::BigInt::GMP";
+   unless($@)
+   {   # cmp_deeply does not understand ::GMP objects
+       plan skip_all => "using Math::BigInt::GMP";
    }
+
+   plan tests => 86;
 }
 
 # Will fail when perl's longs get larger than 64bit

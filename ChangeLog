@@ -4,6 +4,14 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.71: Tue Mar 18 16:52:34 CET 2008
+
+	Fixes:
+
+	- require Math::BigInt 1.78, to understand 'try'
+
+	- cannot run t/59big tests with BigInt GMP library.
+
 version 0.70: Fri Mar 14 17:35:22 CET 2008
 
 	Fixes:

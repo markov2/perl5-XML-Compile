@@ -187,7 +187,7 @@ distribution (not the full path) which contains the definition.
 
 When PAIRS of NAMESPACE-FILENAME are given, then those get defined.
 This is typically called during the initiation of modules, like
-M<XML::Compile::WSDL> and M<XML::Compile::SOAP>.  The definitions
+M<XML::Compile::WSDL11> and M<XML::Compile::SOAP>.  The definitions
 are global: not related to specific instances.
 
 The FILENAMES are relative to the directories as specified with some

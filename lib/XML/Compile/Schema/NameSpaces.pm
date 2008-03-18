@@ -151,7 +151,7 @@ Show all definitions from all namespaces, for debugging purposes, by
 default to the STDOUT.
 
 =option  namespace URI|ARRAY-of-URI
-=default <ALL>
+=default namespace <ALL>
 Show only information about the indicate namespaces.
 
 =examples
