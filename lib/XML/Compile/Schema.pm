@@ -767,7 +767,7 @@ In the HASH structure, the data will be represented as
 
  test1 => 42
 
-With reader hook C<after => 'XML_NODE'> hook applied, it will become
+With reader hook C<< after => 'XML_NODE' >> hook applied, it will become
 
  test1 => { _ => 42
           , _XML_NODE => $obj
@@ -814,6 +814,16 @@ Represented as HASH, this looks like
           , answer   => 42
           , when     => '5 billion BC'
           }
+
+=item anything by XML NODE
+
+For a WRITER, you may also specify a XML::LibXML::Node anywhere.
+
+ test1 => $doc->createTextNode('42');
+ test3 => $doc->createElement('ariba');
+
+This data-structure is used without validation, so you are fully on
+your own with this one.
 
 =back
 
@@ -1057,6 +1067,19 @@ contents of these fields.  Therefore, you can translate that
 knowledge into code explicitly.  Read about the processing of wildcards
 in the manual page for each of the back-ends, because it is different
 in each case.
+
+=section Mixed elements
+
+ComplexType and ComplexContent components can be declared with the
+C<<mixed="true">> attribute.  This implies that text is not limited
+to the content of containers, but also be used inbetween elements.
+Usually, you will only find ignorable white-space between elements.
+
+XML::Compile does not have a syntax to express these mixtures of
+information and text, so the only way you can use those, is by providing
+your self-constructed XML::LibXML node for such element.
+
+There is currently no mechanism to warn you for mixed constructs.
 
 =section Schema hooks
 

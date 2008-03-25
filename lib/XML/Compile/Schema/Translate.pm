@@ -71,7 +71,6 @@ to interpret the message if you need them.
 A few nuts are still to crack:
  any* processContents always interpreted as lax
  schema version
- automatic handling of complexType/complexContent mixed
  openContent
  attribute limitiations (facets) on dates
  full understanding of patterns (now limited)
@@ -1218,8 +1217,7 @@ sub complexContent($)
     # content: annotation?, (restriction | extension)
 
     my $node = $tree->node;
-    $self->isTrue($node->getAttribute('mixed') || 'false')
-        and warn "mixed content not supported" if $^W;
+    #$self->isTrue($node->getAttribute('mixed') || 'false')
     
     $tree->nrChildren == 1
         or error __x"only one complexContent child expected at {where}"

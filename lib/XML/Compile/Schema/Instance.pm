@@ -217,9 +217,10 @@ sub _collectTypes($)
             $tag =~ s/.*?\://;
         }
 
-        error __x"schema component `{name}' must be in {namespace}"
-            , name => $tag, namespace => $xsd
-            if $xsd && $node->namespaceURI ne $xsd;
+        my $nns = $node->namespaceURI || '';
+        error __x"schema component `{name}' must be in namespace {ns}"
+          , name => $tag, ns => $xsd
+              if $xsd && $nns ne $xsd;
 
         my $id    = $schema->getAttribute('id');
 

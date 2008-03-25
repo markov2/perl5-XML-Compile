@@ -4,6 +4,26 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.72: Tue Mar 25 10:22:39 CET 2008
+
+	Fixes:
+
+	- [Drew Taylor] experienced that 'time' basic type was not
+	  implemented.
+
+	- ::Template::anyElement fix [Drew Taylor]
+
+	- timezoneFrag is optional, wrongly implemented in many regexes.
+
+	- ::Template::union incorrectly processed [Drew Taylor]
+
+	Improvements:
+
+	- document that XML::LibXML nodes can be specified on any location
+	  for WRITERs. (feature was added in 0.70)
+
+	- document how to handle mixed content.
+
 version 0.71: Tue Mar 18 16:52:34 CET 2008
 
 	Fixes:
