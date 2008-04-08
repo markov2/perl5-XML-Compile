@@ -11,9 +11,9 @@ use List::Util  'first';
 
 use XML::Compile::Schema::Specs;
 use XML::Compile::Schema::BuiltInFacets;
-use XML::Compile::Schema::BuiltInTypes   qw/%builtin_types/;
-use XML::Compile::Util                   qw/pack_type unpack_type/;
-use XML::Compile::Iterator               ();
+use XML::Compile::Schema::BuiltInTypes qw/%builtin_types/;
+use XML::Compile::Util                 qw/pack_type unpack_type type_of_node/;
+use XML::Compile::Iterator             ();
 
 # Elements from the schema to ignore: remember, we are collecting data
 # from the schema, but only use selective items to produce processors.
@@ -698,6 +698,26 @@ sub particleBlock($)
     ($label => $self->make($blocktype => $tree->path, @pairs));
 }
 
+sub findSgMemberNodes($)
+{   my ($self, $type) = @_;
+    my @subgrps;
+    foreach my $subgrp ($self->namespaces->findSgMembers($type))
+    {   my $node = $subgrp->{node};
+        push @subgrps, $node;
+
+        my $abstract = $node->getAttribute('abstract') || 'false';
+        $self->isTrue($abstract) or next;
+
+        my $groupname = $node->getAttribute('name')
+            or error __x"substitutionGroup element needs name at {where}"
+                 , where => $node->path, class => 'schema';
+
+        my $subtype   = pack_type $self->{tns}, $groupname;
+        push @subgrps, $self->findSgMemberNodes($subtype);
+    }
+    @subgrps;
+}
+        
 sub particleElementSubst($)
 {   my ($self, $tree) = @_;
 
@@ -712,8 +732,7 @@ sub particleElementSubst($)
  
     my $tns     = $self->{tns};
     my $type    = pack_type $tns, $groupname;
-    my @subgrps = map {$_->{node}}
-        $self->namespaces->findSgMembers($type);
+    my @subgrps = $self->findSgMemberNodes($type);
 
     # at least the base is expected
     @subgrps

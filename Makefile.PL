@@ -4,19 +4,25 @@ use 5.008;
 
 WriteMakefile
  ( NAME	 	=> 'XML::Compile'
- , VERSION	=> '0.72'
+ , VERSION	=> '0.73'
  , PREREQ_PM    =>
    { XML::LibXML               => 1.65
-   , Math::BigInt              => 1.78
    , IO                        => 1.22
    , Log::Report               => 0.09
+
+   , Math::BigInt              => 1.78
+   , Math::BigRat              => 0.19
+   , bignum                    => 0.21
+   , Digest::MD5               => 2.36
 
    , Test::More                => 0.54
    , Test::Deep                => 0.095
    , Test::Pod                 => '1.00'
    }
+
  , EXE_FILES    =>
    [ 'bin/xml2yaml'
+   , 'bin/schema2example'
    ]
  , AUTHOR       => 'Mark Overmeer'
  , ABSTRACT     => 'Compilation based XML processing'

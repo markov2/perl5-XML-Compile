@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/home/satfoto/bin/perl
 
 use warnings;
 use strict;
@@ -6,14 +6,16 @@ use strict;
 use XML::Compile::Schema ();
 use XML::Compile::Util   qw/type_of_node/;
 use Getopt::Long         qw/GetOptions :config gnu_compat bundling/;
-use YAML                 qw/Dump/;
 
-my ($xml_input, $root_type, @schemas, $bigints, $yaml_out);
+my ($xml_input, $root_type, @schemas, $outfile);
+my $format = 'PERL';
+my $show   = 'ALL';
 
 GetOptions
-   "bigints|b!" => \$bigints
- , "output|o=s" => \$yaml_out
+   'format|f=s' => \$format
+ , "output|o=s" => \$outfile
  , "schema|s=s" => \@schemas
+ , "show=s"     => \$show
  , "type|t=s"   => \$root_type
  , "xml|x=s"    => \$xml_input;
 
@@ -32,6 +34,10 @@ defined $xml_input
     or die "ERROR: no schema's specified\n";
 @schemas   = map { split /\,/ } @schemas;
 
+$format = uc $format;
+die "ERROR: format must be either 'PERL' or 'XML'\n"
+   if $format ne 'PERL' && $format ne 'XML';
+
 my $parser = XML::LibXML->new;
 
 my $msg    = $xml_input eq '-'
@@ -44,23 +50,22 @@ $root_type ||= type_of_node $top;
 my $schema = XML::Compile::Schema->new;
 $schema->importDefinitions($_) for @schemas;
 
-my $read = $schema->compile
-  ( READER => $root_type
-  , sloppy_integers => !$bigints
+my $output = $schema->template
+  ( $format
+  , $root_type
+  , show => $show
   );
 
-my $data = Dump $read->($top);
+if($outfile)
+{   open OUT, ">:utf8", $outfile
+        or die "ERROR: cannot write yaml to $outfile: $!\n";
 
-if($yaml_out)
-{   open OUT, ">:utf8", $yaml_out
-        or die "ERROR: cannot write yaml to $yaml_out: $!\n";
-
-    print OUT $data;
+    print OUT $output;
     close OUT
-        or die "ERROR: write error for $yaml_out: $!\n";
+        or die "ERROR: write error for $outfile: $!\n";
 }
 else
-{   print $data;
+{   print $output;
 }
 
 exit 0;
@@ -69,19 +74,20 @@ __END__
 
 =head1 NAME
 
-xml2yaml - convert an XML message with a schema into YAML
+xml2example - convert XML schema knowledge into Perl or XML examples
 
 =head1 SYNOPSIS
 
- xml2yaml xml-file schema-file(s)  >yaml-file
+ xml2example xml-file schema-file(s)  >outfile
 
- xml2yaml -x xml-file -s schema-files -o yaml-file
+ xml2example -x xml-file -s schema-file(s) -o outfile
 
 =head1 DESCRIPTION
 
-Convert an XML message into YAML with the same structure.  A schema
-is required to enforce the correct syntax, especially for optionally
-repeated elements.
+XML schemas are quite hard to read, certainly when multiple name-spaces
+are involved.  The template() function in XML::Compile::Schema function
+can help displaying the expected structure of a message; this module is
+a wrapper around that function.
 
 =head2 Options
 
@@ -100,12 +106,6 @@ This option can be repeated, or the filenames separated by comma's, if
 you have more than one schema file to parse.  All imported and included
 schema components have to be provided explicitly.
 
-=item --bigints|-b  (boolean)
-
-By default, the translation is a little sloppy: Integer types are defined
-to support at least 18 digits in XML.  However, this is usually unneccesary
-large and unreadible in YAML.
-
 =item --type|-t TYPE
 
 The type of the root element, required if the XML is not namespaceo
@@ -120,6 +120,13 @@ for the shell.
 
 By default, the output is to stdout.
 
+=item --show STRING
+
+A comma seperated list of comment components which should be included,
+by default C<ALL>.  An empty string or C<NONE> will exclude all comments.
+The STRING can also be a comma separated combination of C<struct>, C<type>,
+C<occur>, and C<facets>.
+
 =back
 
 =head1 SEE ALSO
@@ -129,11 +136,9 @@ Website: F<http://perl.overmeer.net/xml-compile/>
 
 =head1 LICENSE
 
-Copyrights 2008 by Slaven Rezic and Mark Overmeer. For other contributors
+Copyrights 2008 by Mark Overmeer. For other contributors
 see ChangeLog.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
 See F<http://www.perl.com/perl/misc/Artistic.html>
-
-

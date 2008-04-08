@@ -4,6 +4,49 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.73: Tue Apr  8 23:47:05 CEST 2008
+
+	Fixes:
+
+	- Recursion detection is example template production.
+
+	- example template fix: add ',' after some ']'.
+
+	- reader in list context should not return the label of the
+	  element.  rt.cpan.org#34597 [Andreas Koenig]
+
+	- removed test print when bigfloat was used.
+
+	- nesting of substitutionGroups supported.
+	  Requested by [Sander Hulst]
+
+	Improvements:
+
+	- reuse schema parsing results, when the same file or string is
+	  passed multiple times.  Adds dependency to Digest::MD5.
+
+	- added script schema2example
+
+	- pass an ARRAY of schema sources at once to ::Schema::new()
+	  and ::importDefinitions.
+
+	- Math::BigInt warns us to upgrade Math::BigRat and bignum, so
+	  included that as dependencies.
+
+	- ::Namespaces::add() now accept multiple schema instances at
+	  a time.
+
+	- explain how XML::LibXML::Simple can be used in a READER
+	  replace hook.
+
+	- adding debug info about the parsing of XML information via
+	  dataToXML().
+
+        - timezoneFrag was not wrong (as stated by the 0.72 release).
+	  Reverted the changes for simpler code.
+
+	- more examples in ::Schema SYNOPSIS
+
 version 0.72: Tue Mar 25 10:22:39 CET 2008
 
 	Fixes:
@@ -13,7 +56,7 @@ version 0.72: Tue Mar 25 10:22:39 CET 2008
 
 	- ::Template::anyElement fix [Drew Taylor]
 
-	- timezoneFrag is optional, wrongly implemented in many regexes.
+        - timezoneFrag is optional, wrongly implemented in many regexes.
 
 	- ::Template::union incorrectly processed [Drew Taylor]
 

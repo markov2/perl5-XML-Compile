@@ -532,7 +532,7 @@ sub facets_list
 
           my $v = $r;  # do not test with original
           for(@$early) { defined $v or return (); $v = $_->($v) }
-          $r;
+          defined $v ? $r : ();
         };
 }
 

@@ -6,9 +6,11 @@ package XML::Compile::Schema;
 use base 'XML::Compile';
 
 use Log::Report 'xml-compile', syntax => 'SHORT';
-use List::Util   qw/first/;
-use XML::LibXML  ();
-use File::Spec   ();
+use List::Util     qw/first/;
+use XML::LibXML    ();
+use File::Spec     ();
+use File::Basename qw/basename/;
+use Digest::MD5    qw/md5_hex/;
 
 use XML::Compile::Schema::Specs;
 use XML::Compile::Schema::Translate      ();
@@ -37,17 +39,33 @@ XML::Compile::Schema - Compile a schema into CODE
  $schema->importDefinitions('http://www.w3.org/2001/XMLSchema');
  $schema->importDefinitions('2001-XMLSchema.xsd');
 
+ # alternatively
+ my @specs  = ('one.xsd', 'two.xsd', $schema_as_string);
+ my $schema = XML::Compile::Schema->new(\@specs); # ARRAY!
+
  # see what types are defined
  $schema->namespaces->printIndex;
 
  # create and use a reader
- my $read   = $schema->compile(READER => '{myns}mytype');
- my $hash   = $read->($xml);
+ use XML::Compile::Util qw/pack_type/;
+ my $elem   = pack_type 'my-namespace', 'my-local-name';
+                # $elem eq "{my-namespace}my-local-name"
+ my $read   = $schema->compile(READER => $elem);
+ my $data   = $read->($xmlnode);
+ my $data   = $read->("filename.xml");
+ 
+ # when you do not know the element type beforehand
+ use XML::Compile::Util qw/type_of_node/;
+ my $elem   = type_of_node $xml->documentElement;
+ my $reader = $reader_cache{$type}               # either exists
+          ||= $schema->compile(READER => $elem); #   or create
+ my $data   = $reader->($xmlmsg);
  
  # create and use a writer
  my $doc    = XML::LibXML::Document->new('1.0', 'UTF-8');
  my $write  = $schema->compile(WRITER => '{myns}mytype');
  my $xml    = $write->($doc, $hash);
+ my $result = $doc->setDocumentElement($xml);
 
  # show result
  print $xml->toString;
@@ -132,13 +150,18 @@ mainly because it cannot produce valid code.
 
 =section Constructors
 
-=c_method new TOP, OPTIONS
-Collect schema information.  Details about many name-spaces can be
-organized with only a single schema object (actually, the data is
-administered in an internal M<XML::Compile::Schema::NameSpaces> object)
+=c_method new [XMLDATA], OPTIONS
+Details about many name-spaces can be organized with only a single
+schema object (actually, the data is administered in an internal
+M<XML::Compile::Schema::NameSpaces> object)
 
-When TOP is C<undef>, you will have to call M<importDefinitions()> before
-compiling anything.
+The initial information is extracted from the XMLDATA source.  The XMLDATA
+can be anything what is acceptable by M<importDefinitions()>, which is
+everything accepted by M<dataToXML()> or an ARRAY of those things.
+
+You can specify the hooks before you define the schemas the hooks
+work on: all schema information and all hooks are only used when
+the readers and writers get compiled.
 
 =option  hook ARRAY-WITH-HOOKDATA | HOOK
 =default hook C<undef>
@@ -178,11 +201,9 @@ to collect schemas.
 sub namespaces() { shift->{namespaces} }
 
 =method addSchemas XML, OPTIONS
-Collect all the schemas defined in the XML data.  Returns is a list of
-all found schema's, a list of M<XML::Compile::Schema::Instance> objects.
-
-The XML parameter must be a M<XML::LibXML> node, therefore it is adviced
-to use M<importDefinitions()>, which has a much more flexible way to
+Collect all the schemas defined in the XML data.  The XML parameter
+must be a M<XML::LibXML> node, therefore it is adviced to use
+M<importDefinitions()>, which has a much more flexible way to
 specify the data.
 
 =option  source STRING
@@ -222,35 +243,107 @@ sub addSchemas($@)
             my $schema = XML::Compile::Schema::Instance->new($this, @nsopts)
                 or next;
 
-#warn $schema->targetNamespace;
-#$schema->printIndex(\*STDERR);
             $nss->add($schema);
             push @schemas, $schema;
             return 0;
           }
     );
-
     @schemas;
 }
 
 =method importDefinitions XMLDATA, OPTIONS
 Import (include) the schema information included in the XMLDATA.  The
 XMLDATA must be acceptable for M<dataToXML()>.  The resulting node
-and the OPTIONS are passed to M<addSchemas()>.  The schema node does
+and the OPTIONS are passed to M<addSchemas()>. The schema node does
 not need to be the top element: any schema node found in the data
 will be decoded.
 
 Returned is a list of M<XML::Compile::Schema::Instance> objects,
 for each processed schema component.
+
+If your program imports the same string or file definitions multiple
+times, it will re-use the schema information from the first import.
+This removal of dupplications will not work for open files or pre-parsed
+XML structures.
+
+As an extension to the handling M<dataToXML()> provides, you can specify an
+ARRAY of things which are acceptable to C<dataToXML>.  This way, you can
+specify multiple resources at once, each of which will be processed with
+the same OPTIONS.
+
+=examples of use of importDefinitions
+  my $schema = XML::Compile::Schema->new;
+  $schema->importDefinitions('my-spec.xsd');
+
+  my $other = "<schema>...</schema>";  # use 'HERE' documents!
+  my @specs = ('my-spec.xsd', 'types.xsd', $other);
+  $schema->importDefinitions(\@specs, @options);
 =cut
 
-sub importDefinitions($@)
-{   my $self  = shift;
-    my $thing = shift or return;
-    my ($tree, @details) = $self->dataToXML($thing);
-    defined $tree or return;
+# The cache will certainly avoid penalties by the average module user,
+# which does not understand the sharing schema definitions between objects
+# especially in SOAP implementations.
+my (%cacheByFilestamp, %cacheByChecksum);
 
-    $self->addSchemas($tree, @details, @_);
+sub importDefinitions($@)
+{   my ($self, $thing, @options) = @_;
+    my @data = ref $thing eq 'ARRAY' ? @$thing : $thing;
+
+    my @schemas;
+    foreach my $data (@data)
+    {   defined $data or next;
+        my ($xml, %details) = $self->dataToXML($data);
+        if(defined $xml)
+        {   my @added = $self->addSchemas($xml, %details, @options);
+            if(my $checksum = $details{checksum})
+            {    $cacheByChecksum{$checksum} = \@added;
+            }
+            elsif(my $filestamp = $details{filestamp})
+            {   $cacheByFilestamp{$filestamp} = \@added;
+            }
+            push @schemas, @added;
+        }
+        elsif(my $filestamp = $details{filestamp})
+        {   my $cached = $cacheByFilestamp{$filestamp};
+            $self->namespaces->add(@$cached);
+        }
+        elsif(my $checksum = $details{checksum})
+        {   my $cached = $cacheByChecksum{$checksum};
+            $self->namespaces->add(@$cached);
+        }
+    }
+    @schemas;
+}
+
+sub _parseScalar($)
+{   my ($thing, $data) = @_;
+    my $checksum = md5_hex $$data;
+
+    if($cacheByChecksum{$checksum})
+    {   trace "importDefinitions reusing string data with checksum $checksum";
+        return (undef, checksum => $checksum);
+    }
+
+    trace "importDefintions for scalar with checksum $checksum";
+    ( $thing->SUPER::_parseScalar($data)
+    , checksum => $checksum
+    );
+}
+
+sub _parseFile($)
+{   my ($thing, $fn) = @_;
+    my ($mtime, $size) = (stat $fn)[9,7];
+    my $filestamp = basename($fn) . '-'. $mtime . '-' . $size;
+
+    if($cacheByFilestamp{$filestamp})
+    {   trace "importDefinitions reusing schemas from file $filestamp";
+        return (undef, filestamp => $filestamp);
+    }
+
+    trace "importDefinitions for filestamp $filestamp";
+    ( $thing->SUPER::_parseFile($fn)
+    , filestamp => $filestamp
+    );
 }
 
 =method addHook HOOKDATA|HOOK|undef
@@ -369,7 +462,7 @@ Can be used to predefine an output namespace (when 'WRITER') for instance
 to reserve common abbreviations like C<soap> for external use.  Each
 entry in the hash has as key the namespace uri.  The value is a hash
 which contains C<uri>, C<prefix>, and C<used> fields.  Pass a reference
-to a private hash to catch this index. An ARRAY with prefix, uri PAIRS
+to a private hash to catch this index.  An ARRAY with prefix, uri PAIRS
 is simpler.
 
 =option  include_namespaces BOOLEAN
@@ -468,7 +561,7 @@ sub compile($$@)
         $args{ignore_facets} = ! $args{validation};
     }
     else
-    {   exists $args{check_values}   or $args{check_values} = 1; 
+    {   exists $args{check_values}   or $args{check_values} = 1;
         exists $args{check_occurs}   or $args{check_occurs} = 1;
     }
 
@@ -530,7 +623,6 @@ sub compile($$@)
 }
 
 =method template 'XML'|'PERL', TYPE, OPTIONS
-WARNING: under development!  The implementation is far from complete.
 
 Schema's can be horribly complex and unreadible.  Therefore, this template
 method can be called to create an example which demonstrates how data of
@@ -538,6 +630,9 @@ the specified TYPE as XML or Perl is organized in practice.
 
 Some OPTIONS are explained in M<XML::Compile::Schema::Translate>.
 There are some extra OPTIONS defined for the final output process.
+
+The templates produced are B<not always correct>.  Please contribute
+improvements.
 
 =option  elements_qualified C<ALL>|C<TOP>|C<NONE>|BOOLEAN
 =default elements_qualified <undef>
@@ -590,9 +685,7 @@ sub template($@)
      );
 
     my $ast = $compiled->();
-# use Data::Dumper;
-# $Data::Dumper::Indent = 1;
-# warn Dumper $ast;
+# use Data::Dumper; $Data::Dumper::Indent = 1; warn Dumper $ast;
 
     if($action eq 'XML')
     {   my $doc  = XML::LibXML::Document->new('1.1', 'UTF-8');
@@ -615,7 +708,7 @@ List all types, defined by all schemas sorted alphabetically.
 sub types()
 {   my $nss = shift->namespaces;
     sort map {$_->types}
-          map {$nss->schemas($_)}
+         map {$nss->schemas($_)}
              $nss->list;
 }
 
@@ -706,7 +799,7 @@ same name.
 
 The compiler requires a starting-point.  This can either be an
 element name or an element's id.  The format of the element name
-is C<{namespace-url}local-name>, for instance
+is C<{namespace-uri}localname>, for instance
 
  {http://library}book
 
@@ -714,7 +807,7 @@ You may also start with
 
  http://www.w3.org/2001/XMLSchema#float
 
-as long as this ID refers to a top-level element.
+as long as this ID refers to a top-level element, not a type.
 
 When you use a schema without C<targetNamespace> (which is bad practice,
 but sometimes people really do not understand the beneficial aspects of

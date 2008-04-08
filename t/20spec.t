@@ -9,7 +9,7 @@ use lib 'lib', 't';
 use XML::Compile::Schema;
 use TestTools;
 
-use Test::More tests => 21;
+use Test::More tests => 22;
 
 our $xmlfile = XML::Compile->findSchemaFile('2001-XMLSchema.xsd');
 
@@ -48,6 +48,7 @@ close OUT;
 
 my @types   = split /\n/, $list;
 is(shift(@types), "namespace: $SchemaNS");
+is(shift(@types), "  source: XML::LibXML::Document");
 cmp_ok(scalar(@types), '==', 150);
 
 my $random = (sort @types)[42];

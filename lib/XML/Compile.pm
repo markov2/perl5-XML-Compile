@@ -98,9 +98,10 @@ exist.
 These constructors are base class methods to be extended,
 and therefore should not be accessed directly.
 
-=c_method new TOP, OPTIONS
+=c_method new [XMLDATA], OPTIONS
 
-The TOP is the source of XML. See M<dataToXML()> for valid options.
+The XMLDATA is a source of XML. See M<dataToXML()> for valid ways,
+for example as filename, string or undef.
 
 If you have compiled/collected all readers and writers you need,
 you may simply terminate the compiler object: that will clean-up
@@ -116,7 +117,8 @@ See M<addSchemaDirs()> for a detailed explanation.
 =cut
 
 sub new($@)
-{   my ($class, $top) = (shift, shift);
+{   my $class = shift;
+    my $top   = @_ % 2 ? shift : undef;
 
     $class ne __PACKAGE__
        or panic "you should instantiate a sub-class, $class is base only";
@@ -234,15 +236,15 @@ sub findSchemaFile($)
 
 =method dataToXML NODE|REF-XML-STRING|XML-STRING|FILENAME|FILEHANDLE|KNOWN
 Collect XML data, from a wide variety of sources.  In SCALAR context,
-a XML::LibXML::Element or ::Document is returned.  In LIST context,
-pairs of additional information follow the result.
+a XML::LibXML::Element or XML::LibXML::Document is returned.  In LIST
+context, pairs of additional information follow the result.
 
-When a ready M<XML::LibXML> NODE is provided, it is
-returned immediately and unchanged.  A SCALAR reference is interpreted
-as reference to XML as plain text (XML texts can be large, and you can
-improve performance by passing it around by reference instead of copy).
-Any value which starts with blanks followed by a 'E<lt>' is interpreted
-as XML text.
+When a ready M<XML::LibXML::Node> (::Element or ::Document) NODE is
+provided, it is returned immediately and unchanged.  A SCALAR reference is
+interpreted as reference to XML as plain text (XML texts can be large,
+and you can improve performance by passing it around by reference
+instead of copy).  Any value which starts with blanks followed by a
+'E<lt>' is interpreted as XML text.
 
 You may also specify a pre-defined I<known> name-space URI.  A set of
 definition files is included in the distribution, and installed somewhere
@@ -272,37 +274,29 @@ sub dataToXML($)
     defined $thing
         or return;
 
-    my ($xml, $source, %details);
+    my ($xml, %details);
     if(ref $thing && UNIVERSAL::isa($thing, 'XML::LibXML::Node'))
-    {   $xml    = $thing;
-        $source = ref $thing;
+    {   ($xml, %details) = $self->_parsedNode($thing);
     }
     elsif(ref $thing eq 'SCALAR')   # XML string as ref
-    {   $xml    = $self->_parse($thing);
-        $source = ref $thing;
+    {   ($xml, %details) = $self->_parseScalar($thing);
     }
     elsif(ref $thing eq 'GLOB')     # from file-handle
-    {   $xml    = $parser->parse_fh($thing);
-        $xml    = $xml->documentElement if defined $xml;
-        $source = ref $thing;
+    {   ($xml, %details) = $self->_parseFileHandle($thing);
     }
     elsif($thing =~ m/^\s*\</)      # XML starts with '<', rare for files
-    {   $xml    = $self->_parse(\$thing);
-        $source = 'string';
+    {   ($xml, %details) = $self->_parseScalar(\$thing);
     }
     elsif(my $known = $self->knownNamespace($thing))
     {   my $fn  = $self->findSchemaFile($known)
             or error __x"cannot find pre-installed name-space file named {path} for {name}"
                  , path => $known, name => $thing;
 
-        $xml    = $self->_parseFile($fn);
-        $source = "known namespace $thing";
-        $details{filename} = $fn;
+        ($xml, %details) = $self->_parseFile($fn);
+        $details{source} = "known namespace $thing";
     }
     elsif(-f $thing)
-    {   $xml    = $self->_parseFile($thing);
-        $source = "file";
-        $details{filename} = $thing;
+    {   ($xml, %details) = $self->_parseFile($thing);
     }
     else
     {   my $data = "$thing";
@@ -314,16 +308,44 @@ sub dataToXML($)
     wantarray ? ($xml, %details) : $xml;
 }
 
-sub _parse($)
+sub _parsedNode($)
+{   my ($thing, $node) = @_;
+    trace "using preparsed XML node";
+
+    ( $node
+    , source => ref $node
+    );
+}
+
+sub _parseScalar($)
 {   my ($thing, $data) = @_;
+    trace "parsing XML from string $data";
     my $xml = $parser->parse_string($$data);
-    defined $xml ? $xml->documentElement : undef;
+
+    ( (defined $xml ? $xml->documentElement : undef)
+    , source => ref $data
+    );
 }
 
 sub _parseFile($)
 {   my ($thing, $fn) = @_;
+    trace "parsing XML from file $fn";
     my $xml = $parser->parse_file($fn);
-    defined $xml ? $xml->documentElement : undef;
+
+    ( (defined $xml ? $xml->documentElement : undef)
+    , source   => 'file'
+    , filename => $fn
+    );
+}
+
+sub _parseFileHandle($)
+{   my ($thing, $fh) = @_;
+    trace "parsing XML from open file $fh";
+    my $xml = $parser->parse_fh($fh);
+
+    ( (defined $xml ? $xml->documentElement : undef)
+    , source => ref $thing
+    );
 }
 
 =section Filters

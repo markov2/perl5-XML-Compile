@@ -62,16 +62,18 @@ sub namespace($)
     $nss ? @$nss : ();
 }
 
-=method add SCHEMA
-Adds the M<XML::Compile::Schema::Instance> object to the internal
+=method add SCHEMA, [SCHEMAS]
+Add M<XML::Compile::Schema::Instance> objects to the internal
 knowledge of this object.
 =cut
 
-sub add($)
-{   my ($self, $schema) = @_;
-    my $tns = $schema->targetNamespace;
-    unshift @{$self->{tns}{$tns}}, $schema;
-    $schema;
+sub add(@)
+{   my $self = shift;
+    foreach my $schema (@_)
+    {   my $tns = $schema->targetNamespace;
+        unshift @{$self->{tns}{$tns}}, $schema;
+    }
+    @_;
 }
 
 =method schemas URI

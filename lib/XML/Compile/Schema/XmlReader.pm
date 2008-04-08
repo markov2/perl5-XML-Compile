@@ -61,7 +61,7 @@ sub element_wrapper
                   sub { $_[0]->isa('XML::LibXML::Element') } );
           }
 
-          $processor->($tree);
+          ($processor->($tree))[-1];
         };
 }
 
@@ -71,7 +71,7 @@ sub attribute_wrapper
     sub { my $attr = shift;
           ref $attr && $attr->isa('XML::LibXML::Attr')
               or error __x"expects an attribute node, but got `{something}' at {path}"
-                    , something => (ref $attr || $attr), path => $path;
+                   , something => (ref $attr || $attr), path => $path;
 
           my $node = XML::LibXML::Element->new('dummy');
           $node->addChild($attr);
@@ -498,7 +498,7 @@ sub list
 {   my ($path, $args, $st) = @_;
     sub { my $tree = shift or return undef;
           my $v = $tree->textContent;
-          my @v = grep {defined} map {$st->($_) } split(" ",$v);
+          my @v = grep {defined} map {$st->($_)} split(" ",$v);
           \@v;
         };
 }
@@ -512,7 +512,7 @@ sub facets_list
           my @r;
       EL: for my $e (@v)
           {   for(@$late) { defined $e or next EL; $e = $_->($e) }
-              push @r, $e;
+              push @r, $e if defined $e;
           }
           @r ? \@r : ();
         };
@@ -930,13 +930,28 @@ This hook offers a predefined C<PRINT_PATH>.
  $schema->addHook(path => qr/./, before => 'PRINT_PATH');
 
 =subsection hooks executed as replacement
+
 Your C<replace> hook should return a list of key-value pairs. To
-produce it, it will get the M<XML::LibXML::Node>, the translator settings
+produce it, it will get the M<XML::LibXML::Element>, the translator settings
 as HASH, the path, and the localname.
 
 This hook has a predefined C<SKIP>, which will not process the
-found element, but simply return the string C<SKIPPED> as value.
+found element, but simply return the string "SKIPPED" as value.
 This way, a whole tree of unneeded translations can be avoided.
+
+Sometimes, the Schema spec is such a mess, that XML::Compile cannot
+automatically translate it.  I have seen cases where confusion over
+name-spaces is created: a choice between three elements with the same
+name but different types.  Well, in such case you may use M<XML::LibXML::Simple>
+to translate a part of your tree.  Simply
+
+ use XML::LibXML::Simple  qw/XMLin/;
+ $schema->addHook
+   ( type => ...bad-type-definition...
+   , sub { my ($xml, $args, $path, $local) = @_;
+           $local => XMLin($xml, ...);
+         }
+   );
 
 =subsection hooks for post-processing, after the data is collected
 

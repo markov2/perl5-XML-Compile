@@ -95,7 +95,6 @@ sub bigint
 sub bigfloat
 {   $_[0] =~ s/\s+//g;
     my $v = Math::BigFloat->new($_[0]);
-print STDERR "$_[0];$v";
     error __x"Value `{val}' is not a (big) float", val => $v if $v->is_nan;
     $v;
 }
@@ -394,7 +393,7 @@ my $timeFrag     = qr/ (?: $hourFrag \: $minuteFrag \: $secondFrag )
                      | $endOfDayFrag
                      /x;
 
-my $date = qr/^ $yearFrag \- $monthFrag \- $dayFrag (?: $timezoneFrag)? $/x;
+my $date = qr/^ $yearFrag \- $monthFrag \- $dayFrag $timezoneFrag? $/x;
 
 $builtin_types{date} =
  { parse   => \&_collapse
@@ -407,7 +406,7 @@ $builtin_types{date} =
 An moment in time, as can happen every day.
 =cut
 
-my $time = qr /^ $timeFrag (?: $timezoneFrag )? $/x;
+my $time = qr /^ $timeFrag $timezoneFrag? $/x;
 
 $builtin_types{time} =
  { parse   => \&_collapse
@@ -427,7 +426,7 @@ not be parsed.
 =cut
 
 my $dateTime = qr/^ $yearFrag \- $monthFrag \- $dayFrag
-                    T $timeFrag (?: $timezoneFrag )? $/x;
+                    T $timeFrag $timezoneFrag? $/x;
 
 $builtin_types{dateTime} =
  { parse   => \&_collapse
@@ -441,7 +440,7 @@ $builtin_types{dateTime} =
 Format C<---12> or C<---12+09:00> (12 days, optional time-zone)
 =cut
 
-my $gDay = qr/^ \- \- \- $dayFrag (?: $timezoneFrag )? $/x;
+my $gDay = qr/^ \- \- \- $dayFrag $timezoneFrag? $/x;
 $builtin_types{gDay} =
  { parse   => \&_collapse
  , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $gDay }
@@ -452,7 +451,7 @@ $builtin_types{gDay} =
 Format C<--09> or C<--09+07:00> (9 months, optional time-zone)
 =cut
 
-my $gMonth = qr/^ \- \- $monthFrag (?: $timezoneFrag )? $/x;
+my $gMonth = qr/^ \- \- $monthFrag $timezoneFrag? $/x;
 $builtin_types{gMonth} =
  { parse   => \&_collapse
  , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $gMonth }
@@ -463,7 +462,7 @@ $builtin_types{gMonth} =
 Format C<--09-12> or C<--09-12+07:00> (9 months 12 days, optional time-zone)
 =cut
 
-my $gMonthDay = qr/^ \- \- $monthFrag \- $dayFrag (?: $timezoneFrag )? /x;
+my $gMonthDay = qr/^ \- \- $monthFrag \- $dayFrag $timezoneFrag? /x;
 $builtin_types{gMonthDay} =
  { parse   => \&_collapse
  , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $gMonthDay }
@@ -474,7 +473,7 @@ $builtin_types{gMonthDay} =
 Format C<2006> or C<2006+07:00> (year 2006, optional time-zone)
 =cut
 
-my $gYear = qr/^ $yearFrag \- $monthFrag (?: $timezoneFrag )? $/x;
+my $gYear = qr/^ $yearFrag \- $monthFrag $timezoneFrag? $/x;
 $builtin_types{gYear} =
  { parse   => \&_collapse
  , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $gYear }
@@ -485,7 +484,7 @@ $builtin_types{gYear} =
 Format C<2006-11> or C<2006-11+07:00> (november 2006, optional time-zone)
 =cut
 
-my $gYearMonth = qr/^ $yearFrag \- $monthFrag (?: $timezoneFrag )? $/x;
+my $gYearMonth = qr/^ $yearFrag \- $monthFrag $timezoneFrag? $/x;
 $builtin_types{gYearMonth} =
  { parse   => \&_collapse
  , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $gYearMonth }
