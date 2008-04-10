@@ -8,7 +8,7 @@ use base 'Exporter';
 our @EXPORT = qw/builtin_facet/;
 
 use Log::Report     'xml-compile', syntax => 'SHORT';
-use Math::BigInt    try => 'GMP';
+use Math::BigInt;
 use Math::BigFloat;
 
 use constant DBL_MAX_DIG => 15;

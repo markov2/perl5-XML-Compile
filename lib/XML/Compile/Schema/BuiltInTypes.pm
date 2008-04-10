@@ -10,7 +10,7 @@ our %builtin_types;
 
 use Log::Report     'xml-compile', syntax => 'SHORT';
 use POSIX           qw/strftime/;
-use Math::BigInt    try => 'GMP';
+use Math::BigInt;
 use Math::BigFloat;
 use MIME::Base64;
 

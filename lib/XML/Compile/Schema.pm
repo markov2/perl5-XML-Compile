@@ -500,7 +500,8 @@ avoid expensive copying which is exactly the spot where the differences
 are.
 
 You can also improve the speed of Math::BigInt by installing
-Math::BigInt::GMP.
+Math::BigInt::GMP.  Add C<< use Math::BigInt try => 'GMP'; >> to the
+top of your main script to get more performance.
 
 =option  anyElement CODE
 =default anyElement C<undef>

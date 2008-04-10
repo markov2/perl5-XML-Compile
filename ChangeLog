@@ -4,11 +4,22 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.74: Thu Apr 10 23:17:18 CEST 2008
+
+	Improvements:
+
+	- removed "try => GMP" from Math::BigInt invocation, because
+	  Linux distributions currently have v1.77 which does not support
+	  try.  Documented how you can get the performance improvements
+	  yourself.  rt.cpan.org #34817 [Jesper Krogh]
+
+	- lowered requiremet for Math::BigInt to 1.77.
+
 version 0.73: Tue Apr  8 23:47:05 CEST 2008
 
 	Fixes:
 
-	- Recursion detection is example template production.
+	- recursion detection is example template production.
 
 	- example template fix: add ',' after some ']'.
 

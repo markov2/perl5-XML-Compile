@@ -1381,6 +1381,11 @@ option to C<true> when you are sure that ALL USES of C<integer> in the
 scheme will fit into signed longs (are between -2147483648 and 2147483647
 inclusive)
 
+If you do not want limit the number-space, you can safely add
+  use Math::BigInt try => 'GMP'
+to the top of your main program, and install M<Math::BigInt::GMP>.  Then,
+a C library will do the work, much faster than the Perl implementation.
+
 =item check_values BOOLEAN
 
 Check the validity of the values, before parsing them.  This will
