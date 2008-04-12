@@ -4,7 +4,7 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
-version 0.76: Sun Apr 13 00:45:28 CEST 2008
+version 0.77: Sun Apr 13 00:45:28 CEST 2008
 
 	- XML::RegExp version mix-up... lowered required release
 	  from 0.03 to 0.02 [Alan Wind]
