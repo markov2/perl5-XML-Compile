@@ -4,7 +4,7 @@ use 5.008;
 
 WriteMakefile
  ( NAME	 	=> 'XML::Compile'
- , VERSION	=> '0.75'
+ , VERSION	=> '0.76'
  , PREREQ_PM    =>
    { XML::LibXML               => 1.65
    , XML::RegExp               => 0.03
