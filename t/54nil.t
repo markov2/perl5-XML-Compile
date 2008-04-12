@@ -66,7 +66,7 @@ __XML__
 {   my $error = reader_error($schema, test1 => <<__XML__);
 <test1><e1>87</e1><e3>88</e3></test1>
 __XML__
-    is($error, "data for `e2' missing at {http://test-types}test1");
+    is($error, "data for element or block starting with `e2' missing at {http://test-types}test1");
 }
 
 #

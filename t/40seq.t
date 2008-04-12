@@ -218,7 +218,7 @@ __XML
 <test6><t6_b>50</t6_b></test6>
 __XML
 
-    is($error, "data for `t6_a' missing at {http://test-types}test6");
+    is($error, "data for element or block starting with `t6_a' missing at {http://test-types}test6");
     @run_opts = ();
 }
 
@@ -242,7 +242,7 @@ __XML
 </test7>
 __XML
 
-    is($error, "data for `t7_c' missing at {http://test-types}test7");
+    is($error, "data for element or block starting with `t7_c' missing at {http://test-types}test7");
 }
 
 my %r7 = (t7_a => 20, t7_b => [21,22], t7_c => [23,24], t7_d => [25],

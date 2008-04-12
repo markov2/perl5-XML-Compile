@@ -779,7 +779,7 @@ sub particleElement($)
 
         return $self->isTrue($abstract)
           ? $self->particleElementSubst($tree->descend($refnode))
-          : $self->particleElement($tree->descend($refnode, $ref));
+          : $self->particleElement($tree->descend($refnode));
     }
 
     my $name     = $node->getAttribute('name')

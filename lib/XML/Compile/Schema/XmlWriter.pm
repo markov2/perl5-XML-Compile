@@ -116,15 +116,23 @@ sub sequence($@)
 
 sub choice($@)
 {   my ($path, $args, %do) = @_;
-    
+    my @specials;
+    foreach my $el (keys %do)
+    {   push @specials, delete $do{$el}
+            if ref $do{$el} eq 'BLOCK' || ref $do{$el} eq 'ANY';
+    }
+ 
     bless
     sub { my ($doc, $values) = @_;
           defined $values or return ();
           foreach my $take (keys %do)
-          {   $values->{$take} or next;
-              return ref $do{$take} eq 'BLOCK'
-               ? $do{$take}->($doc, $values)
-               : $do{$take}->($doc, delete $values->{$take});
+          {  return $do{$take}->($doc, delete $values->{$take})
+                 if $values->{$take};
+          }
+          
+          foreach (@specials)
+          {  my @d = try { $_->($doc, $values) };
+             $@ or return @d;
           }
           ();
         }, 'BLOCK';
@@ -141,7 +149,8 @@ sub all($@)
           while(@do)
           {   my ($take, $do) = (shift @do, shift @do);
               push @res
-                 , ref $do eq 'BLOCK' ? $do->($doc, $values)
+                 , ref $do eq 'BLOCK' || ref $do eq 'ANY'
+                 ? $do->($doc, $values)
                  : $do->($doc, delete $values->{$take});
           }
           @res;
@@ -305,7 +314,7 @@ sub required
     sub { my @nodes = $do->(@_);
           return @nodes if @nodes;
 
-          error __x"data for `{tag}' missing at {path}"
+          error __x"data for element or block starting with `{tag}' missing at {path}"
              , tag => $label, path => $path;
         };
     bless $req, 'BLOCK' if ref $do eq 'BLOCK';

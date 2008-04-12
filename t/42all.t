@@ -96,7 +96,7 @@ is($error, "element `extra' not processed at {http://test-types}test1\#el(test1)
 $error = reader_error($schema, test1 => <<__XML);
 <test1 />
 __XML
-is($error, "data for `t1_a' missing at {http://test-types}test1");
+is($error, "data for element or block starting with `t1_a' missing at {http://test-types}test1");
 
 $error = writer_error($schema, test1 => undef);
 is($error, "complex `test1' requires data at {http://test-types}test1\#el(test1)");
@@ -139,7 +139,7 @@ __XMLWriter
 </test3>
 __XML
 
-    is($error, "data for `$f->[2]' missing at {http://test-types}test3");
+    is($error, "data for element or block starting with `$f->[2]' missing at {http://test-types}test3");
 
     $error = reader_error($schema, test3 => <<__XML);
 <test3>
@@ -147,7 +147,7 @@ __XML
 </test3>
 __XML
 
-    like($error, qr/^data for `.*' missing at \{http\:\/\/test-types\}test3$/);
+    like($error, qr/^data for element or block starting with `.*' missing at \{http\:\/\/test-types\}test3$/);
 }
 
 # test 4
@@ -166,7 +166,7 @@ __XML2
 $error = reader_error($schema, test4 => <<__XML);
 <test4><t4_a>24</t4_a><t4_d>25</t4_d><t4_c>26</t4_c><t4_b>27</t4_b></test4>
 __XML
-is($error, "data for `t4_b' missing at {http://test-types}test4");
+is($error, "data for element or block starting with `t4_b' missing at {http://test-types}test4");
 
 # test 5
 
@@ -209,7 +209,7 @@ test_rw($schema, test5 => '<test5/>', {});
 # test 6
 
 $error = reader_error($schema, test6 => '<test6 />');
-like($error, qr[data for `t6_[abc]' missing at \{http://test-types\}test6]);
+like($error, qr[data for element or block starting with `t6_[abc]' missing at \{http://test-types\}test6]);
 
 $error = writer_error($schema, test6 => {});
 is($error, "found 0 blocks for `t6_a', must be between 1 and 3 inclusive");

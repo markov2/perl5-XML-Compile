@@ -575,6 +575,7 @@ sub _valid_ncname($)
    $name =~ m/^[a-zA-Z_](?:[\w.-]*)$/;
 }
 
+# better checks needed
 $builtin_types{ID} =
 $builtin_types{IDREF} =
 $builtin_types{NCName} =
@@ -586,7 +587,8 @@ $builtin_types{ENTITY} =
 
 $builtin_types{IDREFS} =
 $builtin_types{ENTITIES} =
- { parse   => \&_preserve
+ { parse   => sub { [ split ' ', shift ] }
+ , format  => sub { my $v = shift; ref $v eq 'ARRAY' ? join(' ',@$v) : $v }
  , check   => sub { $_[0] !~ m/\:/ }
  , example => 'labels'
  };
@@ -602,17 +604,19 @@ $builtin_types{Name} =
  , example => 'name'
  };
 
+=function token, NMTOKEN, NMTOKENS
+=cut
+
+# check required!  \c
 $builtin_types{token} =
 $builtin_types{NMTOKEN} =
  { parse   => \&_collapse
  , example => 'token'
  };
 
-=function token, NMTOKEN, NMTOKENS
-=cut
-
 $builtin_types{NMTOKENS} =
- { parse   => \&_preserve
+ { parse   => sub { [ split ' ', shift ] }
+ , format  => sub { my $v = shift; ref $v eq 'ARRAY' ? join(' ',@$v) : $v }
  , example => 'tokens'
  };
 

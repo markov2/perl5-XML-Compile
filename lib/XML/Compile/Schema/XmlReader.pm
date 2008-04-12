@@ -97,13 +97,11 @@ sub sequence($@)
           my @do = @pairs;
           while(@do)
           {   my ($take, $do) = (shift @do, shift @do);
-              push @res
-                , ref $do eq 'BLOCK'           ? $do->($tree)
-                : ref $do eq 'ANY'             ? $do->($tree)
-                : ! defined $tree              ? $do->($tree)
-                : $tree->currentLocal eq $take ? $do->($tree)
-                :                                $do->(undef);
-                # is missing permitted? otherwise crash
+              push @res, ref $do eq 'BLOCK'
+                      || ref $do eq 'ANY'
+                      || ! defined $tree
+                      || $tree->currentLocal eq $take
+                       ? $do->($tree) : $do->(undef);
           }
 
           @res;
@@ -112,17 +110,26 @@ sub sequence($@)
 
 sub choice($@)
 {   my ($path, $args, %do) = @_;
+    my @specials;
+    foreach my $el (keys %do)
+    {   push @specials, delete $do{$el}
+            if ref $do{$el} eq 'BLOCK' || ref $do{$el} eq 'ANY';
+    }
 
-    bless
+    return bless
     sub { my $tree  = shift;
           my $local = defined $tree  ? $tree->currentLocal : undef;
           my $elem  = defined $local ? $do{$local} : undef;
-
           return $elem->($tree) if $elem;
+
+          foreach (@specials)
+          {   my @d = try { $_->($tree) };
+              $@ or return @d;
+          }
 
           # very silly situation: some people use a minOccurs within
           # a choice, instead on choice itself.
-          foreach my $some (values %do)
+          foreach my $some (values %do, @specials)
           {   try { $some->(undef) };
               $@ or return ();
           }
@@ -131,18 +138,22 @@ sub choice($@)
               or error __x"no elements left for choice at {path}"
                    , path => $path, _class => 'misfit';
 
-          defined $elem
-              or error __x"no alternative for choice before `{tag}' at {path}"
-                   , tag => $local, path => $path, _class => 'misfit';
+          error __x"no alternative for choice before `{tag}' at {path}"
+            , tag => $local, path => $path, _class => 'misfit';
     }, 'BLOCK';
 }
 
 sub all($@)
-{   my ($path, $args, @pairs) = @_;
+{   my ($path, $args, %pairs) = @_;
+    my %specials;
+    foreach my $el (keys %pairs)
+    {   $specials{$el} = delete $pairs{$el}
+            if ref $pairs{$el} eq 'BLOCK' || ref $pairs{$el} eq 'ANY';
+    }
 
-    bless
+    keys %specials or return bless
     sub { my $tree = shift;
-          my %do   = @pairs;
+          my %do   = %pairs;
           my @res;
           while(1)
           {   my $local = $tree->currentLocal or last;
@@ -153,6 +164,45 @@ sub all($@)
           # saw all of all?
           push @res, $_->(undef)
               for values %do;
+
+          @res;
+        }, 'BLOCK';
+
+    # an 'all' block with nested structures or any is quite nasty.  Don't
+    # forget that 'all' can have maxOccurs > 1 !
+    bless
+    sub { my $tree = shift;
+          my %do   = %pairs;
+          my %spseen;
+          my @res;
+       PARTICLE:
+          while(1)
+          {   my $local = $tree->currentLocal or last;
+              if(my $do = delete $do{$local})
+              {   push @res, $do->($tree);
+                  next PARTICLE;
+              }
+
+              foreach (keys %specials)
+              {   next if $spseen{$_};
+                  my @d = try { $specials{$_}->($tree) };
+                  next if $@;
+
+                  $spseen{$_}++;
+                  push @res, @d;
+                  next PARTICLE;
+              }
+
+              last;
+          }
+          @res or return ();
+
+          # saw all of all?
+          push @res, $_->(undef)
+              for values %do;
+
+          push @res, $_->(undef)
+              for map {$spseen{$_} ? () : $specials{$_}} keys %specials;
 
           @res;
         }, 'BLOCK';
@@ -323,7 +373,7 @@ sub required
     sub { my $tree  = shift;  # can be undef
           my @pairs = $do->($tree);
           @pairs
-              or error __x"data for `{tag}' missing at {path}"
+              or error __x"data for element or block starting with `{tag}' missing at {path}"
                      , tag => $label, path => $path, _class => 'misfit';
           @pairs;
         };

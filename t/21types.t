@@ -8,7 +8,7 @@ use TestTools;
 
 use XML::Compile::Schema;
 
-use Test::More tests => 94;
+use Test::More tests => 103;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -18,7 +18,7 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <element name="test1" type="int" />
 <element name="test2" type="boolean" />
 <element name="test3" type="float" />
-
+<element name="test4" type="NMTOKENS" />
 </schema>
 __SCHEMA__
 
@@ -58,3 +58,9 @@ is($error, "Value `aap' is not a float");
 
 $error = writer_error($schema, test3 => '');
 is($error, "Value `' is not a float");
+
+###
+###
+###
+
+test_rw($schema, test4 => '<test4>A bc D</test4>', [ qw/A bc D/ ]);

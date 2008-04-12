@@ -4,6 +4,25 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.75: Sat Apr 12 09:57:29 CEST 2008
+
+	Fixes:
+
+	- fixed <choice> with nested blocks, substgroups, or any.
+
+	- fixed <all> with nested blocks, substgroups, or any.
+	  needed by [Sander Hulst]  Needs serious beating.
+
+	- required is XML::RegExp for pattern to regexp translations.
+
+	- NMTOKENS, IDREFS, and ENTITIES where not processed as list
+	  type (not spilt into an ARRAY)
+
+	Improvements:
+
+	- remove annoying extra component in the location shown in
+	  errors, which appeared with element refs.
+
 version 0.74: Thu Apr 10 23:17:18 CEST 2008
 
 	Improvements:

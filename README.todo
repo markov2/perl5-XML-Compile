@@ -7,3 +7,12 @@ not decided by the library, but by the application.  An xyz:tag
 is chosen, and the xyz namespace is added later.  The problem is,
 that the nodes localname will be "xyz:tag" until the node is
 stringified.
+
+= tests
+. test <all> and <choice> in various combinations with blocks, <any>
+  and substitutionGroups.
+
+= known limitations
+. pattern matching incorrect and slow.  Wait for access to libxml2 
+  routine from XML::LibXML (wishlist)
+. many types can be checked better, once pattern-matching is fast.
