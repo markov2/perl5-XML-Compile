@@ -94,7 +94,7 @@ sub allSchemas()
 
 =method find KIND, ADDRESS|(URI,NAME)
 Lookup the definition for the specified KIND of definition: the name
-of a gloabl element, gloabl attribute, attributeGroup or model group.
+of a global element, global attribute, attributeGroup or model group.
 The ADDRESS is constructed as C< {uri}name > or as seperate URI and NAME.
 =cut
 

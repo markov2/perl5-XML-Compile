@@ -4,6 +4,14 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+TODO (next release) mixed_elements in all 3 backends
+
+version 0.78: Wed Apr 16 13:03:36 CEST 2008
+
+	- fix string length check in float facet [Sven Neuhaus]
+
+	- more trace with dataToXML.
+
 version 0.77: Sun Apr 13 00:45:28 CEST 2008
 
 	- XML::RegExp version mix-up... lowered required release

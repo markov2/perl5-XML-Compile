@@ -576,6 +576,9 @@ sub element($)
 
     my $r;
     if($replace) { ; }             # overrule processing
+    elsif($type->{mixed})          # complexType mixed
+    {   $r = $self->make(mixed_element => $where, $tag);
+    }
     elsif(! defined $st)           # complexType
     {   $r = $self->make(complex_element =>
             $where, $tag, $elems, $attrs, $attrs_any);
@@ -1041,6 +1044,7 @@ sub translateNsLimits($$)
 sub complexType($)
 {   my ($self, $tree) = @_;
 
+    # abstract, block, final, id, mixed, name, defaultAttributesApply
     # Full content:
     #    annotation?
     #  , ( simpleContent
@@ -1051,6 +1055,10 @@ sub complexType($)
     #      )
     #    )
     #  , (assert | report)*
+
+    my $node = $tree->node;
+#   return $self->complexMixed($node)
+#       if $self->isTrue($node->getAttribute('mixed') || 'false');
 
     my $first = $tree->firstChild
         or return {};
@@ -1235,8 +1243,10 @@ sub complexContent($)
     # attributes: id, mixed = boolean
     # content: annotation?, (restriction | extension)
 
-    my $node = $tree->node;
-    #$self->isTrue($node->getAttribute('mixed') || 'false')
+    my $node  = $tree->node;
+
+#   return $self->complexMixed($tree)
+#       if $self->isTrue($node->getAttribute('mixed') || 'false');
     
     $tree->nrChildren == 1
         or error __x"only one complexContent child expected at {where}"
@@ -1275,8 +1285,14 @@ sub complexContentExtension($)
     my $own = $self->complexBody($tree);
     unshift @{$own->{$_}}, @{$type->{$_} || []}
         for qw/elems attrs attrs_any/;
+    $own->{mixed} ||= $type->{mixed};
 
     $own;
+}
+
+sub complexMixed($)
+{   my ($self, $tree) = @_;
+    { mixed => 1 };
 }
 
 #

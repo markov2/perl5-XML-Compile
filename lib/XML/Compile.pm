@@ -6,7 +6,7 @@ package XML::Compile;
 
 use Log::Report 'xml-compile', syntax => 'SHORT';
 use XML::LibXML;
-use XML::Compile::Util qw/:constants/;
+use XML::Compile::Util qw/:constants type_of_node/;
 
 use File::Spec     qw();
 
@@ -310,7 +310,22 @@ sub dataToXML($)
 
 sub _parsedNode($)
 {   my ($thing, $node) = @_;
-    trace "using preparsed XML node";
+
+    if($node->isa('XML::LibXML::Document'))
+    {   my $eltype = type_of_node $node->documentElement;
+        trace "using preparsed XML document with element <$eltype>";
+    }
+    elsif($node->isa('XML::LibXML::Element'))
+    {   trace 'using preparsed XML node <'.type_of_node($node).'>';
+    }
+    else
+    {   my $text = $node->toString;
+        $text =~ s/\s+/ /gs;
+        substr($text, 70, -1, '...')
+            if length $text > 75;
+        error __x"dataToXML() accepts pre-parsed document or element\n  {got}"
+          , got => $text;
+    }
 
     ( $node
     , source => ref $node

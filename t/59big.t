@@ -17,12 +17,6 @@ BEGIN {
    {   plan skip_all => "Math::BigInt not installed";
    }
 
-   eval "require Math::BigInt::GMP";
-   unless($@)
-   {   # cmp_deeply does not understand ::GMP objects
-       plan skip_all => "using Math::BigInt::GMP";
-   }
-
    plan tests => 86;
 }
 

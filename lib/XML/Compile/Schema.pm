@@ -1,9 +1,9 @@
 
-use warnings;
-use strict;
-
 package XML::Compile::Schema;
 use base 'XML::Compile';
+
+use warnings;
+use strict;
 
 use Log::Report 'xml-compile', syntax => 'SHORT';
 use List::Util     qw/first/;
@@ -74,6 +74,10 @@ XML::Compile::Schema - Compile a schema into CODE
  use XML::Compile::Util qw/pack_type/;
  my $type   = pack_type 'myns', 'mytype';
  print $type;  # shows  {myns}mytype
+
+ # for debug info, start your script with:
+ use Log::Report;
+ dispatcher PERL => 'default', mode => 3;
 
 =chapter DESCRIPTION
 
@@ -238,7 +242,7 @@ sub addSchemas($@)
     ( $node,
       sub { my $this = shift;
             return 1 unless $this->isa('XML::LibXML::Element')
-                         && $this->localname eq 'schema';
+                         && $this->localName eq 'schema';
 
             my $schema = XML::Compile::Schema::Instance->new($this, @nsopts)
                 or next;
@@ -271,6 +275,10 @@ ARRAY of things which are acceptable to C<dataToXML>.  This way, you can
 specify multiple resources at once, each of which will be processed with
 the same OPTIONS.
 
+=option  details HASH
+=default details <from XMLDATA>
+Overrule the details information about the source of the data.
+
 =examples of use of importDefinitions
   my $schema = XML::Compile::Schema->new;
   $schema->importDefinitions('my-spec.xsd');
@@ -286,15 +294,17 @@ the same OPTIONS.
 my (%cacheByFilestamp, %cacheByChecksum);
 
 sub importDefinitions($@)
-{   my ($self, $thing, @options) = @_;
+{   my ($self, $thing, %options) = @_;
     my @data = ref $thing eq 'ARRAY' ? @$thing : $thing;
 
     my @schemas;
     foreach my $data (@data)
     {   defined $data or next;
         my ($xml, %details) = $self->dataToXML($data);
+        %details = %{delete $options{details}} if $options{details};
+
         if(defined $xml)
-        {   my @added = $self->addSchemas($xml, %details, @options);
+        {   my @added = $self->addSchemas($xml, %details, %options);
             if(my $checksum = $details{checksum})
             {    $cacheByChecksum{$checksum} = \@added;
             }
