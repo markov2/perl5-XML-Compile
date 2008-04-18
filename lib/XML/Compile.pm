@@ -45,14 +45,14 @@ Three serious WARNINGS:
 
 =item .
 The focus is on B<data-centric XML>, which means that mixed elements
-are not understood automatically.  However, with using hooks you can
-work around this.
+are not handler automatically: they are (to be) treated as XML::LibXML
+black boxes.
 
 =item .
-The B<schema is not strictly validated>.  In many cases, compile-time
-errors will get reported.  On the other hand, the processed B<data is
-strictly validated> against the schema: both input and output will follow
-the specs closely (unless disabled).
+The B<schema is not strictly validated>, still a large number of
+compile-time errors can be reported.  On the other hand, the processed
+B<data is strictly validated> against the schema: both input and output
+will follow the specs closely (unless disabled).
 
 =item .
 Imports and includes as specified in schemas are NOT performed

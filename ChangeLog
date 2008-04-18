@@ -4,15 +4,56 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
-TODO (next release) mixed_elements in all 3 backends
+TODO:
+ - hooks for object serialization
+
+version 0.79: Fri Apr 18 16:01:57 CEST 2008
+
+	Fixes:
+
+	- much better "mixed" support.
+
+	Changes:
+
+	- require Log::Report 0.17 to fulfil promissed of the doc (was 0.09)
+
+	Improvements:
+
+	- trace compiles of schema elements.
+
+	- when debug is enabled, then <choice> will show the errors of the
+	  special blocks involved.
+
+	- optimize <sequence>, <choice>, and <all> with only one element
+	  in reader and writer.
+
+	- template Perl did quote keys with length 1.
+
+	- template warning resolved in example value for nonNegativeInt
+
+	- template Perl did not show '_' for a tagged element, and
+	  did show an example twice.
+
+	- renamed ::template(show) to clearer ::template(show_comments),
+	  but old flag will stay supported.
+
+	- template XML did not represent attributes correctly.
+
+	- template XML did not understand '_'
 
 version 0.78: Wed Apr 16 13:03:36 CEST 2008
 
+	Fixes:
+
 	- fix string length check in float facet [Sven Neuhaus]
+
+	Improvements:
 
 	- more trace with dataToXML.
 
 version 0.77: Sun Apr 13 00:45:28 CEST 2008
+
+	Fixes:
 
 	- XML::RegExp version mix-up... lowered required release
 	  from 0.03 to 0.02 [Alan Wind]

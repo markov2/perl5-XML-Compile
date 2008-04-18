@@ -91,6 +91,14 @@ sub wrapper_ns        # no namespaces in the HASH
 
 sub sequence($@)
 {   my ($path, $args, @pairs) = @_;
+    if(@pairs==2 && !ref $pairs[1])
+    {   my ($take, $action) = @pairs;
+        return bless
+        sub { my $tree = shift;
+              $action->($tree && $tree->currentLocal eq $take ? $tree : undef);
+            }, 'BLOCK';
+    }
+
     bless
     sub { my $tree = shift;
           my @res;
@@ -116,29 +124,77 @@ sub choice($@)
             if ref $do{$el} eq 'BLOCK' || ref $do{$el} eq 'ANY';
     }
 
+    if(keys %do==1 && !@specials)
+    {   my ($option, $action) = %do;
+        return bless
+        sub { my $tree  = shift;
+              my $local = defined $tree  ? $tree->currentLocal : '';
+              return $action->($tree)
+                  if $local eq $option;
+
+              try { $action->(undef) };  # minOccurs=0
+              $@ or return ();
+
+              $local
+                 or error __x"element `{tag}' expected for choice at {path}"
+                   , tag => $option, path => $path, _class => 'misfit';
+
+              error __x"single choice option `{option}' for `{tag}' at {path}"
+                , option => $option, tag => $local, path => $path
+                , _class => 'misfit';
+         }, 'BLOCK';
+    }
+
+    @specials or return bless
+    sub { my $tree  = shift;
+          my $local = defined $tree  ? $tree->currentLocal : undef;
+          my $elem  = defined $local ? $do{$local} : undef;
+          return $elem->($tree) if $elem;
+
+          # very silly situation: some people use a minOccurs within
+          # a choice, instead on choice itself.  That always succeeds.
+          foreach my $some (values %do)
+          {   try { $some->(undef) };
+              $@ or return ();
+          }
+
+          $local
+              or error __x"no element left to pick choice at {path}"
+                   , path => $path, _class => 'misfit';
+
+          trace "choose element from @{[sort keys %do]}";
+
+          error __x"no applicable choice for `{tag}' at {path}"
+            , tag => $local, path => $path, _class => 'misfit';
+    }, 'BLOCK';
+
     return bless
     sub { my $tree  = shift;
           my $local = defined $tree  ? $tree->currentLocal : undef;
           my $elem  = defined $local ? $do{$local} : undef;
           return $elem->($tree) if $elem;
 
+          my @special_errors;
           foreach (@specials)
           {   my @d = try { $_->($tree) };
               $@ or return @d;
+              push @special_errors, $@->wasFatal->message;
           }
 
-          # very silly situation: some people use a minOccurs within
-          # a choice, instead on choice itself.
           foreach my $some (values %do, @specials)
           {   try { $some->(undef) };
               $@ or return ();
           }
 
           $local
-              or error __x"no elements left for choice at {path}"
+              or error __x"choice needs more elements at {path}"
                    , path => $path, _class => 'misfit';
 
-          error __x"no alternative for choice before `{tag}' at {path}"
+          my @elems = sort keys %do;
+          trace "choose element from @elems or fix special" if @elems;
+          trace "failed specials in choice: $_" for @special_errors;
+
+          error __x"no applicable choice for `{tag}' at {path}"
             , tag => $local, path => $path, _class => 'misfit';
     }, 'BLOCK';
 }
@@ -151,12 +207,20 @@ sub all($@)
             if ref $pairs{$el} eq 'BLOCK' || ref $pairs{$el} eq 'ANY';
     }
 
+    if(!%specials && keys %pairs==1)
+    {   my ($take, $do) = %pairs;
+        return bless
+        sub { my $tree = shift;
+              $do->($tree && $tree->currentLocal eq $take ? $tree : undef);
+            }, 'BLOCK';
+    }
+
     keys %specials or return bless
     sub { my $tree = shift;
           my %do   = %pairs;
           my @res;
           while(1)
-          {   my $local = $tree->currentLocal or last;
+          {   my $local = $tree && $tree->currentLocal or last;
               my $do    = delete $do{$local}  or last; # already seen?
               push @res, $do->($tree);
           }
@@ -497,6 +561,25 @@ sub tagged_element
           defined $simple or $simple = 'undef';
           ($tag => {_ => $simple, @pairs});
         };
+}
+
+#
+# complexType mixed or complexContent mixed
+#
+
+sub mixed_element
+{   my ($path, $args, $tag, $attrs, $attrs_any) = @_;
+    my @attrs = (odd_elements(@$attrs), @$attrs_any);
+
+    @attrs
+    ? sub { my $tree   = shift or return ();
+            my $node   = $tree->node;
+            my @pairs  = map {$_->($node)} @attrs;
+            ($tag => {_ => $node, @pairs});
+          }
+    : sub { my $tree   = shift;
+            $tree ? ($tag => $tree->node) : ();
+          };
 }
 
 #

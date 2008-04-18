@@ -76,8 +76,7 @@ XML::Compile::Schema - Compile a schema into CODE
  print $type;  # shows  {myns}mytype
 
  # for debug info, start your script with:
- use Log::Report;
- dispatcher PERL => 'default', mode => 3;
+ use Log::Report mode => 'DEBUG';
 
 =chapter DESCRIPTION
 
@@ -614,6 +613,8 @@ sub compile($$@)
     push @hooks, ref $h1 eq 'ARRAY' ? @$h1 : $h1 if $h1;
     push @hooks, ref $h2 eq 'ARRAY' ? @$h2 : $h2 if $h2;
 
+    trace "schema compile $action for $type";
+
     my $impl
      = $action eq 'READER' ? 'XmlReader'
      : $action eq 'WRITER' ? 'XmlWriter'
@@ -654,8 +655,8 @@ improvements.
 =option  include_namespaces BOOLEAN
 =default include_namespaces <true>
 
-=option  show STRING|'ALL'|'NONE'
-=default show C<ALL>
+=option  show_comments STRING|'ALL'|'NONE'
+=default show_comments C<ALL>
 A comma seperated list of tokens, which explain what kind of comments need
 to be included in the output.  The available tokens are: C<struct>, C<type>,
 C<occur>, C<facets>.  A value of C<ALL> will select all available comments.
@@ -671,7 +672,11 @@ blank.
 sub template($@)
 {   my ($self, $action, $type, %args) = @_;
 
-    my $show = exists $args{show} ? $args{show} : 'ALL';
+    my $show
+      = exists $args{show_comments} ? $args{show_comments}
+      : exists $args{show} ? $args{show} # pre-0.79 option name 
+      : 'ALL';
+
     $show = 'struct,type,occur,facets' if $show eq 'ALL';
     $show = '' if $show eq 'NONE';
     my @comment = map { ("show_$_" => 1) } split m/\,/, $show;
@@ -1172,18 +1177,24 @@ knowledge into code explicitly.  Read about the processing of wildcards
 in the manual page for each of the back-ends, because it is different
 in each case.
 
-=section Mixed elements
+=section ComplexType with "mixed" attribute
 
+[Available since 0.79]
 ComplexType and ComplexContent components can be declared with the
 C<<mixed="true">> attribute.  This implies that text is not limited
-to the content of containers, but also be used inbetween elements.
+to the content of containers, but may also be used inbetween elements.
 Usually, you will only find ignorable white-space between elements.
+
+In this example, the C<a> container will be mixed:
+  <a> before <b>2</b> after </a>
 
 XML::Compile does not have a syntax to express these mixtures of
 information and text, so the only way you can use those, is by providing
 your self-constructed XML::LibXML node for such element.
 
-There is currently no mechanism to warn you for mixed constructs.
+When reading an XML message, the parser will automatically stop on
+a mixed node, and return the whole node.  The writer will expect a
+prepared node.
 
 =section Schema hooks
 

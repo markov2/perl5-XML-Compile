@@ -97,7 +97,16 @@ sub wrapper_ns
 sub sequence($@)
 {   my ($path, $args, @pairs) = @_;
 
-    bless
+    if(@pairs==2 && !ref $pairs[1])
+    {   my ($take, $do) = @pairs;
+        return bless
+        sub { my ($doc, $values) = @_;
+              defined $values or return ();
+              $do->($doc, delete $values->{$take});
+            }, 'BLOCK';
+    }
+ 
+    return bless
     sub { my ($doc, $values) = @_;
           defined $values or return ();
 
@@ -122,6 +131,15 @@ sub choice($@)
             if ref $do{$el} eq 'BLOCK' || ref $do{$el} eq 'ANY';
     }
  
+    if(!@specials && keys %do==1)
+    {   my ($take, $do) = %do;
+        return bless
+        sub { my ($doc, $values) = @_;
+                defined $values && $values->{$take}
+              ? $do->($doc, delete $values->{$take}) : ();
+            }, 'BLOCK';
+    }
+
     bless
     sub { my ($doc, $values) = @_;
           defined $values or return ();
@@ -141,7 +159,15 @@ sub choice($@)
 sub all($@)
 {   my ($path, $args, @pairs) = @_;
 
-    bless
+    if(@pairs==2 && !ref $pairs[1])
+    {   my ($take, $do) = @pairs;
+        return bless
+        sub { my ($doc, $values) = @_;
+              $do->($doc, delete $values->{$take});
+            }, 'BLOCK';
+    }
+
+    return bless
     sub { my ($doc, $values) = @_;
 
           my @res;
@@ -378,6 +404,7 @@ sub complex_element
     my @anya  = @$any_attr;
     my $ignore_unused_tags = $args->{ignore_unused_tags};
 
+    return
     sub { my ($doc, $data) = @_;
           return $doc->importNode($data)
               if UNIVERSAL::isa($data, 'XML::LibXML::Element');
@@ -426,6 +453,7 @@ sub tagged_element
     my @attrs = @$attrs;
     my @anya  = @$attrs_any;
 
+    return
     sub { my ($doc, $data) = @_;
           return $doc->importNode($data)
               if UNIVERSAL::isa($data, 'XML::LibXML::Element');
@@ -435,10 +463,15 @@ sub tagged_element
                    , tag => $tag, found => $data, path => $path;
 
           my $copy    = { %$data };
-          my $content = $st->($doc, delete $copy->{_});
-          my @childs;
-          push @childs, $doc->createTextNode($content)
-              if defined $content;
+          my $content = delete $copy->{_};
+
+          my ($node, @childs);
+          if(UNIVERSAL::isa($content, 'XML::LibXML::Node'))
+          {   $node = $doc->importNode($content);
+          }
+          elsif(defined $content)
+          {   push @childs, $content;
+          }
 
           for(my $i=0; $i<@attrs; $i+=2)
           {   push @childs, $attrs[$i+1]->($doc, delete $copy->{$attrs[$i]});
@@ -453,8 +486,67 @@ sub tagged_element
                        , scalar @not_used, tags => \@not_used, path => $path;
           }
 
-          @childs or return ();
-          my $node  = $doc->createElement($tag);
+          $node or @childs or return ();
+          $node ||= $doc->createElement($tag);
+          $node->addChild
+            ( UNIVERSAL::isa($_, 'XML::LibXML::Node') ? $_
+            : $doc->createTextNode(defined $_ ? $_ : ''))
+               for @childs;
+          $node;
+       };
+}
+
+#
+# complexType mixed or complexContent mixed
+#
+
+sub mixed_element
+{   my ($path, $args, $tag, $attrs, $attrs_any) = @_;
+    my @attrs = @$attrs;
+    my @anya  = @$attrs_any;
+
+    if(!@attrs && !@anya)
+    {   return
+        sub { my ($doc, $data) = @_;
+              my $node = ref $data eq 'HASH' ? $data->{_} : $data;
+              return $doc->importNode($node)
+                  if UNIVERSAL::isa($node, 'XML::LibXML::Element');
+              error __x"mixed `{tag}' requires XML::LibXML::Node, not `{found}' at {path}"
+                 , tag => $tag, found => $data, path => $path;
+            };
+    }
+
+    sub { my ($doc, $data) = @_;
+          return $doc->importNode($data)
+              if UNIVERSAL::isa($data, 'XML::LibXML::Element');
+
+          UNIVERSAL::isa($data, 'HASH')
+             or error __x"mixed `{tag}' requires a HASH of input data, not `{found}' at {path}"
+                   , tag => $tag, found => $data, path => $path;
+
+          my $copy    = { %$data };
+          my $content = delete $copy->{_};
+          UNIVERSAL::isa($content, 'XML::LibXML::Node')
+              or error __x"mixed `{tag}' value `_' must be XML::LibXML::Node, not `{found}' at {path}"
+                   , tag => $tag, found => $data, path => $path;
+
+          my $node = $doc->importNode($content);
+
+          my @childs;
+          for(my $i=0; $i<@attrs; $i+=2)
+          {   push @childs, $attrs[$i+1]->($doc, delete $copy->{$attrs[$i]});
+          }
+
+          push @childs, $_->($doc, $copy)
+              for @anya;
+
+          if(my @not_used = sort keys %$copy)
+          {   error __xn "tag `{tags}' not processed at {path}"
+                       , "unprocessed tags {tags} at {path}"
+                       , scalar @not_used, tags => \@not_used, path => $path;
+          }
+
+          @childs or return $node;
           $node->addChild
             ( ref $_ && $_->isa('XML::LibXML::Node') ? $_
             : $doc->createTextNode(defined $_ ? $_ : ''))

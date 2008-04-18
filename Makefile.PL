@@ -4,12 +4,12 @@ use 5.008;
 
 WriteMakefile
  ( NAME	 	=> 'XML::Compile'
- , VERSION	=> '0.78'
+ , VERSION	=> '0.79'
  , PREREQ_PM    =>
    { XML::LibXML               => 1.65
    , XML::RegExp               => 0.02
    , IO                        => 1.22
-   , Log::Report               => 0.09
+   , Log::Report               => 0.17
 
    , Math::BigInt              => 1.77
    , Math::BigRat              => 0.10
@@ -37,6 +37,7 @@ sub MY::postamble { <<'__POSTAMBLE' }
 RAWDIR          = ../public_html/xml-compile/raw
 DISTDIR         = ../public_html/xml-compile/source
 LICENSE         = artistic
+SKIP_LINKS	= XML::LibXML
 
 # for POD
 EXTENDS		= ../XMLSOAP:../XMLDaemon:../XMLDumper

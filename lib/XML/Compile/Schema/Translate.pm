@@ -252,7 +252,7 @@ sub typeByName($$)
     if($code)
     {   my $where = $typename;
         my $st = $self->make
-          (builtin=> $where, $node, $typename , $code, $self->{check_values});
+          (builtin=> $where, $node, $typename, $code, $self->{check_values});
 
         return +{ st => $st };
     }
@@ -577,7 +577,7 @@ sub element($)
     my $r;
     if($replace) { ; }             # overrule processing
     elsif($type->{mixed})          # complexType mixed
-    {   $r = $self->make(mixed_element => $where, $tag);
+    {   $r = $self->make(mixed_element => $where, $tag, $attrs, $attrs_any);
     }
     elsif(! defined $st)           # complexType
     {   $r = $self->make(complex_element =>
@@ -1056,34 +1056,33 @@ sub complexType($)
     #    )
     #  , (assert | report)*
 
-    my $node = $tree->node;
-#   return $self->complexMixed($node)
-#       if $self->isTrue($node->getAttribute('mixed') || 'false');
+    my $node  = $tree->node;
+    my $mixed = $self->isTrue($node->getAttribute('mixed') || 'false');
 
     my $first = $tree->firstChild
-        or return {};
+        or return {mixed => $mixed};
 
     my $name  = $first->localName;
-    return $self->complexBody($tree)
+    return $self->complexBody($tree, $mixed)
         if $name =~ $particle_blocks || $name =~ $attribute_defs;
 
     $tree->nrChildren==1
         or error __x"expected is single simpleContent or complexContent at {where}"
              , where => $tree->path, class => 'schema';
 
-    my $nest  = $tree->descend($first);
-    return $self->simpleContent($nest)
+    return $self->simpleContent($tree->descend($first))
         if $name eq 'simpleContent';
 
-    return  $self->complexContent($nest)
+    return $self->complexContent($tree->descend($first), $mixed)
         if $name eq 'complexContent';
+       
 
     error __x"complexType contains particles, simpleContent or complexContent, not `{name}' at {where}"
       , name => $name, where => $tree->path, class => 'schema';
 }
 
-sub complexBody($)
-{   my ($self, $tree) = @_;
+sub complexBody($$)
+{   my ($self, $tree, $mixed) = @_;
 
     $tree->currentChild
         or return ();
@@ -1095,7 +1094,7 @@ sub complexBody($)
 
     my @elems;
     if($tree->currentLocal =~ $particle_blocks)
-    {   push @elems, $self->particle($tree->descend);
+    {   push @elems, $self->particle($tree->descend) unless $mixed;
         $tree->nextChild;
     }
 
@@ -1106,7 +1105,7 @@ sub complexBody($)
               , name => $tree->currentChild->localName, where => $tree->path
               , class => 'schema';
 
-    {elems => \@elems, @attrs};
+    {elems => \@elems, mixed => $mixed, @attrs};
 }
 
 sub attributeList($)
@@ -1237,16 +1236,14 @@ sub simpleContentRestriction($$)
     $type;
 }
 
-sub complexContent($)
-{   my ($self, $tree) = @_;
+sub complexContent($$)
+{   my ($self, $tree, $mixed) = @_;
 
     # attributes: id, mixed = boolean
     # content: annotation?, (restriction | extension)
 
-    my $node  = $tree->node;
-
-#   return $self->complexMixed($tree)
-#       if $self->isTrue($node->getAttribute('mixed') || 'false');
+    my $node = $tree->node;
+    $mixed ||= $self->isTrue($node->getAttribute('mixed') || 'false');
     
     $tree->nrChildren == 1
         or error __x"only one complexContent child expected at {where}"
@@ -1255,10 +1252,10 @@ sub complexContent($)
     my $name  = $tree->currentLocal;
  
     return $self->complexContentExtension($tree->descend)
-        if $name eq 'extension';
+        if $name eq 'extension' && !$mixed;
 
     # nice for validating, but base can be ignored
-    return $self->complexBody($tree->descend)
+    return $self->complexBody($tree->descend, $mixed)
         if $name eq 'restriction';
 
     error __x"complexContent needs extension or restriction, not `{name}' at {where}"
@@ -1282,7 +1279,7 @@ sub complexContentExtension($)
         $type = $self->complexType($tree->descend($typedef->{node}));
     }
 
-    my $own = $self->complexBody($tree);
+    my $own = $self->complexBody($tree, 0);
     unshift @{$own->{$_}}, @{$type->{$_} || []}
         for qw/elems attrs attrs_any/;
     $own->{mixed} ||= $type->{mixed};

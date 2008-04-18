@@ -143,7 +143,7 @@ is($error, "element `extra' not processed at {http://test-types}test1\#el(test1)
 $error = reader_error($schema, test1 => <<__XML);
 <test1 />
 __XML
-is($error, "no elements left for choice at {http://test-types}test1");
+is($error, "element `t1_a' expected for choice at {http://test-types}test1");
 
 test_rw($schema, test2 => <<__XML, {t2_a => 11});
 <test2><t2_a>11</t2_a></test2>
@@ -223,7 +223,7 @@ test_rw($schema, test6 => <<__XML, {cho_t6_a => [ {t6_b => 10} ]} );
 __XML
 
 $error = reader_error($schema, test6 => '<test6 />');
-is($error, "no elements left for choice at {http://test-types}test6");
+is($error, "no element left to pick choice at {http://test-types}test6");
 
 $error = writer_error($schema, test6 => {});
 is($error, "found 0 blocks for `t6_a', must be between 1 and 3 inclusive");
