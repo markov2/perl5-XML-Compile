@@ -7,6 +7,7 @@ no warnings 'once';
 
 use Log::Report 'xml-compile', syntax => 'SHORT';
 use List::Util    qw/first/;
+use Scalar::Util  qw/blessed/;
 use XML::Compile::Util qw/pack_type unpack_type odd_elements
    block_label type_of_node/;
 
@@ -65,6 +66,66 @@ sub tag_unqualified
 {   my ($path, $args, $node, $name) = @_;
     $name =~ s/.*\://;
     $name;
+}
+
+sub _typemap_class($$)
+{   my ($type, $class) = @_;
+
+    no strict 'refs';
+    keys %{$class.'::'}
+        or error __x"class {pkg} for typemap {type} is not loaded"
+             , pkg => $class, type => $type;
+
+    $class->can('toXML')
+        or error __x"class {pkg} does not implement toXML(), required for typemap {type}"
+             , pkg => $class, type => $type;
+
+    sub { my ($doc, $values, $path) = @_;
+            UNIVERSAL::isa($values, $class)
+          ? $values->toXML($type, $doc)
+          : $values;
+    };
+}
+
+sub _typemap_object($$)
+{   my ($type, $object) = @_;
+
+    $object->can('toXML')
+        or error __x"object of class {pkg} does not implement toXML(), required for typemap {type}"
+             , pkg => ref($object), type => $type;
+
+    sub { my ($doc, $values, $path) = @_;
+          blessed($values) ? $object->toXML($values, $type, $doc) : $values;
+    };
+}
+
+sub typemap_to_hooks($$)
+{   my ($hooks, $typemap) = @_;
+    while(my($type, $action) = each %$typemap)
+    {   defined $action or next;
+        my $hook;
+        if(!ref $action)
+        {   $hook = _typemap_class $type, $action;
+            trace "created writer hook for type $type to class $action";
+        }
+        elsif(ref $action eq 'CODE')
+        {   $hook = sub {
+               my ($doc, $values, $path) = @_;
+                 blessed($values)
+               ? $action->(WRITER => $values, $type, $doc)
+               : $values;
+            };
+            trace "created writer hook for type $type to CODE";
+        }
+        else
+        {   $hook = _typemap_object $type, $action;
+            trace "created reader hook for type $type to object";
+
+        }
+
+        push @$hooks, { type => $type, before => $hook };
+    }
+    $hooks;
 }
 
 sub element_wrapper
@@ -1052,6 +1113,90 @@ Also, when you need things that XML::Compile does not support (yet).
      , after  => \&after
      );
  }
+
+=section Typemaps
+
+In a typemap, a relation between an XML element type and a Perl class (or
+object) is made.  Each translator back-end will implement this a little
+differently.  This section is about how the writer handles typemaps.
+
+=subsection Typemap to Class
+
+Usually, an XML type will be mapped on a Perl class.  The Perl class
+implements the C<toXML> method as serializer.  That method should
+either return a data structure which fits that of the specific type,
+or an M<XML::LibXML::Element>.
+
+When translating the data-structure to XML, the process may encounter
+objects.  Only if these objects appear at locations where a typemap
+is defined, they are treated smartly.  When some other data than an
+objects is found on a location which has a typemap definition, it will
+be used as such; objects are optional.
+
+The object (of present) will be checked to be of the expected class.
+It will be a compile-time error when the class does not implement the
+C<toXML>method.
+
+ $schema->typemap($sometype => 'My::Perl::Class');
+
+ package My::Perl::Class;
+ ...
+ sub toXML
+ {   my ($self, $xmltype, $doc) = @_;
+     ...
+     { a => { b => 42 }, c => 'aaa' };
+ }
+
+The C<$self> is the object found in the data-structure provided by the
+user.  C<$doc> can be used to create your own M<XML::LibXML::Element>.
+It is possible to use the same object on locations for different types:
+in this case, the toXML method can distiguisk what kind of data to return
+based on the C<$xmltype>.
+
+=subsection Typemap to Object
+
+In this case, some helper object arranges the serialization of the
+provided object.  This is especially useful when the provided object
+does not have the toXML implemented, for instance because it is an
+implementation not under your control.  The helper object works like
+an interface.
+
+ my $object = My::Perl::Class->new(...);
+ $schema->typemap($sometype => $object);
+
+ package My::Perl::Class;
+ sub toXML
+ {   my ($self, $object, $xmltype, $doc) = @_;
+     ...
+ }
+
+The toXML will only be called then C<$object> is blessed.  If you wish
+to have access to some data-type in any case, then use a simple "before"
+hook.
+
+=subsection Typemap to CODE
+
+The light version of an interface object uses CODE references.  The CODE
+reference is only called if a blessed value is found in the user provided
+data.  It cannot be checked automatically whether it is blessed according
+to the expectation.
+
+ $schema->typemap($t1 => \&myhandler);
+
+ sub myhandler
+ {   my ($backend, $object, $xmltype, $doc) = @_;
+     ...
+ }
+
+=subsection Typemap implementation
+
+The typemap for the writer is implemented as a 'before' hook: just before
+the writer wants to start.
+
+Of course, it could have been implemented by accepting an object anywhere
+in the input data.  However, this would mean that all the (many) internal
+parser constructs would need to be extended.  That would slow-down the
+writer considerably.
 
 =cut
 

@@ -4,8 +4,14 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
-TODO:
- - hooks for object serialization
+version 0.80: Mon Apr 21 10:34:56 CEST 2008
+
+	Improvements:
+
+	- refer to mailinglist and IRC channal, set-up by [Matt S Trout]
+
+	- implementation of typemaps in READER and WRITER, tests in
+	  t/72typemap.t
 
 version 0.79: Fri Apr 18 16:01:57 CEST 2008
 

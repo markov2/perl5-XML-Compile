@@ -4,7 +4,7 @@ use 5.008;
 
 WriteMakefile
  ( NAME	 	=> 'XML::Compile'
- , VERSION	=> '0.79'
+ , VERSION	=> '0.80'
  , PREREQ_PM    =>
    { XML::LibXML               => 1.65
    , XML::RegExp               => 0.02
@@ -44,6 +44,7 @@ EXTENDS		= ../XMLSOAP:../XMLDaemon:../XMLDumper
 FIRST_YEAR      = 2006
 EMAIL           = perl@overmeer.net
 WEBSITE         = http://perl.overmeer.net/xml-compile/
+PODTAIL		= ../XML-shared-podtail
 
 # for HTML
 HTML_OUTPUT     = ../public_html/xml-compile/html

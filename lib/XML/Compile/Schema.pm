@@ -174,6 +174,10 @@ See M<addHook()>.  Adds one HOOK (HASH).
 =default hooks []
 See M<addHooks()>.
 
+=option  typemap HASH
+=default typemap {}
+HASH of Schema type to Perl object or Perl class.  See L</Typemaps>, the
+serialization of objects.
 =cut
 
 sub init($)
@@ -191,6 +195,7 @@ sub init($)
     {   $self->addHooks(ref $h2 eq 'ARRAY' ? @$h2 : $h2);
     }
  
+    $self->{typemap} = $args->{typemap} || {};
     $self;
 }
 
@@ -384,6 +389,20 @@ Returns the LIST of defined hooks (as HASHes).
 
 sub hooks() { @{shift->{hooks}} }
 
+=method addTypemaps PAIRS
+Add new XML-Perl type relations.  See L</Typemaps>.
+=cut
+
+sub addTypemaps(@)
+{   my $map = shift->{typemap};
+    while(@_ > 1)
+    {   my $k = shift;
+        $map->{$k} = shift;
+    }
+    $map;
+}
+
+#--------------------------------------
 =section Compilers
 
 =method compile ('READER'|'WRITER'), TYPE, OPTIONS
@@ -559,6 +578,11 @@ Found in the wild-life, people who think that nillable means optional.
 Not too hard to fix.  For the WRITER, you still have to state NIL
 explicitly, but the elements are not constructed.  The READER will
 output NIL when the nillable elements are missing.
+
+=option  typemap HASH
+=default typemap {}
+Add this typemap to the relations defined by M<new(typemap)> or
+M<addTypemaps()>
 =cut
 
 sub compile($$@)
@@ -613,6 +637,7 @@ sub compile($$@)
     push @hooks, ref $h1 eq 'ARRAY' ? @$h1 : $h1 if $h1;
     push @hooks, ref $h2 eq 'ARRAY' ? @$h2 : $h2 if $h2;
 
+    my %map = ( %{$self->{typemap}}, %{$args{typemap} || {}} );
     trace "schema compile $action for $type";
 
     my $impl
@@ -627,10 +652,11 @@ sub compile($$@)
 
     XML::Compile::Schema::Translate->compileTree
      ( $type, %args
-     , bricks => $bricks
-     , nss    => $self->namespaces
-     , hooks  => \@hooks
-     , action => $action
+     , bricks  => $bricks
+     , nss     => $self->namespaces
+     , hooks   => \@hooks
+     , action  => $action
+     , typemap => \%map
      );
 }
 
@@ -1306,13 +1332,13 @@ the future.
 =examples use of the ID selector
 
  # default schema types have id's with same name
- id => 'int'
+ id => 'ABC'
  id => 'http://www.w3.org/2001/XMLSchema#int'
  id => qr/\#xml_/   # id which start with xml_
- id => [ qw/int float/ ];
+ id => [ qw/ABC fgh/ ];
 
  use XML::Compile::Util qw/pack_id SCHEMA2001/;
- id => pack_id(SCHEMA2001, int)
+ id => pack_id(SCHEMA2001, 'ABC')
 
 =subsection hooks on matching paths
 
@@ -1321,6 +1347,61 @@ the path where the problem was discovered.  You can use this path
 as selector, when you know what it is... BE WARNED, that the current
 structure of the path is not really consequent hence will be 
 improved in one of the future releases, breaking backwards compatibility.
+
+=section Typemaps
+
+Often, XML will be used in object oriented programs, where the facts which
+are transported in the XML message are attributes of Perl objects.  Of course,
+you can always collect the data from each of the Objects into the required
+(huge) HASH, before triggering the reader or writer.  As alternative,
+you can link types in the XML schema with Perl objects and classes.
+
+You can also specify typemaps with M<new(typemap)>, M<addTypemaps()>, and
+M<compile(typemap)>. Each type will only refer to the last map for that
+type.  When an C<undef> is given for a type, then the older definition
+will be cancelled.  Examples of the three ways to specify typemaps:
+
+  my %map = ($x1 => $p1, $x2 => $p2);
+  my $schema = XML::Compile::Schema->new(...., typemap => %map);
+
+  $schema->addTypemaps($x3 => $p3, $x4 => $p4, $x1 => undef);
+
+  my $call = $schema->compile(READER => $type, typemap => \%map);
+
+The latter only has effect for the type being compiled.  The definitions
+are cumulative.  In the second example, the C<$x1> gets disabled.
+
+Objects can come in two shapes: either they do support the connection
+with XML::Compile (implementing two methods with predefined names), or
+they don't, in which case you will need to write a little wrapper.
+
+  use XML::Compile::Util qw/pack_type/;
+  my $t1 = pack_type $myns, $mylocal;
+  $schema->typemap($t1 => 'My::Perl::Class');
+  $schema->typemap($t1 => $some_object);
+  $schema->typemap($t1 => sub { ... });
+
+The implementation of the READER and WRITER differs.  In the READER case,
+the typemap is implemented as an 'after' hook.  The WRITER is a 'before'
+hook.  See respectively the M<XML::Compile::Schema::XmlReader> and
+M<XML::Compile::Schema::XmlWriter>.
+
+=subsection Limitations
+
+There are some things you need to know:
+
+=over 4
+
+=item .
+Many schemas define very complex types.  These may often not translate
+cleanly into objects.  You may need to create a typemap relation for
+some parent type.  The CODE reference may be very useful in this case.
+
+=item .
+A same kind of problem appears when you have a list in your object,
+which often is not named in the schema.
+
+=back
 
 =cut
 

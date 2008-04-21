@@ -45,6 +45,44 @@ sub tag_unqualified
 }
 *tag_qualified = \&tag_unqualified;
 
+sub typemap_to_hooks($$)
+{   my ($hooks, $typemap) = @_;
+    while(my($type, $action) = each %$typemap)
+    {   defined $action or next;
+        my $hook;
+        if(!ref $action)
+        {   my $class = $action;
+            no strict 'refs';
+            keys %{$class.'::'}
+                or error __x"class {pkg} for typemap {type} is not loaded"
+                     , pkg => $class, type => $type;
+
+            $class->can('fromXML')
+                or error __x"class {pkg} does not implement fromXML(), required for typemap {type}"
+                     , pkg => $class, type => $type;
+
+            trace "created reader hook for type $type to class $class";
+            $hook = sub { $class->fromXML($_[1], $type) };
+        }
+        elsif(ref $action eq 'CODE')
+        {   $hook = sub { $action->(READER => $_[1], $type) };
+            trace "created reader hook for type $type to CODE";
+        }
+        else
+        {   my $object = $action;
+            $object->can('fromXML')
+                or error __x"object of class {pkg} does not implement fromXML(), required for typemap {type}"
+                     , pkg => ref($object), type => $type;
+
+            trace "created reader hook for type $type to object";
+            $hook = sub {$object->fromXML($_[1], $type)};
+        }
+
+        push @$hooks, { type => $type, after => $hook };
+    }
+    $hooks;
+}
+
 sub element_wrapper
 {   my ($path, $args, $processor) = @_;
     # no copy of $_[0], because it may be a large string
@@ -1073,31 +1111,125 @@ found element, but simply return the string "SKIPPED" as value.
 This way, a whole tree of unneeded translations can be avoided.
 
 Sometimes, the Schema spec is such a mess, that XML::Compile cannot
-automatically translate it.  I have seen cases where confusion over
-name-spaces is created: a choice between three elements with the same
-name but different types.  Well, in such case you may use M<XML::LibXML::Simple>
-to translate a part of your tree.  Simply
+automatically translate it.  I have seen cases where confusion
+over name-spaces is created: a choice between three elements with
+the same name but different types.  Well, in such case you may use
+M<XML::LibXML::Simple> to translate a part of your tree.  Simply
 
  use XML::LibXML::Simple  qw/XMLin/;
  $schema->addHook
-   ( type => ...bad-type-definition...
-   , sub { my ($xml, $args, $path, $local) = @_;
-           $local => XMLin($xml, ...);
-         }
+   ( type    => ...bad-type-definition...
+   , replace =>
+       sub { my ($xml, $args, $path, $local) = @_;
+             $local => XMLin($xml, ...);
+           }
    );
 
 =subsection hooks for post-processing, after the data is collected
 
-The data is collect, and passed as second argument after the XML
-node.  The third argument is the path.  Be careful that the
-collected data might be a SCALAR (for simpleType).
+The data is collect, and passed as second argument after the XML node.
+The third argument is the path.  Be careful that the collected data
+might be a SCALAR (for simpleType).  Return a HASH or a SCALAR.  C<undef>
+may work, unless it is the value of a required element you throw awy.
 
 This hook also offers a predefined C<PRINT_PATH>.  Besides, it
 has C<XML_NODE>, C<ELEMENT_ORDER>, and C<ATTRIBUTE_ORDER>, which will
 result in additional fields in the HASH, respectively containing the
-CODE which was processed, the element names and the attribute names.
+CODE which was processed, the element names, and the attribute names.
 The keys start with an underscore C<_>.
 
+=section Typemaps
+
+In a typemap, a relation between an XML element type and a Perl class (or
+object) is made.  Each translator back-end will implement this a little
+differently.  This section is about how the reader handles typemaps.
+
+=subsection Typemap to Class
+
+Usually, an XML type will be mapped on a Perl class.  The Perl class
+implements the C<fromXML> method as constructor.
+
+ $schema->typemap($sometype => 'My::Perl::Class');
+
+ package My::Perl::Class;
+ ...
+ sub fromXML
+ {   my ($class, $data, $xmltype) = @_;
+     my $self = $class->new($data);
+     ...
+     $self;
+ }
+
+Your method returns the data which will be included in the result tree
+of the reader.  You may return an object, the unmodified C<$data>, or
+C<undef>.  When C<undef> is returned, this may fail the schema parser
+when the data element is required.
+
+In the simpelest implementation, the class stores its data exactly as
+the XML structure:
+
+ package My::Perl::Class;
+ sub fromXML
+ {   my ($class, $data, $xmltype) = @_;
+     bless $data, $class;
+ }
+
+ # The same, even shorter:
+ sub fromXML { bless $_[1], $_[0] }
+
+=subsection Typemap to Object
+
+An other option is to implement an object factory: one object which creates
+other objects.  In this case, the C<$xmltype> parameter can come of use,
+to have one object spawning many different other objects.
+
+ my $object = My::Perl::Class->new(...);
+ $schema->typemap($sometype => $object);
+
+ package My::Perl::Class;
+ sub fromXML
+ {   my ($object, $xmltype, $data) = @_;
+     return Some::Other::Class->new($data);
+ }
+
+This object factory may be a very simple solution when you map XML onto
+objects which are not under your control; where there is not way to
+add the C<fromXML> method.
+
+=subsection Typemap to CODE
+
+The light version of an object factory works with CODE references.
+
+ $schema->typemap($t1 => \&myhandler);
+ sub myhandler
+ {   my ($backend, $data, $type) = @_;
+     return My::Perl::Class->new($data)
+         if $backend eq 'READER';
+     $data;
+ }
+
+ # shorter
+ $schema->typemap($t1 => sub {My::Perl::Class->new($_[1])} );
+
+=subsection Typemap implementation
+
+Internally, the typemap is simply translated into an "after" hook for the
+specific type.  After the data was processed via the usual mechanism,
+the hook will call method C<fromXML> on the class or object you specified
+with the data which was read.  You may still use "before" and "replace"
+hooks, if you need them.
+
+Syntactic sugar:
+
+  $schema->typemap($t1 => 'My::Package');
+  $schema->typemap($t2 => $object);
+
+is comparible to
+
+  $schema->typemap($t1 => sub {My::Package->fromXML(@_)});
+  $schema->typemap($t2 => sub {$object->fromXML(@_)} );
+
+with some extra checks.
 =cut
 
 1;

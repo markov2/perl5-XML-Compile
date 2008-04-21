@@ -40,6 +40,11 @@ BEGIN {
       for qw/tag_qualified tag_unqualified wrapper_ns/;
 }
 
+sub typemap_to_hooks($$)
+{   my ($hooks, $typemap) = @_;
+    $hooks;
+}
+
 sub element_wrapper
 {   my ($path, $args, $processor) = @_;
     sub { $processor->() };

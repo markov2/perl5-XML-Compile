@@ -312,7 +312,7 @@ sub _parsedNode($)
 {   my ($thing, $node) = @_;
 
     if($node->isa('XML::LibXML::Document'))
-    {   my $eltype = type_of_node $node->documentElement;
+    {   my $eltype = type_of_node($node->documentElement) || '(none)';
         trace "using preparsed XML document with element <$eltype>";
     }
     elsif($node->isa('XML::LibXML::Element'))
