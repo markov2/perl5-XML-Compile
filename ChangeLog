@@ -4,6 +4,37 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.81: Tue Apr 29 18:57:48 CEST 2008
+
+	Fixes:
+
+	- pattern match facet did not anchor [Sander Hulst]
+
+	- ::Translate::complectContentExtension with mixed produced
+	  error message. [Ari Jolma]
+
+	- re-use already compiled structures, which avoids combinatory
+	  explosions.
+
+	Changes:
+
+	- requires XML::Compile::Tester
+
+	Improvements:
+
+	- add ::Schema::addTypemap() as synonym for ::addTypemaps()
+
+	- extracted useful test-script tools from t/TestTools.pm
+	  into new distribution XML::Compile::Tester.
+
+	- converted test scripts to use XML::Compile::Tester.
+
+	- ::Schema::compile(ignore_unused_tags) now accepts a regular
+	  expression to indicate exactly which tags are to be ignored.
+	  Added global ::new(ignore_unused_tags)
+
+	- warn if people call the writer without document as first parameter.
+
 version 0.80: Mon Apr 21 10:34:56 CEST 2008
 
 	Improvements:
@@ -12,6 +43,8 @@ version 0.80: Mon Apr 21 10:34:56 CEST 2008
 
 	- implementation of typemaps in READER and WRITER, tests in
 	  t/72typemap.t
+
+	- refer to related distributions in PODTAIL.
 
 version 0.79: Fri Apr 18 16:01:57 CEST 2008
 

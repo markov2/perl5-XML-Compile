@@ -8,8 +8,9 @@ use lib 'lib','t';
 use TestTools;
 
 use XML::Compile::Schema;
+use XML::Compile::Tester;
 
-use Test::More tests => 308;
+use Test::More tests => 231;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -154,7 +155,7 @@ is($error, "too large exclusive 45, smaller 45 at {http://test-types}test3#facet
 $error = writer_error($schema, test3 => 45);
 is($error, "too large exclusive 45, smaller 45 at {http://test-types}test3#facet");
 
-$error = reader_error($schema, "test3" => <<__XML__);
+$error = reader_error($schema, test3 => <<__XML__);
 <test3>13</test3>
 __XML__
 is($error, "too small exclusive 13, larger 13 at {http://test-types}test3#facet");
@@ -170,7 +171,7 @@ test_rw($schema, "test4" => <<__XML__, "aap");
 <test4>aap</test4>
 __XML__
 
-$error = reader_error($schema, "test4" => <<__XML__);
+$error = reader_error($schema, test4 => <<__XML__);
 <test4>noot</test4>
 __XML__
 
@@ -226,7 +227,7 @@ is($error, "invalid enumerate `' at {http://test-types}test8#facet");
 
 ### test9 (bug reported by Gert Doering)
 
-push @run_opts, sloppy_integers => 1;
+set_compile_defaults sloppy_integers => 1;
 
 test_rw($schema, test9 => '<test9>0</test9>', 0);
 

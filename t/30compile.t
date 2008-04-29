@@ -7,6 +7,7 @@ use lib 'lib','t';
 use TestTools;
 
 use XML::Compile::Schema;
+use XML::Compile::Tester;
 
 use Test::More tests => 14;
 
@@ -57,7 +58,7 @@ compare_xml($node, '41');
 #
 
 my $read_t1   = $schema->compile
- ( READER => "{$TestNS}test1"
+ ( READER      => "{$TestNS}test1"
  , check_values => 1
  );
 
@@ -75,7 +76,7 @@ cmp_ok($t1, '==', 42);
 #
 
 my $read_t2   = $schema->compile
- ( READER => "{$TestNS}test2"
+ ( READER       => "{$TestNS}test2"
  , check_values => 1
  );
 

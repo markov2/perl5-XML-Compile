@@ -8,6 +8,7 @@ use lib 'lib','t';
 use TestTools;
 
 use XML::Compile::Schema;
+use XML::Compile::Tester;
 use XML::Compile::Util qw/pack_type/;
 use Data::Dumper;
 

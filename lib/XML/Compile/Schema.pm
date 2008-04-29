@@ -178,6 +178,19 @@ See M<addHooks()>.
 =default typemap {}
 HASH of Schema type to Perl object or Perl class.  See L</Typemaps>, the
 serialization of objects.
+
+=option  ignore_unused_tags BOOLEAN|REGEXP
+=default ignore_unused_tags <false>
+(WRITER) Usually, a C<mistake> warning is produced when a user provides
+a data structure which contains more data than is needed for the XML
+message which is created; this will show structural problems.  However,
+in some cases, you may want to play tricks with the data-structure and
+therefore disable this precausion.
+
+With a REGEXP, you can have more control.  Only keys which do match
+the expression will be ignored silently.  Other keys (usually typos
+and other mistakes) will get reported.  See L</Typemaps>
+
 =cut
 
 sub init($)
@@ -195,7 +208,9 @@ sub init($)
     {   $self->addHooks(ref $h2 eq 'ARRAY' ? @$h2 : $h2);
     }
  
-    $self->{typemap} = $args->{typemap} || {};
+    $self->{typemap}     = $args->{typemap} || {};
+    $self->{unused_tags} = $args->{ignore_unused_tags};
+
     $self;
 }
 
@@ -391,6 +406,8 @@ sub hooks() { @{shift->{hooks}} }
 
 =method addTypemaps PAIRS
 Add new XML-Perl type relations.  See L</Typemaps>.
+=method addTypemap PAIR
+Synonym for M<addTypemap()>.
 =cut
 
 sub addTypemaps(@)
@@ -401,6 +418,7 @@ sub addTypemaps(@)
     }
     $map;
 }
+*addTypemap = \&addTypemaps;
 
 #--------------------------------------
 =section Compilers
@@ -564,19 +582,15 @@ attribute, pointing to an object with C<id>.  The READER will return the
 unparsed, unresolved node when the attribute is detected, and the SOAP-RPC
 decoder will have to discover and resolve it.
 
-=option  ignore_used_tags BOOLEAN
-=default ignore_used_tags <false>
-(WRITER) Usually, a C<mistake> warning is produced when a user provides
-a data structure which contains more data than is needed for the XML
-message which is created; this will show structural problems.  However,
-in some cases, you may want to play tricks with the data-structure and
-therefore disable this precausion.
+=option  ignore_unused_tags BOOLEAN|REGEXP
+=default ignore_unused_tags <false>
+Overrules what is set with M<new(ignore_unused_tags)>.
 
 =option  interpret_nillable_as_optional BOOLEAN
 =default interpret_nillable_as_optional <false>
-Found in the wild-life, people who think that nillable means optional.
-Not too hard to fix.  For the WRITER, you still have to state NIL
-explicitly, but the elements are not constructed.  The READER will
+Found in the schema wild-life: people who think that nillable means
+optional.  Not too hard to fix.  For the WRITER, you still have to state
+NIL explicitly, but the elements are not constructed.  The READER will
 output NIL when the nillable elements are missing.
 
 =option  typemap HASH
@@ -598,6 +612,11 @@ sub compile($$@)
     {   exists $args{check_values}   or $args{check_values} = 1;
         exists $args{check_occurs}   or $args{check_occurs} = 1;
     }
+
+    my $iut = exists $args{ignore_unused_tags} ? $args{ignore_unused_tags}
+      : $self->{unused_tags};
+    $args{ignore_unused_tags}
+      = !defined $iut ? undef : ref $iut eq 'Regexp' ? $iut : qr/^/;
 
     exists $args{include_namespaces} or $args{include_namespaces} = 1;
     $args{sloppy_integers}   ||= 0;
@@ -1382,9 +1401,37 @@ they don't, in which case you will need to write a little wrapper.
   $schema->typemap($t1 => sub { ... });
 
 The implementation of the READER and WRITER differs.  In the READER case,
-the typemap is implemented as an 'after' hook.  The WRITER is a 'before'
-hook.  See respectively the M<XML::Compile::Schema::XmlReader> and
+the typemap is implemented as an 'after' hook which calls a C<fromXML>
+method.  The WRITER is a 'before' hook which calls a C<toXML> method.
+See respectively the M<XML::Compile::Schema::XmlReader> and
 M<XML::Compile::Schema::XmlWriter>.
+
+=subsection Private variables in objects
+
+When you design a new object, it is possible to store the information
+exactly like the corresponding XML type definition.  The only thing
+the M<fromXML> has to do, is bless the data-structure into its class:
+
+  $schema->typemap($xmltype => 'My::Perl::Class');
+  package My::Perl::Class;
+  sub fromXML { bless $_[1], $_[0] } # for READER
+  sub toXML   { $_[0] }              # for WRITER
+
+However... the object may also need so need some private variables.
+If you store them in the same HASH for your object, you will get
+"unused tags" warnings from the writer.  To avoid that, choose one
+of the following alternatives:
+
+  # never complain about unused tags
+  ::Schema->new(..., ignore_unused_tags => 1);
+
+  # only complain about unused tags not matching regexp
+  my $not_for_xml = qr/^[A-Z]/;  # my XML only has lower-case
+  ::Schema->new(..., ignore_unused_tags => $not_for_xml);
+
+  # only for one compiled WRITER (not used with READER)
+  ::Schema->compile(..., ignore_unused_tags => 1);
+  ::Schema->compile(..., ignore_unused_tags => $not_for_xml);
 
 =subsection Limitations
 

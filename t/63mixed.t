@@ -9,8 +9,9 @@ use TestTools;
 use Data::Dumper;
 
 use XML::Compile::Schema;
+use XML::Compile::Tester;
 
-use Test::More tests => 36;
+use Test::More tests => 30;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -40,9 +41,7 @@ ok(defined $schema);
 
 ### test 1, nameless complexType with attributes
 
-my $t1read = reader($schema, test1 => "{$TestNS}test1");
-isa_ok($t1read, 'CODE', 'compiled reader');
-
+my $t1read = create_reader($schema, "nameless with attrs" => 'test1');
 my $t1mixed = <<'__XML';
 <test1 id="5">
   aaa
@@ -58,7 +57,7 @@ ok(exists $r1a->{_}, 'has node');
 isa_ok($r1a->{_}, 'XML::LibXML::Element');
 compare_xml($r1a->{_}->toString, $t1mixed);
 
-my $t1write = writer($schema, test1 => "{$TestNS}test1");
+my $t1write = create_writer($schema, "nameless with attrs" => 'test1');
 my $t1w1node = XML::LibXML::Element->new('test1');
 my $t1w1a = writer_test($t1write, $t1w1node);
 compare_xml($t1w1a,  '<test1/>');
@@ -78,8 +77,7 @@ __TEMPL
 
 ### test 2, named complexType without attibutes
 
-my $t2read = reader($schema, test2 => "{$TestNS}test2");
-isa_ok($t2read, 'CODE', 'compiled reader');
+my $t2read = create_reader($schema, "named without attrs" => 'test2');
 
 my $t2mixed = <<'__XML';
 <test2>bbb</test2>
@@ -89,7 +87,7 @@ my $r2a = $t2read->($t2mixed);
 isa_ok($r2a, 'XML::LibXML::Element');
 compare_xml($r2a->toString, $t2mixed);
 
-my $t2write = writer($schema, test2 => "{$TestNS}test2");
+my $t2write = create_writer($schema, "named without attrs" => 'test2');
 my $t2w1node = XML::LibXML::Element->new('test2');
 my $t2w1a = writer_test($t2write, $t2w1node);
 compare_xml($t2w1a,  '<test2/>');
@@ -97,7 +95,8 @@ compare_xml($t2w1a,  '<test2/>');
 my $t2w1b = writer_test($t2write, { _ => $t2w1node});
 compare_xml($t2w1b,  '<test2/>');
 
-is($schema->template(PERL => "{$TestNS}test2"), <<'__TEMPL');
+my $t2out = templ_perl $schema, 'test2';
+is($t2out, <<'__TEMPL');
 # mixed content cannot be processed automatically
 test2 => "XML::LibXML::Element->new(test2)"
 __TEMPL

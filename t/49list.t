@@ -8,8 +8,9 @@ use lib 'lib','t';
 use TestTools;
 
 use XML::Compile::Schema;
+use XML::Compile::Tester;
 
-use Test::More tests => 61;
+use Test::More tests => 49;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -38,7 +39,8 @@ __SCHEMA__
 ok(defined $schema);
 
 my @errors;
-push @run_opts, invalid => sub {no warnings; push @errors, "$_[2] ($_[1])"};
+set_compile_defaults
+   invalid => sub {no warnings; push @errors, "$_[2] ($_[1])"};
 
 test_rw($schema, "test1" => <<__XML__, [1]);
 <test1>1</test1>

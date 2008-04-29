@@ -918,8 +918,8 @@ sub hook($$$$$$)
              : $r->($tree->descend($xml));
        @h or return ();
        my $h = @h==1 ? {_ => $h[0]} : $h[1];  # detect simpleType
-       foreach (@after)
-       {   $h = $_->($xml, $h, $path);
+       foreach my $after (@after)
+       {   $h = $after->($xml, $h, $path);
            defined $h or return ();
        }
        $h;

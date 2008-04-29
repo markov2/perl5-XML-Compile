@@ -81,6 +81,9 @@ Use SOAP with a WSDL version 1.1 communication specification file.
 =item M<XML::Compile::SOAP::Daemon>
 Create a SOAP daemon, directly from a WSDL file. Implementation in progress.
 
+=item M<XML::Compile::Tester>
+Helps you write regression tests.
+
 =item M<XML::Compile::Dumper>
 Enables you to save pre-compiled XML handlers, the results of any
 C<compileClient>.  However, this results in huge files, so may not be

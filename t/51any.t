@@ -9,7 +9,9 @@ use lib 'lib','t';
 use TestTools;
 
 use XML::Compile::Schema;
-use Test::More tests => 89;
+use XML::Compile::Tester;
+
+use Test::More tests => 76;
 
 my $NS2 = "http://test2/ns";
 
@@ -81,8 +83,7 @@ __SCHEMA__
 ok(defined $schema);
 my $error;
 
-push @run_opts
-  , include_namespaces => 1;
+set_compile_defaults include_namespaces => 1;
 
 my %t2a = (tns_e => 10, tns_a => 11);
 test_rw($schema, test2 => <<__XML__, \%t2a);
@@ -93,11 +94,11 @@ __XML__
 # Take it, in target namespace
 #
 
-push @run_opts
-  , anyElement   => 'TAKE_ALL'   # warning!  order important for filter
-  , anyAttribute => 'TAKE_ALL';
+set_compile_defaults include_namespaces => 1
+                   , anyElement   => 'TAKE_ALL'
+                   , anyAttribute => 'TAKE_ALL';
 
-my $r2b = reader($schema, test2 => "{$TestNS}test2");
+my $r2b = create_reader($schema, test2 => 'test2');
 my $h2b = $r2b->( <<__XML__);
 <test2 xmlns="$TestNS" xmlns:b="http://x" tns_a="11" b:tns_b="12">
   <tns_e>9</tns_e>
@@ -148,14 +149,14 @@ my %h2c = (tns_a => 21, tns_e => 22
   , $nat_el_type => $nat_el, $for_el_type => $for_el
   );
 
-$error = writer_error($schema, "{$TestNS}test2" => \%h2c);
+$error = writer_error($schema, test2 => \%h2c);
 is($error, "unused tags {http://x}for_at {http://x}for_el at {http://test-types}test2#el(test2)");
 
 #
 # Take only other namespace
 #
 
-my $r3b = reader($schema, test3 => "{$TestNS}test3");
+my $r3b = create_reader($schema, test3 => 'test3');
 my $h3b = $r3b->( <<__XML__);
 <test3 xmlns="$TestNS" xmlns:b="http://x" other_a="11" b:other_b="12">
   <other_e>10</other_e>
@@ -188,14 +189,14 @@ my %h3c =
  , $nat_el_type => $nat_el, $for_el_type => $for_el
  );
 
-$error = writer_error($schema, "{$TestNS}test3" => \%h3c);
+$error = writer_error($schema, test3 => \%h3c);
 is($error, "unused tags {http://test-types}nat_at {http://test-types}nat_el at {http://test-types}test3#el(test3)");
 
 #
 # Take any namespace
 #
 
-my $r4b = reader($schema, test4 => "{$TestNS}test4");
+my $r4b = create_reader($schema, test4 => 'test4');
 my $h4b = $r4b->( <<__XML__);
 <test4 xmlns="$TestNS" xmlns:b="http://x" any_a="11" b:any_b="12">
   <any_e>10</any_e>
@@ -222,7 +223,7 @@ ok(!keys %$h4b);
 my %h4c = (any_a => 10, any_e => 11
   , $nat_at_type => $nat_at, $for_at_type => $for_at);
 
-my $w4c = writer($schema, test4 => "{$TestNS}test4");
+my $w4c = create_writer($schema, test4 => 'test4');
 my $h4c = writer_test($w4c, \%h4c);
 compare_xml($h4c, <<__XML);
 <test4 xmlns="http://test-types" any_a="10" nat_at="24" b:for_at="23">
@@ -235,16 +236,20 @@ __XML
 #
 
 my @filtered;
-$run_opts[-1] =
- sub { my ($type, $value) = @_;
-       push @filtered, $type;
-       ok(defined $type, "filter $type");
-       isa_ok($value, 'XML::LibXML::Attr');
-       my $flat = $value->toString;
-       $type =~ m/_a/ ? ($type, $flat) : ();
-     };
+sub filter_any($$)
+{   my ($type, $value) = @_;
+    push @filtered, $type;
+    ok(defined $type, "filter $type");
+    isa_ok($value, 'XML::LibXML::Attr');
+    my $flat = $value->toString;
+    $type =~ m/_a/ ? ($type, $flat) : ();
+};
 
-my $r5b = reader($schema, test4 => "{$TestNS}test4");
+set_compile_defaults include_namespaces => 1
+                   , anyElement   => 'TAKE_ALL'
+                   , anyAttribute => \&filter_any;
+
+my $r5b = create_reader($schema, test4 => 'test4');
 my $h5b = $r5b->( <<__XML__);
 <test4 xmlns="$TestNS" xmlns:b="http://x" any_a="11" b:any_b="12">
   <any_e>10</any_e>

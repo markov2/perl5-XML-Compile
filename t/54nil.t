@@ -7,8 +7,9 @@ use lib 'lib','t';
 use TestTools;
 
 use XML::Compile::Schema;
+use XML::Compile::Tester;
 
-use Test::More tests => 55;
+use Test::More tests => 42;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -30,7 +31,8 @@ __SCHEMA__
 
 ok(defined $schema);
 
-push @run_opts, (check_occurs => 1, invalid => 'WARN');
+set_compile_defaults check_occurs => 1
+                   , invalid      => 'WARN';
 
 #
 # simple element type
@@ -73,7 +75,7 @@ __XML__
 # fix broken specifications
 #
 
-push @run_opts, interpret_nillable_as_optional => 1;
+set_compile_defaults interpret_nillable_as_optional => 1;
 
 my %t1d = (e1 => 89, e2 => undef, e3 => 90);
 my %t1e = (e1 => 91, e2 => 'NIL', e3 => 92);

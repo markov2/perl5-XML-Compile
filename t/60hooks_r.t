@@ -9,8 +9,9 @@ use TestTools;
 use Test::Deep   qw/cmp_deeply/;
 
 use XML::Compile::Schema;
+use XML::Compile::Tester;
 
-use Test::More tests => 56;
+use Test::More tests => 44;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -55,8 +56,8 @@ test_rw($schema, test1 => $xml1, \%f1);
 # try all selectors and hook types
 
 my (@out, @out2);
-my $r2 = reader
- ( $schema, test1 => "{$TestNS}test1"
+my $r2 = create_reader
+ ( $schema, "combined hook" => 'test1'
  , hook => { type   => 'string'
            , id     => 'my_id'
            , path   => qr/byPath/
@@ -64,9 +65,6 @@ my $r2 = reader
            , after  => sub { push @out2, $_[2]; $_[1] }
            }
  );
-
-ok(defined $r2, 'compile reader');
-isa_ok($r2, 'CODE');
 
 my $h2 = $r2->($xml1);
 ok(defined $h2, 'returned hash');
@@ -81,8 +79,8 @@ my $output;
 open BUF, '>', \$output;
 my $oldout = select BUF;
 
-my $r3 = reader
- ( $schema, test1 => "{$TestNS}test1"
+my $r3 = create_reader
+ ( $schema, "after PATH and NODE" => 'test1'
  , hook => { id    => 'my_id'
            , after => [ qw/PRINT_PATH XML_NODE/ ]
            }
@@ -105,13 +103,12 @@ compare_xml($node, '<byId>2</byId>');
 
 # test skip
 
-my $r4 = reader
- ( $schema, test1 => "{$TestNS}test1"
+my $r4 = create_reader
+ ( $schema, "replace SKIP" => 'test1'
  , hook => { id      => 'my_id'
            , replace => 'SKIP'
            }
  );
-ok(defined $r4, "replace SKIP");
 
 my $h4 = $r4->($xml1);
 ok(defined $h4, 'test skip');
@@ -126,13 +123,12 @@ my $xml2 = <<__XML;
 <test2 attr1="5" attr2="6" />
 __XML
 
-my $r5 = reader
- ( $schema, test1 => "{$TestNS}test2"
+my $r5 = create_reader
+ ( $schema, "read ORDER" => 'test2'
  , hook => { id    => 'top2'
            , after => [ qw/ELEMENT_ORDER ATTRIBUTE_ORDER/ ]
            }
  );
-ok(defined $r5, 'read ORDER');
 my $h5 = $r5->($xml2);
 
 ok(defined $h5, "node order");
@@ -148,14 +144,13 @@ cmp_deeply($order, [ qw/attr1 attr2/ ]);
 
 # test element order
 
-my $r6 = reader
- ( $schema, test1 => "{$TestNS}test1"
+my $r6 = create_reader
+ ( $schema, "element order" => 'test1'
  , hook => { id    => 'top'
            , after => [ qw/ELEMENT_ORDER ATTRIBUTE_ORDER/ ]
            }
  );
 my $h6 = $r6->($xml1);
-ok(defined $h6, 'element order');
 
 ok(defined $h6, "node order");
 ok(exists $h6->{_ELEMENT_ORDER});

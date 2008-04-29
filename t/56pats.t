@@ -8,8 +8,9 @@ use lib 'lib','t';
 use TestTools;
 
 use XML::Compile::Schema;
+use XML::Compile::Tester;
 
-use Test::More tests => 32;
+use Test::More tests => 17;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -37,11 +38,7 @@ __XML
 $error = reader_error($schema, test1 => <<__XML);
 <test1>abbc</test1>
 __XML
-is($error, "string `abbc' does not match pattern (?-xism:a.c) at {http://test-types}test1#facet");
+is($error, "string `abbc' does not match pattern (?-xism:^(?:a.c)\$) at {http://test-types}test1#facet");
 
 $error = writer_error($schema, test1 => 'abbc');
-is($error, "string `abbc' does not match pattern (?-xism:a.c) at {http://test-types}test1#facet");
-
-test_rw($schema, "test1" => <<__XML, 'abaaBcdef');
-<test1>abaaBcdef</test1>
-__XML
+is($error, "string `abbc' does not match pattern (?-xism:^(?:a.c)\$) at {http://test-types}test1#facet");

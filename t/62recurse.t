@@ -9,8 +9,9 @@ use TestTools;
 use Data::Dumper;
 
 use XML::Compile::Schema;
+use XML::Compile::Tester;
 
-use Test::More tests => 73;
+use Test::More tests => 57;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -48,7 +49,6 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
     </sequence>
   </complexType>
 </element>
-
 
 # ... neither is this one
 <element name="test4">

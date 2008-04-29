@@ -7,8 +7,9 @@ use lib 'lib','t';
 use TestTools;
 
 use XML::Compile::Schema;
+use XML::Compile::Tester;
 
-use Test::More tests => 186;
+use Test::More tests => 146;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -213,17 +214,17 @@ test_rw($schema, test6 => <<__XML, {t6_a => 48, t6_b => 49});
 <test6><t6_a>48</t6_a><t6_b>49</t6_b></test6>
 __XML
 
-{   @run_opts = (check_occurs => 1);
+{   set_compile_defaults check_occurs => 1;
     my $error = reader_error($schema, test6 => <<__XML);
 <test6><t6_b>50</t6_b></test6>
 __XML
 
     is($error, "data for element or block starting with `t6_a' missing at {http://test-types}test6");
-    @run_opts = ();
+    set_compile_defaults ();
 }
 
 # The next is not correct, but when we do not check occurrences it is...
-{  push @run_opts, check_occurs => 0;
+{  set_compile_defaults check_occurs => 0;
 
    test_rw($schema, test7 => <<__XML, {t7_b => [16], t7_c => [17]});
 <test7>
@@ -232,7 +233,7 @@ __XML
 </test7>
 __XML
 
-   splice @run_opts, -2;
+   set_compile_defaults ();
 }
 
 {   my $error = reader_error($schema, test7 => <<__XML);

@@ -9,8 +9,9 @@ use TestTools;
 use Data::Dumper;
 
 use XML::Compile::Schema;
+use XML::Compile::Tester;
 
-use Test::More tests => 36;
+use Test::More tests => 30;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -48,8 +49,8 @@ test_rw($schema, test1 => $xml1, \%f1);
 # try all selectors and hook types
 
 my (@out, @out2);
-my $w2 = writer
- ( $schema, test1 => "{$TestNS}test1"
+my $w2 = create_writer
+ ( $schema, "combined test" => 'test1'
  , hook => { type   => 'string'
            , id     => 'my_id'
            , path   => qr/byPath/
@@ -58,7 +59,6 @@ my $w2 = writer
            }
  );
 ok(defined $w2);
-isa_ok($w2, 'CODE');
 
 my $h2 = writer_test($w2, \%f1);
 ok(defined $h2);
@@ -79,8 +79,8 @@ my $output;
 open BUF, '>', \$output;
 my $oldout = select BUF;
 
-my $w3 = writer
- ( $schema, test1 => "{$TestNS}test1"
+my $w3 = create_writer
+ ( $schema, "multiple after" => 'test1'
  , hook => { id    => 'top'
            , after => [ 'PRINT_PATH' ]
            }
@@ -102,8 +102,8 @@ __EXPECT
 
 # test skip
 
-my $w4 = writer
- ( $schema, test1 => "{$TestNS}test1"
+my $w4 = create_writer
+ ( $schema, "test SKIP" => 'test1'
  , hook => { id      => 'my_id'
            , replace => 'SKIP'
            }

@@ -8,8 +8,9 @@ use lib 'lib','t';
 use TestTools;
 
 use XML::Compile::Schema;
+use XML::Compile::Tester;
 
-use Test::More tests => 30;
+use Test::More tests => 24;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -41,8 +42,8 @@ __SCHEMA__
 ok(defined $schema);
 
 my @errors;
-push @run_opts
- , sloppy_integers => 1
+set_compile_defaults
+   sloppy_integers => 1
  , invalid => sub {no warnings; push @errors, "$_[2] ($_[1])"; undef}
  ;
 

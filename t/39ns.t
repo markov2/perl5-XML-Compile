@@ -7,8 +7,9 @@ use lib 'lib','t';
 use TestTools;
 
 use XML::Compile::Schema;
+use XML::Compile::Tester;
 
-use Test::More tests => 49;
+use Test::More tests => 39;
 
 my $NS2 = "http://test2/ns";
 
@@ -73,11 +74,9 @@ is(join("\n", join "\n", $schema->elements)."\n", <<__ELEMS__);
 {http://test2/ns}test4
 __ELEMS__
 
-@run_opts =
- ( elements_qualified   => 'ALL'
- , attributes_qualified => 1
- , include_namespaces   => 1
- );
+set_compile_defaults elements_qualified   => 'ALL'
+                   , attributes_qualified => 1
+                   , include_namespaces   => 1;
 
 #
 # simple name-space on schema
@@ -111,14 +110,10 @@ __XML__
 
 # now with name-spaces off
 
-@run_opts =
- ( ignore_namespaces => 1
- );
+set_compile_defaults ignore_namespaces => 1;
 
 test_rw($schema, "{$NS2}test3" => <<__XML__, {c1_a => 18});
 <test3>
    <c1_a>18</c1_a>
 </test3>
 __XML__
-
-splice @run_opts, -2;

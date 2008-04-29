@@ -6,8 +6,9 @@ use strict;
 use File::Spec;
 
 use lib 'lib', 't';
-use XML::Compile::Schema;
 use TestTools;
+use XML::Compile::Schema;
+use XML::Compile::Tester;
 
 use Test::More tests => 22;
 

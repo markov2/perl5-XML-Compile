@@ -7,6 +7,7 @@ use lib 'lib','t';
 use TestTools;
 
 use XML::Compile::Schema;
+use XML::Compile::Tester;
 
 use Test::More tests => 5;
 
@@ -70,7 +71,8 @@ __SCHEMA__
 
 ok(defined $schema);
 
-templ_perl($schema, 'test1', <<__TEST1__, show => 'ALL');
+my $out = templ_perl($schema, 'test1', show => 'ALL');
+is($out, <<__TEST1__);
 test1 =>
 { # sequence of t1_a, t1_b, t1_c, t1_d, cho_t1_g
 
@@ -140,7 +142,8 @@ test1 =>
   ], }
 __TEST1__
 
-templ_perl($schema, 'test1', <<__TEST1b__, show => 'NONE', indent => '    ');
+$out = templ_perl($schema, 'test1', show => 'NONE', indent => '    ');
+is($out, <<__TEST1b__);
 test1 =>
 {   t1_a => 42,
     t1_b => 42,
@@ -164,7 +167,8 @@ test1 =>
     ], }
 __TEST1b__
 
-templ_xml($schema, 'test1', <<__TEST1c__, show => 'ALL');
+$out = templ_xml($schema, 'test1', show => 'ALL');
+is($out, <<__TEST1c__);
 <test1>
   <!-- sequence of t1_a, t1_b, t1_c, t1_d, cho_t1_g -->
   <t1_a type="int">42</t1_a>
@@ -213,7 +217,8 @@ templ_xml($schema, 'test1', <<__TEST1c__, show => 'ALL');
 </test1>
 __TEST1c__
 
-templ_xml($schema, 'test1', <<__TEST1d__, show => 'NONE');
+$out = templ_xml($schema, 'test1', show => 'NONE');
+is($out, <<__TEST1d__);
 <test1>
   <t1_a>42</t1_a>
   <t1_b>42</t1_b>

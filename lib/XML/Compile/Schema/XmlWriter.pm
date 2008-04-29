@@ -131,6 +131,9 @@ sub typemap_to_hooks($$)
 sub element_wrapper
 {   my ($path, $args, $processor) = @_;
     sub { my ($doc, $data) = @_;
+          UNIVERSAL::isa($doc, 'XML::LibXML::Document')
+              or error __x"first argument of writer must be an XML::LibXML::Document";
+
           my $top = $processor->(@_);
           $doc->indexElements;
           $top;
@@ -463,7 +466,7 @@ sub complex_element
     my @elems = odd_elements @$elems;
     my @attrs = @$attrs;
     my @anya  = @$any_attr;
-    my $ignore_unused_tags = $args->{ignore_unused_tags};
+    my $iut   = $args->{ignore_unused_tags};
 
     return
     sub { my ($doc, $data) = @_;
@@ -488,11 +491,14 @@ sub complex_element
           push @childs, $_->($doc, $copy)
               for @anya;
 
-          if(my @not_used = sort keys %$copy)
-          {   mistake __xn "tag `{tags}' not used at {path}"
+          if(%$copy)
+          {   my @not_used
+                = defined $iut ? grep({$_ !~ $iut} keys %$copy) : keys %$copy;
+
+              mistake __xn "tag `{tags}' not used at {path}"
                 , "unused tags {tags} at {path}"
-                , scalar @not_used, tags => \@not_used, path => $path
-                   unless $ignore_unused_tags;
+                , scalar @not_used, tags => [sort @not_used], path => $path
+                   if @not_used;
           }
 
           my $node  = $doc->createElement($tag);
@@ -765,7 +771,7 @@ sub attribute_prohibited
 sub attribute
 {   my ($path, $args, $ns, $tag, $do) = @_;
     sub { my $value = $do->(@_);
-          defined $value ? $_[0]->createAttributeNS($ns, $tag, $value) : ();
+          defined $value ? $_[0]->createAttribute($tag, $value) : ();
         };
 }
 *attribute_default = \&attribute;

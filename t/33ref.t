@@ -7,8 +7,9 @@ use lib 'lib','t';
 use TestTools;
 
 use XML::Compile::Schema;
+use XML::Compile::Tester;
 
-use Test::More tests => 28;
+use Test::More tests => 22;
 
 my $TestNS2 = "http://second-ns";
 

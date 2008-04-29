@@ -7,10 +7,11 @@ use strict;
 use File::Spec;
 
 use lib 'lib', 't';
-use XML::Compile::Schema;
 use TestTools;
+use XML::Compile::Schema;
+use XML::Compile::Tester;
 
-use Test::More tests => 10;
+use Test::More tests => 8;
 
 my $oldns  = 'http://www.w3.org/2000/10/XMLSchema';
 

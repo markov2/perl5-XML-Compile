@@ -239,7 +239,7 @@ sub _pattern($$$)
     }
 
     local $" = '|';
-    my $pat = qr/@pats/;
+    my $pat = qr/^(?:@pats)$/;
     my $err = $args->{err};
 
     sub { return $_[0] if $_[0] =~ $pat;

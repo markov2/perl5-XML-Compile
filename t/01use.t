@@ -14,6 +14,9 @@ my @show_versions =
     Test::Deep
     XML::LibXML
     Math::BigInt
+    XML::Compile
+    XML::Compile::SOAP
+    XML::Compile::Tester
    /;
 
 foreach my $package (@show_versions)

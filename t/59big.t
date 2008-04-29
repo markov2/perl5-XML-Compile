@@ -8,6 +8,7 @@ use lib 'lib','t';
 use TestTools;
 
 use XML::Compile::Schema;
+use XML::Compile::Tester;
 
 use Test::More;
 
@@ -17,7 +18,7 @@ BEGIN {
    {   plan skip_all => "Math::BigInt not installed";
    }
 
-   plan tests => 86;
+   plan tests => 66;
 }
 
 # Will fail when perl's longs get larger than 64bit
@@ -66,7 +67,7 @@ __SCHEMA__
 
 ok(defined $schema);
 
-push @run_opts, sloppy_integers => 0;
+set_compile_defaults sloppy_integers => 0;
 
 ##
 ### Integers

@@ -8,8 +8,9 @@ use lib 'lib','t';
 use TestTools;
 
 use XML::Compile::Schema;
+use XML::Compile::Tester;
 
-use Test::More tests => 37;
+use Test::More tests => 29;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -72,5 +73,4 @@ my %t3 = (_ => 30, a2_a => 31, a4 => 32);
 test_rw($schema, "test3" => <<__XML__, \%t3);
 <test3 a4="32" a2_a="31">30</test3>
 __XML__
-
 

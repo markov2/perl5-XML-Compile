@@ -133,7 +133,9 @@ sub compileTree($@)
         $item    = $def->{full};
     }
 
+    delete $self->{_created};
     my $produce = $self->topLevel($path, $item);
+    delete $self->{_created};
 
       $self->{include_namespaces}
     ? $self->make(wrapper_ns => $path, $produce, $self->{output_namespaces})
@@ -232,7 +234,7 @@ sub topLevel($$)
             }
       );
 
-    delete $self->{nest};  # reset recursion administration
+    delete $self->{_nest};  # reset recursion administration
 
     my $name = $node->localName;
     my $make
@@ -524,13 +526,16 @@ sub element($)
     $self->assertType($tree->path, name => NCName => $name);
     my $fullname = pack_type $self->{tns}, $name;
 
+    my $nodeid   = $node->nodePath;
+    my $already  = $self->{_created}{$nodeid};
+    return $already if $already;
+
     # detect recursion
-    my $nodeid = $$node;  # the internal SCALAR value; the C struct
-    if(exists $self->{nest}{$nodeid})
-    {   my $outer = \$self->{nest}{$nodeid};
+    if(exists $self->{_nest}{$nodeid})
+    {   my $outer = \$self->{_nest}{$nodeid};
         return sub { $$outer->(@_) };
     }
-    $self->{nest}{$nodeid} = undef;
+    $self->{_nest}{$nodeid} = undef;
 
     my $where    = $tree->path. "#el($name)";
     my $form     = $node->getAttribute('form');
@@ -606,8 +611,10 @@ sub element($)
     # this must look very silly to you... however, this is resolving
     # recursive schemas: this way nested use of the same element
     # definition will catch the code reference of the outer definition.
-    $self->{nest}{$nodeid} = $do;
-    delete $self->{nest}{$nodeid};  # clean the outer definition
+    $self->{_nest}{$nodeid}    = $do;
+    delete $self->{_nest}{$nodeid};  # clean the outer definition
+
+    $self->{_created}{$nodeid} = $do;
 }
 
 sub particle($)
@@ -1260,7 +1267,7 @@ sub complexContent($$)
     my $name  = $tree->currentLocal;
  
     return $self->complexContentExtension($tree->descend)
-        if $name eq 'extension' && !$mixed;
+        if $name eq 'extension';
 
     # nice for validating, but base can be ignored
     return $self->complexBody($tree->descend, $mixed)

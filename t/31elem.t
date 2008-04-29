@@ -10,8 +10,9 @@ use lib 'lib','t';
 use TestTools;
 
 use XML::Compile::Schema;
+use XML::Compile::Tester;
 
-use Test::More tests => 73;
+use Test::More tests => 57;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -103,7 +104,6 @@ test_rw($schema, test4 => <<__XML__, {ct_1 => 14, ct_2 => 43});
   <ct_2>43</ct_2>
 </test4>
 __XML__
-
 
 test_rw($schema, test5 => <<__XML__, {ct_1 => 15, ct_2 => 44}); 
 <test5>

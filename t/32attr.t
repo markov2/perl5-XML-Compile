@@ -7,8 +7,9 @@ use lib 'lib','t';
 use TestTools;
 
 use XML::Compile::Schema;
+use XML::Compile::Tester;
 
-use Test::More tests => 113;
+use Test::More tests => 86;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -132,7 +133,8 @@ __XML__
 
 is($error, "attribute `a2_e' is prohibited at {http://test-types}test2/\@a2_e");
 
-$error = writer_error($schema, test2 => {a2_c => 29, a2_e => 666, t2_b => 77} );
+$error = writer_error($schema, test2
+  => {a2_c => 29, a2_e => 666, t2_b => 77} );
 is($error, "attribute `a2_e' is prohibited at {http://test-types}test2/\@a2_e");
 
 test_rw($schema, test3 => '<test3 a3="41"/>', { a3 => 41 });

@@ -7,8 +7,9 @@ use lib 'lib','t';
 use TestTools;
 
 use XML::Compile::Schema;
+use XML::Compile::Tester;
 
-use Test::More tests => 103;
+use Test::More tests => 78;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -59,8 +60,6 @@ is($error, "Value `aap' is not a float");
 $error = writer_error($schema, test3 => '');
 is($error, "Value `' is not a float");
 
-###
-###
 ###
 
 test_rw($schema, test4 => '<test4>A bc D</test4>', [ qw/A bc D/ ]);
