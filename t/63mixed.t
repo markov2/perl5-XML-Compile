@@ -67,12 +67,11 @@ compare_xml($t1w1b,  '<test1 id="6"/>');
 
 is($schema->template(PERL => "{$TestNS}test1"), <<'__TEMPL');
 # test1 has a mixed content
-test1 =>
 { # is a {http://www.w3.org/2001/XMLSchema}string
   id => "example",
 
   # mixed content cannot be processed automatically
-  _ => "XML::LibXML::Element->new(test1)", }
+  _ => XML::LibXML::Element->new('test1'), }
 __TEMPL
 
 ### test 2, named complexType without attibutes
@@ -98,5 +97,5 @@ compare_xml($t2w1b,  '<test2/>');
 my $t2out = templ_perl $schema, 'test2';
 is($t2out, <<'__TEMPL');
 # mixed content cannot be processed automatically
-test2 => "XML::LibXML::Element->new(test2)"
+XML::LibXML::Element->new('test2')
 __TEMPL

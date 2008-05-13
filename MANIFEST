@@ -45,6 +45,7 @@ lib/XML/Compile/xsd/2001-datatypes.dtd
 t/01use.t
 t/20spec.t
 t/21types.t
+t/22call.t
 t/30compile.t
 t/31elem.t
 t/32attr.t

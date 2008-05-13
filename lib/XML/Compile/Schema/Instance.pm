@@ -255,7 +255,7 @@ sub _collectTypes($)
           , afd  => $afd, efd  => $efd,  schema => $self
           , ref  => $ref, sg   => $sg
           };
-        weaken($self->{schema});
+        weaken($info->{schema});
 
         # Id's can also be set on nested items, but these are ignored
         # for now...

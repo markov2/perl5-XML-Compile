@@ -132,7 +132,7 @@ sub element_wrapper
 {   my ($path, $args, $processor) = @_;
     sub { my ($doc, $data) = @_;
           UNIVERSAL::isa($doc, 'XML::LibXML::Document')
-              or error __x"first argument of writer must be an XML::LibXML::Document";
+              or error __x"first argument of call to writer must be an XML::LibXML::Document";
 
           my $top = $processor->(@_);
           $doc->indexElements;

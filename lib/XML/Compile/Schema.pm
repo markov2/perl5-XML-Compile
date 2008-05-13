@@ -736,6 +736,10 @@ sub template($@)
     eval "require $bricks";
     fault $@ if $@;
 
+    # it could be used to add extra comment lines
+    error __x"typemaps not implemented for XML template examples"
+        if $action eq 'XML' && defined $args{typemap} && keys %{$args{typemap}};
+
     my $compiled = XML::Compile::Schema::Translate->compileTree
      ( $type
      , bricks => $bricks

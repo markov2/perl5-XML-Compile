@@ -73,7 +73,6 @@ ok(defined $schema);
 
 my $out = templ_perl($schema, 'test1', show => 'ALL');
 is($out, <<__TEST1__);
-test1 =>
 { # sequence of t1_a, t1_b, t1_c, t1_d, cho_t1_g
 
   # is a {http://www.w3.org/2001/XMLSchema}int
@@ -144,7 +143,6 @@ __TEST1__
 
 $out = templ_perl($schema, 'test1', show => 'NONE', indent => '    ');
 is($out, <<__TEST1b__);
-test1 =>
 {   t1_a => 42,
     t1_b => 42,
     t1_c =>

@@ -473,7 +473,7 @@ $builtin_types{gMonthDay} =
 Format C<2006> or C<2006+07:00> (year 2006, optional time-zone)
 =cut
 
-my $gYear = qr/^ $yearFrag \- $monthFrag $timezoneFrag? $/x;
+my $gYear = qr/^ $yearFrag $timezoneFrag? $/x;
 $builtin_types{gYear} =
  { parse   => \&_collapse
  , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $gYear }
@@ -649,31 +649,20 @@ error.  Play with M<XML::Compile::Schema::compile(output_namespaces)>,
 predefining evenything what may be used, setting the C<used> count to C<1>.
 =cut
 
-sub _valid_qname($)
-{   my @ncnames = split /\:/, $_[0];
-    return 0 if @ncnames > 2;
-    _valid_ncname($_) || return 0 for @ncnames;
-    1;
-}
-
 $builtin_types{QName} =
  { parse   =>
      sub { my ($qname, $node) = @_;
+           $qname =~ s/\s//g;
            my $prefix = $qname =~ s/^([^:]*)\:// ? $1 : '';
 
-           length $prefix
-               or error __x"QNAME requires prefix at `{qname}'", qname=>$qname;
-
-           $node = $node->node if $node->isa('XML::Compile::Iterator');
-           my $ns = $node->lookupNamespaceURI($prefix)
-               or error __x"cannot find prefix `{prefix}' for QNAME `{qname}'"
-                     , prefix => $prefix, qname => $qname;
+           $node  = $node->node if $node->isa('XML::Compile::Iterator');
+           my $ns = $node->lookupNamespaceURI($prefix) || '';
            pack_type $ns, $qname;
          }
  , format  =>
     sub { my ($type, $trans) = @_;
           my ($ns, $local) = unpack_type $type;
-          $ns or return $local;
+          defined $ns or return $local;
 
           my $def = $trans->{$ns};
           if(!$def || !$def->{used})
@@ -681,8 +670,7 @@ $builtin_types{QName} =
           }
           "$def->{prefix}:$local";
         }
- , check   => \&_valid_qname
- , example => 'myns:name'
+ , example => 'myns:local'
  };
 
 =function NOTATION

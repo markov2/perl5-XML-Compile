@@ -12,7 +12,7 @@ use XML::Compile::Tester;
 use XML::Compile::Util qw/pack_type/;
 use Data::Dumper;
 
-use Test::More tests => 52;
+use Test::More tests => 55;
 use Test::Deep   qw/cmp_deeply/;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
@@ -168,6 +168,13 @@ is($out[2], $type2);
 isa_ok($out[3], 'XML::LibXML::Document');
 compare_xml($x2, '<test2><e2>bbb</e2></test2>');
 
+is($schema->template( PERL => "{$TestNS}test2"
+                    , typemap => { $type2 => '&function'} )
+  , <<__TEMPL);
+# call on converter function with object
+\$function->('WRITER', \$object, '{$TestNS}test2', \$doc)
+__TEMPL
+
 #
 # test toXML with Class
 #
@@ -192,6 +199,14 @@ ok(defined $w3, 'typemap writer from class');
 my $x3 = $w3->($doc, $someobj);
 compare_xml($x3, '<test2><e2>bbb</e2></test2>');
 
+is($schema->template( PERL => "{$TestNS}test2"
+                    , typemap => { $type2 => 'My::Class'} )
+  , <<__TEMPL);
+# calls toXML() on My::Class objects
+#   with {http://test-types}test2 and doc
+bless({}, 'My::Class')
+__TEMPL
+
 #
 # test toXML with Object
 #
@@ -215,3 +230,10 @@ my $w4 = $schema->compile
 ok(defined $w4, 'typemap writer from object');
 my $x4 = $w4->($doc, $someobj);
 compare_xml($x4, '<test2><e2>bbb</e2></test2>');
+
+is($schema->template( PERL => "{$TestNS}test2"
+                    , typemap => { $type2 => '$interface'} )
+  , <<__TEMPL);
+# call on converter with object
+\$interface->toXML(\$object, '{$TestNS}test2', \$doc)
+__TEMPL

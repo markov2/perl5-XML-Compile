@@ -4,6 +4,43 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.82: Tue May 13 21:04:02 CEST 2008
+
+	Fixes:
+
+	- qname should collapse whitespace.
+
+	- qname prefix is blank by default, not an error. [Daniel Ruoso]
+
+	- gYear has no month fragment, but has an optional timezone
+	  rt.cpan.org#35699 [Daniel Carrol]
+
+	- recursion detected where there wasn't. [Sander Hulst]
+
+	Changes:
+
+	- template output in Perl will not start with "type =>", so can
+	  directly be used as test message.  Requested by [Alan Wind]
+
+	- template output in Perl will not quote the objects, where
+	  "mixed" elements need to be inserted.
+
+	Improvements:
+
+	- minor fix to template for substgroup
+
+	- warn on useless type assertions (uncheckable types), not panic.
+
+	- start of testing calling convensions (to be more flexible in
+	  the future) in t/22call.t
+
+	- implemented hooks for templates.
+
+	- implemented typemaps in PERL example templates, not for XML
+	  templates (yet).
+
+	- weaken circular reference in Instance.
+
 version 0.81: Tue Apr 29 18:57:48 CEST 2008
 
 	Fixes:

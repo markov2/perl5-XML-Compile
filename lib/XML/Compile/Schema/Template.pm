@@ -42,6 +42,26 @@ BEGIN {
 
 sub typemap_to_hooks($$)
 {   my ($hooks, $typemap) = @_;
+    while(my($type, $action) = each %$typemap)
+    {   defined $action or next;
+
+        my ($struct, $example)
+          = $action =~ s/^[\\]?\&/\$/
+          ? ( "call on converter function with object"
+            , "$action->('WRITER', \$object, '$type', \$doc)")
+          : $action =~ m/^\$/
+          ? ( "call on converter with object"
+            , "$action->toXML(\$object, '$type', \$doc)")
+          : ( [ "calls toXML() on $action objects", "  with $type and doc" ]
+            , "bless({}, '$action')" );
+
+        my $details  =
+          { struct  => $struct
+          , example => $example
+          };
+
+        push @$hooks, { type => $type, replace => sub { $details} };
+    }
     $hooks;
 }
 
@@ -209,7 +229,7 @@ sub mixed_element
     my %mixed =
      ( tag     => '_'
      , struct  => "mixed content cannot be processed automatically"
-     , example => "XML::LibXML::Element->new($tag)"
+     , example => "XML::LibXML::Element->new('$tag')"
      );
 
     unless(@parts)   # show simpler alternative
@@ -330,8 +350,12 @@ sub attribute_fixed_optional
 
 sub substgroup
 {   my ($path, $args, $type, %do) = @_;
+    my ($first) = keys %do;
     sub { +{ kind    => 'substitution group'
-           , struct  => "one of the following, which extend $type"
+           , tag     => (unpack_type $type)[1]
+           , struct  => [ "substitutionGroup $type:"
+                        , map { "   $_" } sort keys %do ]
+           , example => 'HASH with one pair'
            , map { $_->() } values %do
            }
         };
@@ -350,11 +374,49 @@ sub anyElement
     bless sub { +{kind => 'element', struct  => 'anyElement'} }, 'ANY';
 }
 
-sub hook($$$$$)
-{   my ($path, $args, $r, $before, $produce, $after) = @_;
-    return $r if $r;
-    warning __x"hooks are not shown in templates";
-    ();
+sub hook($$$$$$)
+{   my ($path, $args, $r, $tag, $before, $replace, $after) = @_;
+
+    return $r unless $before || $replace || $after;
+
+    error __x"template only supports one production (replace) hook"
+        if $replace && @$replace > 1;
+
+    return sub {()} if $replace && grep {$_ eq 'SKIP'} @$replace;
+
+    my @replace = $replace ? map {_decode_replace($path,$_)} @$replace : ();
+    my @before  = $before  ? map {_decode_before($path,$_) } @$before  : ();
+    my @after   = $after   ? map {_decode_after($path,$_)  } @$after   : ();
+
+    sub
+    {  for(@before) { $_->($tag, $path) or return }
+
+       my $d = @replace ? $replace[0]->($tag, $path) : $r->();
+       defined $d or return ();
+
+       for(@after) { $d = $_->($d, $tag, $path) or return }
+       $d;
+     }
+}
+
+sub _decode_before($$)
+{   my ($path, $call) = @_;
+    return $call if ref $call eq 'CODE';
+    error __x"labeled before hook `{name}' undefined", name => $call;
+}
+
+sub _decode_replace($$)
+{   my ($path, $call) = @_;
+    return $call if ref $call eq 'CODE';
+
+    # SKIP already handled
+    error __x"labeled replace hook `{name}' undefined", name => $call;
+}
+
+sub _decode_after($$)
+{   my ($path, $call) = @_;
+    return $call if ref $call eq 'CODE';
+    error __x"labeled after hook `{name}' undefined", name => $call;
 }
 
 
@@ -364,7 +426,17 @@ sub hook($$$$$)
 
 sub toPerl($%)
 {   my ($class, $ast, %args) = @_;
-    my $lines = join "\n", perl_any($ast, \%args);
+    my @lines = perl_any($ast, \%args);
+
+    # remove leading  'type =>'
+    for(my $linenr = 0; $linenr < @lines; $linenr++)
+    {   next if $lines[$linenr] =~ m/^\s*\#/;
+        next unless $lines[$linenr] =~ s/.* \=\>\s*//;
+        $lines[$linenr] =~ m/\S/ or splice @lines, $linenr, 1;
+        last;
+    }
+
+    my $lines = join "\n", @lines;
     $lines =~ s/\,?\s*$/\n/;
     $lines;
 }
@@ -462,7 +534,12 @@ sub perl_any($$)
     }
 
     if(my $example = $ast->{example})
-    {   $example = qq{"$example"} if $example !~ m/^[+-]?\d+(?:\.\d+)?$/;
+    {   $example = qq{"$example"}      # in quotes unless
+          if $example !~ m/^[+-]?\d+(?:\.\d+)?$/  # numeric or
+          && $example !~ m/^\$/                   # variable or
+          && $example !~ m/^bless\b/              # constructor or
+          && $example !~ m/^\$?[\w:]*\-\>/;       # method call example
+
         push @lines, "$tag => "
           . ($ast->{is_array} ? " [ $example, ]" : $example);
     }
@@ -554,8 +631,34 @@ sub xml_any($$$$)
 Wildcards are not (yet) supported.
 
 =section Schema hooks
-The C<before> and C<after> hooks are ignored.  The C<replace> hook will
-produce an error.
+Hooks are implemented since version 0.82.  They can be used to
+improve the template output.
+
+=subsection hooks executed before the template is generated
+
+=section Typemaps
+Typemaps are currently only available to improve the PERL output.
+
+=subsection Typemaps for PERL template output
+
+You can pass C<< &function_name >> to indicate that the code reference
+with variable name C<< $function_name >> will be called.  Mind the change
+of C<< & >> into C<< $ >>.
+
+When C<< $object_name >> is provided, then that object is an interface
+object, which will be called for the indicated type.
+
+In case class name (any bareword will do) is specified, it is shown
+as a call to the M<toXML()> instance method call from some data object
+of the specified class.
+
+=example typemaps with template
+  $schemas->template(PERL => $some_type, typemap =>
+    { $type1 => '&myfunc'   # $myfunc->('WRITER', ...)
+    , $type2 => '$interf'   # $interf->($object, ...)
+    , $type3 => 'My::Class'
+    });
+
 =cut
 
 1;
