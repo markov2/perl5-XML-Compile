@@ -649,7 +649,7 @@ When C<< $object_name >> is provided, then that object is an interface
 object, which will be called for the indicated type.
 
 In case class name (any bareword will do) is specified, it is shown
-as a call to the M<toXML()> instance method call from some data object
+as a call to the C<toXML()> instance method call from some data object
 of the specified class.
 
 =example typemaps with template

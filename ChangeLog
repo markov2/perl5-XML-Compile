@@ -4,6 +4,12 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.83: Wed May 14 22:22:41 CEST 2008
+
+	Fixes:
+
+	- builtin optimization needed fix.  cpan-tester [Slaven Rezic]
+
 version 0.82: Tue May 13 21:04:02 CEST 2008
 
 	Fixes:
@@ -47,7 +53,7 @@ version 0.81: Tue Apr 29 18:57:48 CEST 2008
 
 	- pattern match facet did not anchor [Sander Hulst]
 
-	- ::Translate::complectContentExtension with mixed produced
+	- ::Translate::complextContentExtension with mixed produced
 	  error message. [Ari Jolma]
 
 	- re-use already compiled structures, which avoids combinatory

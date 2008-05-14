@@ -1414,7 +1414,7 @@ M<XML::Compile::Schema::XmlWriter>.
 
 When you design a new object, it is possible to store the information
 exactly like the corresponding XML type definition.  The only thing
-the M<fromXML> has to do, is bless the data-structure into its class:
+the C<fromXML> has to do, is bless the data-structure into its class:
 
   $schema->typemap($xmltype => 'My::Perl::Class');
   package My::Perl::Class;
