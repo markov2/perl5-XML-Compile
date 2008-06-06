@@ -169,6 +169,26 @@ sub extendAttrs($@)
 
 sub isTrue($) { $_[1] eq '1' || $_[1] eq 'true' }
 
+# This sub cannot set-up the context itself, because changing the
+# context requires the use of local() on those values.
+sub nsContext($)
+{   my ($self, $type) = @_;
+
+    my $elems_qual = $type->{efd} eq 'qualified';
+    if(exists $self->{elements_qualified})
+    {   my $qual = $self->{elements_qualified} || 0;
+        $elems_qual = $qual eq 'ALL' ? 1 : $qual eq 'NONE' ? 0 : $qual;
+    }
+
+    my $attrs_qual = $type->{afd} eq 'qualified';
+    if(exists $self->{attributes_qualified})
+    {   my $qual = $self->{attributes_qualified} || 0;
+        $attrs_qual = $qual eq 'ALL' ? 1 : $qual eq 'NONE' ? 0 : $qual;
+    }
+
+    ($elems_qual, $attrs_qual, $type->{ns});
+}
+
 sub namespaces() { $_[0]->{nss} }
 
 sub make($@)
@@ -182,7 +202,7 @@ sub topLevel($$)
 
     # built-in types have to be handled differently.
     my $internal = XML::Compile::Schema::Specs->builtInType
-      (undef, $fullname, sloppy_integers => $self->{sloppy_integers});
+       (undef, $fullname, sloppy_integers => $self->{sloppy_integers});
 
     if($internal)
     {   my $builtin = $self->make(builtin => $fullname, undef
@@ -274,23 +294,13 @@ sub typeByName($$)
     # Then try own schemas
     #
 
-    my $top    = $self->namespaces->find(complexType => $typename)
-              || $self->namespaces->find(simpleType  => $typename)
+    my $top = $self->namespaces->find(complexType => $typename)
+           || $self->namespaces->find(simpleType  => $typename)
        or error __x"cannot find type {type} at {where}"
             , type => $typename, where => $tree->path, class => 'usage';
 
-    my $elems_qual
-     = exists $self->{elements_qualified} ? $self->{elements_qualified}
-     : $top->{efd} eq 'qualified';
-
-    my $attrs_qual
-     = exists $self->{attributes_qualified} ? $self->{attributes_qualified}
-     : $top->{afd} eq 'qualified';
-
-    # global settings for whole of sub-tree processing
-    local $self->{elems_qual} = $elems_qual;
-    local $self->{attrs_qual} = $attrs_qual;
-    local $self->{tns}        = $top->{ns};
+    local @$self{ qw/elems_qual attrs_qual tns/ }
+                 = $self->nsContext($top);
 
     my $typedef  = $top->{type};
     my $typeimpl = $tree->descend($top->{node});
@@ -547,7 +557,7 @@ sub element($)
             , form => $form, where => $tree->path, class => 'schema';
 
     my $trans     = $qual ? 'tag_qualified' : 'tag_unqualified';
-    my $tag       = $self->make($trans => $where, $node, $name);
+    my $tag       = $self->make($trans => $where, $node, $name, $self->{tns});
 
     my ($typename, $type);
     my $nr_childs = $tree->nrChildren;
@@ -626,8 +636,11 @@ sub particle($)
     my $min   = $node->getAttribute('minOccurs');
     my $max   = $node->getAttribute('maxOccurs');
 
-    $min = $self->{action} ne 'WRITER' || !$node->getAttribute('default')
-        unless defined $min;
+    unless(defined $min)
+    {   $min = $self->{action} eq 'WRITER' && $node->getAttribute('default')
+             ? 0 : 1;
+    }
+
     # default attribute in writer means optional, but we want to see
     # them in the reader, to see the value.
  
@@ -635,10 +648,6 @@ sub particle($)
 
     $max = 'unbounded'
         if $max ne 'unbounded' && $max > 1 && !$self->{check_occurs};
-
-#??
-#   return ()
-#       if $max ne 'unbounded' && $max==0;
 
     $min = 0
         if $max eq 'unbounded' && !$self->{check_occurs};
@@ -714,14 +723,14 @@ sub particleBlock($)
     ($label => $self->make($blocktype => $tree->path, @pairs));
 }
 
-sub findSgMemberNodes($)
+sub findSgMembers($)
 {   my ($self, $type) = @_;
     my @subgrps;
     foreach my $subgrp ($self->namespaces->findSgMembers($type))
     {   my $node     = $subgrp->{node};
         my $abstract = $node->getAttribute('abstract') || 'false';
         unless($self->isTrue($abstract))
-        {   push @subgrps, $node;
+        {   push @subgrps, $subgrp;
             next;
         }
 
@@ -730,7 +739,7 @@ sub findSgMemberNodes($)
                  , where => $node->path, class => 'schema';
 
         my $subtype   = pack_type $self->{tns}, $groupname;
-        push @subgrps, $self->findSgMemberNodes($subtype);
+        push @subgrps, $self->findSgMembers($subtype);
     }
     @subgrps;
 }
@@ -747,14 +756,19 @@ sub particleElementSubst($)
 
     my $tns     = $self->{tns};
     my $type    = pack_type $tns, $groupname;
-    my @subgrps = $self->findSgMemberNodes($type);
+    my @subgrps = $self->findSgMembers($type);
 
     # at least the base is expected
     @subgrps
         or error __x"no substitutionGroups found for {type} at {where}"
                , type => $type, where => $where, class => 'schema';
 
-    my @elems = map { $self->particleElement($tree->descend($_)) } @subgrps;
+    my @elems;
+    foreach my $subst (@subgrps)
+    {    local @$self{ qw/elems_qual attrs_qual tns/ }
+            = $self->nsContext($subst);
+         push @elems, $self->particleElement($tree->descend($subst->{node}));
+    } 
 
     ($groupname => $self->make(substgroup => $where, $type, @elems));
 }
@@ -765,28 +779,15 @@ sub particleElement($)
     my $node  = $tree->node;
 
     if(my $ref =  $node->getAttribute('ref'))
-    {   my $refname = $self->rel2abs($tree, $node, $ref);
-        my $where   = $tree->path . "/$ref";
-
-        my $def     = $self->namespaces->find(element => $refname)
+    {   my $refname  = $self->rel2abs($tree, $node, $ref);
+        my $where    = $tree->path . "/$ref";
+ 
+        my $def      = $self->namespaces->find(element => $refname)
             or error __x"cannot find element '{name}' at {where}"
                    , name => $refname, where => $where, class => 'schema';
 
-        local $self->{tns} = $def->{ns};
-        my $elems_qual = $def->{efd} eq 'qualified';
-        if(exists $self->{elements_qualified})
-        {   my $qual = $self->{elements_qualified} || 0;
-            $elems_qual = $qual eq 'ALL' ? 1 : $qual eq 'NONE' ? 0 : $qual;
-        }
-        local $self->{elems_qual} = $elems_qual;
-
-        my $attrs_qual = $def->{afd} eq 'qualified';
-        if(exists $self->{attributes_qualified})
-        {   my $qual = $self->{attributes_qualified} || 0;
-            $attrs_qual = $qual eq 'ALL' ? 1 : $qual eq 'NONE' ? 0 : $qual;
-        }
-        local $self->{attrs_qual} = $attrs_qual;
-
+        local @$self{ qw/elems_qual attrs_qual tns/ }
+                     = $self->nsContext($def);
 
         my $refnode  = $def->{node};
         my $abstract = $refnode->getAttribute('abstract') || 'false';
@@ -918,8 +919,8 @@ sub attributeOne($)
             , form => $form, where => $where, class => 'schema';
 
     my $trans   = $qual ? 'tag_qualified' : 'tag_unqualified';
-    my $tag     = $self->make($trans => $where, $node, $name);
     my $ns      = $qual ? $self->{tns} : '';
+    my $tag     = $self->make($trans => $where, $node, $name, $ns);
 
     my $use     = $node->getAttribute('use') || '';
     $use =~ m/^(?:optional|required|prohibited|)$/
@@ -1280,6 +1281,9 @@ sub complexContentExtension($)
         my $typedef  = $self->namespaces->find(complexType => $typename)
             or error __x"unknown base type '{type}' at {where}"
                  , type => $typename, where => $tree->path, class => 'schema';
+
+        local @$self{ qw/elems_qual attrs_qual tns/ }
+            = $self->nsContext($typedef);
 
         $type = $self->complexType($tree->descend($typedef->{node}));
     }

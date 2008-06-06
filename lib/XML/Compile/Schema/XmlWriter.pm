@@ -36,30 +36,29 @@ a (nested) Perl HASH structure onto XML.
 #       $writer->($doc, $value) 
 
 sub tag_qualified
-{   my ($path, $args, $node, $name) = @_;
-    my ($pref, $label)
-       = index($name, ':') >=0 ? split(/\:/, $name) : ('',$name);
+{   my ($path, $args, $node, $local, $ns) = @_;
 
-    my $ns  = length($pref)? $node->lookupNamespaceURI($pref) : $args->{tns};
-
-    my $out_ns = $args->{output_namespaces};
-    my $out = $out_ns->{$ns};
-
-    unless($out)   # start new name-space
-    {   if(first {$pref eq $_->{prefix}} values %$out_ns)
-        {   # avoid name clashes
-            length($pref) or $pref = 'x';
-            my $trail = '0';
-            $trail++ while first {"$pref$trail" eq $_->{prefix}}
-                             values %$out_ns;
-            $pref .= $trail;
-        }
-        $out_ns->{$ns} = $out = {uri => $ns, prefix => $pref};
+    my $out_ns = $args->{output_namespaces} ||= {};
+    my $out;
+    if($out = $out_ns->{$ns})
+    {   # re-use existing prefix
+    }
+    elsif(! grep {$_->{prefix} eq ''} values %$out_ns)
+    {   # the default (blank) prefix is free
+        $out = $out_ns->{$ns} = {uri => $ns, prefix => ''};
+    }
+    else
+    {   # create a new x\d+ prefix
+        # get (also the user defined) x\d+ prefixes used, and add one
+        my ($last) = sort {$b cmp $a} grep /^x\d+$/, 
+          , map {$_->{prefix}} values %$out_ns;
+        my $next   = defined $last && $last =~ m/^x(\d+)/ ? 'x'.($1+1) : 'x0';
+        $out = $out_ns->{$ns} = {uri => $ns, prefix => $next};
     }
 
     $out->{used}++;
     my $prefix = $out->{prefix};
-    length($prefix) ? "$prefix:$name" : $name;
+    length($prefix) ? "$prefix:$local" : $local;
 }
 
 sub tag_unqualified
@@ -165,14 +164,14 @@ sub sequence($@)
     {   my ($take, $do) = @pairs;
         return bless
         sub { my ($doc, $values) = @_;
-              defined $values or return ();
+              defined $values or return;
               $do->($doc, delete $values->{$take});
             }, 'BLOCK';
     }
  
     return bless
     sub { my ($doc, $values) = @_;
-          defined $values or return ();
+          defined $values or return;
 
           my @res;
           my @do = @pairs;
@@ -275,19 +274,8 @@ sub element_handler
             };
     }
 
-    if($min==0 && $max==1)
-    {   return
-        sub { my ($doc, $values) = @_;
-              my @values = ref $values eq 'ARRAY' ? @$values
-                         : defined $values ? $values : ();
-
-              @values <= 1
-                  or error __x"maximum only value needed for `{tag}', not {count} at {path}"
-                        , tag => $label, count => scalar @values, path => $path;
-
-              $optional->($doc, $values[0]);
-            };
-    }
+    return $optional
+        if $min==0 && $max==1;
 
     if($min==1 && $max==1)
     {   return
@@ -371,12 +359,11 @@ sub block_handler
         sub { my ($doc, $values) = @_;
               my @values = ref $values eq 'ARRAY' ? @$values
                          : defined $values ? $values : ();
-
               @values==1
                   or error __x"exactly one block needed for `{tag}', not {count} at {path}"
                         , tag => $label, count => scalar @values, path => $path;
 
-              map { $process->($doc, $_) } @values;
+              $process->($doc, $values[0]);
             };
         return ($label, bless($code, 'BLOCK'));
     }
@@ -469,46 +456,47 @@ sub complex_element
     my $iut   = $args->{ignore_unused_tags};
 
     return
-    sub { my ($doc, $data) = @_;
-          return $doc->importNode($data)
-              if UNIVERSAL::isa($data, 'XML::LibXML::Element');
+    sub
+    {   my ($doc, $data) = @_;
+        return $doc->importNode($data)
+            if UNIVERSAL::isa($data, 'XML::LibXML::Element');
 
-          unless(UNIVERSAL::isa($data, 'HASH'))
-          {   defined $data
-                  or error __x"complex `{tag}' requires data at {path}"
-                        , tag => $tag, path => $path;
+        unless(UNIVERSAL::isa($data, 'HASH'))
+        {   defined $data
+                or error __x"complex `{tag}' requires data at {path}"
+                      , tag => $tag, path => $path;
 
-              error __x"complex `{tag}' requires a HASH of input data, not `{found}' at {path}"
-                 , tag => $tag, found => $data, path => $path;
-          }
+            error __x"complex `{tag}' requires a HASH of input data, not `{found}' at {path}"
+               , tag => $tag, found => $data, path => $path;
+        }
 
-          my $copy   = { %$data };  # do not destroy caller's hash
-          my @childs = map {$_->($doc, $copy)} @elems;
-          for(my $i=0; $i<@attrs; $i+=2)
-          {   push @childs, $attrs[$i+1]->($doc, delete $copy->{$attrs[$i]});
-          }
+        my $copy   = { %$data };  # do not destroy caller's hash
+        my @childs = map {$_->($doc, $copy)} @elems;
+        for(my $i=0; $i<@attrs; $i+=2)
+        {   push @childs, $attrs[$i+1]->($doc, delete $copy->{$attrs[$i]});
+        }
 
-          push @childs, $_->($doc, $copy)
-              for @anya;
+        push @childs, $_->($doc, $copy)
+            for @anya;
 
-          if(%$copy)
-          {   my @not_used
-                = defined $iut ? grep({$_ !~ $iut} keys %$copy) : keys %$copy;
+        if(%$copy)
+        {   my @not_used
+              = defined $iut ? grep({$_ !~ $iut} keys %$copy) : keys %$copy;
 
-              mistake __xn "tag `{tags}' not used at {path}"
-                , "unused tags {tags} at {path}"
-                , scalar @not_used, tags => [sort @not_used], path => $path
-                   if @not_used;
-          }
+            mistake __xn "tag `{tags}' not used at {path}"
+              , "unused tags {tags} at {path}"
+              , scalar @not_used, tags => [sort @not_used], path => $path
+                 if @not_used;
+        }
 
-          my $node  = $doc->createElement($tag);
-          $node->addChild
-            ( ref $_ && $_->isa('XML::LibXML::Node') ? $_
-            : $doc->createTextNode(defined $_ ? $_ : ''))
-               for @childs;
+        my $node  = $doc->createElement($tag);
+        $node->addChild
+          ( ref $_ && $_->isa('XML::LibXML::Node') ? $_
+          : $doc->createTextNode(defined $_ ? $_ : ''))
+             for @childs;
 
-          $node;
-        };
+        $node;
+    };
 }
 
 #
@@ -676,10 +664,9 @@ sub builtin
 sub list
 {   my ($path, $args, $st) = @_;
     sub { defined $_[1] or return undef;
-          my @el = ref $_[1] eq 'ARRAY' ? (grep {defined} @{$_[1]}) : $_[1];
+          my @el = ref $_[1] eq 'ARRAY' ? @{$_[1]} : $_[1];
           my @r = grep {defined} map {$st->($_[0], $_)} @el;
-          @r or return undef;
-          join ' ', grep {defined} @r;
+          join ' ', @r;
         };
 }
 

@@ -10,7 +10,7 @@ use TestTools;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 24;
+use Test::More tests => 38;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -36,6 +36,18 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
   </complexType>
 </element>
 
+<element name="test3">
+  <complexType>
+    <sequence>
+      <element name="e3" type="me:t3" default="foo bar" />
+    </sequence>
+  </complexType>
+</element>
+
+<simpleType name="t3">
+  <list itemType="token" />
+</simpleType>
+
 </schema>
 __SCHEMA__
 
@@ -51,17 +63,17 @@ set_compile_defaults
 ### Integers
 ##  Big-ints are checked in 49big.t
 
-test_rw($schema, "test1" => <<__XML__, {t1a => 11, t1b => 12});
+test_rw($schema, "test1" => <<__XML, {t1a => 11, t1b => 12});
 <test1><t1a>11</t1a><t1b>12</t1b></test1>
-__XML__
+__XML
 ok(!@errors);
 
 # insert default in hash, but not when producing XML
-test_rw($schema, "test1" => <<__XML__, {t1a => 10, t1b => 13}, <<__XML__, {t1b => 13});
+test_rw($schema, "test1" => <<__XML, {t1a => 10, t1b => 13}, <<__XML, {t1b => 13});
 <test1><t1b>13</t1b></test1>
-__XML__
+__XML
 <test1><t1b>13</t1b></test1>
-__XML__
+__XML
 ok(!@errors);
 
 ##
@@ -70,8 +82,27 @@ ok(!@errors);
 
 my %t21 = (t2a => 'foo', t2b => 'bar', t2c => '42');
 my %t22 = (t2b => 'bar');  # do not complete default in XML output
-test_rw($schema, "test2" => <<__XML__, \%t21, <<__XML__, \%t22);
+test_rw($schema, "test2" => <<__XML, \%t21, <<__XML, \%t22);
 <test2><t2b>bar</t2b></test2>
-__XML__
+__XML
 <test2><t2b>bar</t2b></test2>
-__XML__
+__XML
+
+##
+### List
+##
+
+# bug-report rt.cpan.org#36093
+
+my %t31 = (e3 => ['foo', 'bar']);
+test_rw($schema, "test3" => <<__XML, \%t31, <<__XML, {});
+<test3/>
+__XML
+<test3/>
+__XML
+
+test_rw($schema, "test3" => <<__XML, \%t31, <<__XML, {e3 => []});
+<test3><e3></e3></test3>
+__XML
+<test3><e3></e3></test3>
+__XML

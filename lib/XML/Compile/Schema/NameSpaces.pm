@@ -148,9 +148,10 @@ sub findID($;$)
     undef;
 }
 
-=method printIndex [FILEHANDLE]
+=method printIndex [FILEHANDLE], OPTIONS
 Show all definitions from all namespaces, for debugging purposes, by
-default to the STDOUT.
+default the selected.  Additional OPTIONS are passed to 
+M<XML::Compile::Schema::Instance::printIndex()>.
 
 =option  namespace URI|ARRAY-of-URI
 =default namespace <ALL>
@@ -168,12 +169,12 @@ Show only information about the indicate namespaces.
 
 sub printIndex(@)
 {   my $self = shift;
-    my $fh   = @_ % 2 ? shift : \*STDOUT;
+    my $fh   = @_ % 2 ? shift : select;
     my %opts = @_;
 
-    my $nss  = $opts{namespace} || [$self->list];
+    my $nss  = delete $opts{namespace} || [$self->list];
     foreach my $nsuri (ref $nss eq 'ARRAY' ? @$nss : $nss)
-    {   $_->printIndex($fh) for $self->namespace($nsuri);
+    {   $_->printIndex($fh, %opts) for $self->namespace($nsuri);
     }
 }
 

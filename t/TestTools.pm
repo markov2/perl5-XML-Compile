@@ -13,7 +13,7 @@ use XML::Compile::Tester;
 
 use Test::More;
 use Test::Deep   qw/cmp_deeply/;
-use Log::Report  qw/try/;
+use Log::Report;
 use Data::Dumper qw/Dumper/;
 
 our @EXPORT = qw/

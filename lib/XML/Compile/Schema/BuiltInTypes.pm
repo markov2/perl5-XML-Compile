@@ -113,9 +113,12 @@ $builtin_types{anyType}       =
 =section Ungrouped types
 
 =function boolean
-Contains C<true>, C<false>, C<1> (is true), or C<0> (is false).  Unchecked,
-the actual value is used.  Otherwise, C<0> and C<1> are preferred for the
-hash value and C<true> and C<false> in XML.
+Contains C<true>, C<false>, C<1> (is true), or C<0> (is false).
+When the writer sees a value equal to 'true' or 'false', those are
+used.  Otherwise, the trueth value is evaluated into '0' or '1'.
+
+The reader will return '0' (also when the XML contains the string
+'false', to simplify the Perl code) or '1'.
 =cut
 
 $builtin_types{boolean} =
@@ -124,6 +127,13 @@ $builtin_types{boolean} =
                   : $_[0] ? 1 : 0 }
  , check   => sub { $_[0] =~ m/^\s*(?:false|true|0|1)\s*$/i }
  , example => 'true'
+ };
+
+=function pattern
+=cut
+
+$builtin_types{pattern} =
+ { example => '*.exe'
  };
 
 =section Big Integers
@@ -342,7 +352,7 @@ $builtin_types{double} =
  , example => '3.1415'
  };
 
-=section Binary
+=section Encoding
 
 =function base64Binary
 In the hash, it will be kept as binary data.  In XML, it will be
@@ -576,12 +586,30 @@ sub _valid_ncname($)
 }
 
 # better checks needed
+#  NCName matches pattern [\i-[:]][\c-[:]]*
+sub _ncname($) {sub { $_[0] !~ m/\:/ }}
+
+my $ids = 0;
 $builtin_types{ID} =
+ { parse   => \&_collapse
+ , check   => \&_ncname
+ , example => 'id_'.$ids++
+ };
+
 $builtin_types{IDREF} =
+ { parse   => \&_collapse
+ , check   => \&_ncname
+ , example => 'id-ref'
+ };
+
+=function NCName, ENTITY, ENTITIES
+A name which contains no colons (a non-colonized name).
+=cut
+
 $builtin_types{NCName} =
 $builtin_types{ENTITY} =
  { parse   => \&_collapse
- , check   => sub { $_[0] !~ m/\:/ }
+ , check   => \&_ncname
  , example => 'label'
  };
 
@@ -592,9 +620,6 @@ $builtin_types{ENTITIES} =
  , check   => sub { $_[0] !~ m/\:/ }
  , example => 'labels'
  };
-
-=function NCName, ENTITY, ENTITIES
-A name which contains no colons (a non-colonized name).
 
 =function Name
 =cut

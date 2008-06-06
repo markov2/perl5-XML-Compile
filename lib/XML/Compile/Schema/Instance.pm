@@ -243,6 +243,8 @@ sub _collectTypes($)
              $sg = pack_type $sgns, $sgname;
         }
 
+        my $abstract = $node->getAttribute('abstract') || 'false';
+
         unless($defkinds{$local})
         {   mistake __x"ignoring unknown definition-type {local}", type => $local;
             next;
@@ -254,6 +256,7 @@ sub _collectTypes($)
           , ns   => $ns,  name => $name, prefix => $prefix
           , afd  => $afd, efd  => $efd,  schema => $self
           , ref  => $ref, sg   => $sg
+          , abstract => ($abstract eq 'true' || $abstract eq '1')
           };
         weaken($info->{schema});
 
@@ -292,30 +295,51 @@ sub importLocations($)
     $locs ? @$locs : ();
 }
 
-=method printIndex [FILEHANDLE]
+=method printIndex [FILEHANDLE], OPTIONS
 Prints an overview over the defined objects within this schema to the
 selected FILEHANDLE.
+
+=option  kinds KIND|ARRAY-of-KIND
+=default kinds <all>
+Which KIND of definitions would you like to see.  Pick from
+C<element>, C<attribute>, C<simpleType>, C<complexType>, C<attributeGroup>,
+and C<group>.
+
+=option  list_abstract BOOLEAN
+=default list_abstract <true>
+Show abstract elements, or skip them (because they cannot be instantiated
+anyway).
 =cut
 
 sub printIndex(;$)
 {   my $self   = shift;
-    my $fh     = shift || select;
+    my $fh     = @_ % 2 ? shift : select;
+    my %args   = @_;
 
     $fh->print("namespace: ", $self->targetNamespace, "\n");
-    if(defined(my $source = $self->source))
-    {   $fh->print("  source: $source\n");
-    }
     if(defined(my $filename = $self->filename))
-    {   $fh->print("  filename: $filename\n");
+    {   $fh->print(" filename: $filename\n");
+    }
+    elsif(defined(my $source = $self->source))
+    {   $fh->print("   source: $source\n");
     }
 
-    foreach my $kind (@defkinds)
+    my @kinds
+     = ! defined $args{kinds}      ? @defkinds
+     : ref $args{kinds} eq 'ARRAY' ? @{$args{kinds}}
+     :                               $args{kinds};
+
+    my $list_abstract = exists $args{list_abstract} ? $args{list_abstract} : 1;
+
+    foreach my $kind (@kinds)
     {   my $table = $self->{$kind};
         keys %$table or next;
-        $fh->print("  definitions of $kind objects:\n");
-        $fh->print("    ", $_->{name}, "\n")
-            for sort {$a->{name} cmp $b->{name}}
-                  values %$table;
+        $fh->print("  definitions of ${kind}s:\n") if @kinds > 1;
+        foreach (sort {$a->{name} cmp $b->{name}} values %$table)
+        {   next if $_->{abstract} && ! $list_abstract;
+            my $abstract = $_->{abstract} ? ' [abstract]' : '';
+            $fh->print("    $_->{name}$abstract\n");
+        }
     }
 }
 

@@ -17,6 +17,8 @@ my @show_versions =
     XML::Compile
     XML::Compile::SOAP
     XML::Compile::Tester
+    XML::Compile::Dumper
+    XML::Compile::Cache
    /;
 
 foreach my $package (@show_versions)

@@ -49,7 +49,7 @@ close OUT;
 
 my @types   = split /\n/, $list;
 is(shift(@types), "namespace: $SchemaNS");
-is(shift(@types), "  source: XML::LibXML::Document");
+is(shift(@types), "   source: XML::LibXML::Document");
 cmp_ok(scalar(@types), '==', 150);
 
 my $random = (sort @types)[42];

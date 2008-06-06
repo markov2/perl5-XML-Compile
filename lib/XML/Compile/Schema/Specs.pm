@@ -56,6 +56,7 @@ my @builtin_common = qw/
  nonNegativeInteger
  nonPositiveInteger
  NOTATION
+ pattern
  positiveInteger
  QName
  short

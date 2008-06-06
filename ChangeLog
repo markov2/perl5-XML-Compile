@@ -4,6 +4,44 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.84: Fri Jun  6 12:50:21 CEST 2008
+
+	Fixes:
+
+	- element and attribute qualification was incorrect when
+	   - a complex was extended, based on a type in an other name-space
+	   - substitutionGroup elements from different name-spaces
+	     were combined
+
+	- xs:pattern was missing
+
+	- output of any and anyAttribute in example templates.
+
+	- capability to write an empty list
+
+	- accept default for list.  Reported by [Peter Hartmann].
+
+	- interpret empty content as missing for elements with
+	  a default, as the spec wants.
+
+	Changes:
+
+	- you cannot use an ARRAY with one element where one element
+	  is required in the WRITER. (conflicts with list type needs)
+
+	Improvements:
+
+	- better template examples for ID and family.
+
+	- improve documentation on how 'boolean' is handled.  Spotted
+	  by [Allan Wind]
+
+	- list XML::Compile::Cache as available module.
+
+	- printIndex() got filter option 'kind'
+
+	- simplified the prefix generation algorithm.
+
 version 0.83: Wed May 14 22:22:41 CEST 2008
 
 	Fixes:

@@ -44,7 +44,7 @@ XML::Compile::Schema - Compile a schema into CODE
  my $schema = XML::Compile::Schema->new(\@specs); # ARRAY!
 
  # see what types are defined
- $schema->namespaces->printIndex;
+ $schema->printIndex;
 
  # create and use a reader
  use XML::Compile::Util qw/pack_type/;
@@ -75,6 +75,10 @@ XML::Compile::Schema - Compile a schema into CODE
  my $type   = pack_type 'myns', 'mytype';
  print $type;  # shows  {myns}mytype
 
+ # using a compiled routines cache
+ use XML::Compile::Cache;   # seperate distribution
+ my $schema = XML::Compile::Cache->new(...);
+
  # for debug info, start your script with:
  use Log::Report mode => 'DEBUG';
 
@@ -90,7 +94,7 @@ later:
 
 =over 4
 
-=item C<$schema->compile('READER'...)> translates XML to HASH
+=item C<< $schema->compile('READER'...) >> translates XML to HASH
 
 The XML reader produces a HASH from a M<XML::LibXML::Node> tree or an
 XML string.  Those represent the input data.  The values are checked.
@@ -112,7 +116,7 @@ or
  my $hash   = $msgin->($xml_string);
  my $hash   = $msgin->($xml_node);
 
-=item C<$schema->compile('WRITER', ...)> translates HASH to XML
+=item C<< $schema->compile('WRITER', ...) >> translates HASH to XML
 
 The writer produces schema compliant XML, based on a Perl HASH.  To get
 the data encoding correctly, you are required to pass a document object
@@ -128,14 +132,14 @@ alternative
 
  my $write  = $schema->compile(WRITER => 'myns#myid');
 
-=item C<$schema->template('XML', ...)> creates an XML example
+=item C<< $schema->template('XML', ...) >> creates an XML example
 
 Based on the schema, this produces an XML message as example.  Schemas
 are usually so complex that people loose overview.  This example may
 put you back on track, and used as starting point for many creating the
 XML version of the message.
 
-=item C<$schema->template('PERL', ...)> creates an Perl example
+=item C<< $schema->template('PERL', ...) >> creates an Perl example
 
 Based on the schema, this produces an Perl HASH structure (a bit
 like the output by Data::Dumper), which can be used as template
@@ -766,6 +770,8 @@ sub template($@)
         , action => $action;
 }
 
+=section Administration
+
 =method types
 List all types, defined by all schemas sorted alphabetically.
 =cut
@@ -786,6 +792,19 @@ sub elements()
     sort map {$_->elements}
          map {$nss->schemas($_)}
              $nss->list;
+}
+
+=method printIndex [FILEHANDLE], OPTIONS
+Print all the elements which are defined in the schemas to the FILEHANDLE
+(by default the selected handle).  OPTIONS are passed to
+M<XML::Compile::Schema::NameSpaces::printIndex()> and
+M<XML::Compile::Schema::Instance::printIndex()>.
+
+=cut
+
+sub printIndex(@)
+{   my $self = shift;
+    $self->namespaces->printIndex(@_);
 }
 
 =chapter DETAILS

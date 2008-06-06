@@ -33,11 +33,11 @@ XML::Compile - Compilation based XML processing
 
 =chapter DESCRIPTION
 
-Many (professional) applications process XML based on a formal
-specification expressed as XML Schema.  XML::Compile processes XML with
-the help of such schemas.  The Perl program only handles a tree of nested
-HASHes and ARRAYs, and does not need to understand namespaces and
-schema nastiness.
+Many (professional) applications process XML messages based on a formal
+specification, expressed in XML Schemas.  XML::Compile translates
+between XML and Perl with the help of such schemas.  Your Perl program
+only handles a tree of nested HASHes and ARRAYs, and does not need to
+understand namespaces and other general XML and schema nastiness.
 
 Three serious WARNINGS:
 
@@ -45,22 +45,22 @@ Three serious WARNINGS:
 
 =item .
 The focus is on B<data-centric XML>, which means that mixed elements
-are not handler automatically: they are (to be) treated as XML::LibXML
-black boxes.
+are not handler automatically: you need to work with XML::LibXML nodes
+yourself, on these spots.
 
 =item .
-The B<schema is not strictly validated>, still a large number of
+The B<schema itself is not strictly validated>, still a large number of
 compile-time errors can be reported.  On the other hand, the processed
 B<data is strictly validated> against the schema: both input and output
 will follow the specs closely (unless disabled).
 
 =item .
-Imports and includes as specified in schemas are NOT performed
-automaticly, and schema's and such are NOT collected from internet
+Imports and includes, as used in the schemas, are NOT performed
+automaticly.  Schema's and such are NOT collected from internet
 dynamically; you have to call M<XML::Compile::Schema::importDefinitions()>
-explictly with locally stored filenames.  Includes only work if they
-have a targetNamespace defined, which is the same as that of the schema
-it is included into.
+explictly with filenames of locally stored copies. Includes do only
+work if they have a targetNamespace defined, which is the same as that
+of the schema it is included into.
 
 =back
 
@@ -70,7 +70,7 @@ are support packages):
 =over 4
 
 =item M<XML::Compile::Schema>
-Interpret schema elements and types: process XML messages.
+Interpret schema elements and types: create processors for XML messages.
 
 =item M<XML::Compile::SOAP>
 Use the SOAP protocol, client side.
@@ -79,15 +79,19 @@ Use the SOAP protocol, client side.
 Use SOAP with a WSDL version 1.1 communication specification file.
 
 =item M<XML::Compile::SOAP::Daemon>
-Create a SOAP daemon, directly from a WSDL file. Implementation in progress.
+Create a SOAP daemon, directly from a WSDL file.
 
 =item M<XML::Compile::Tester>
 Helps you write regression tests.
 
+=item M<XML::Compile::Cache>
+Helps you administer compiled readers and writers, especially useful it
+there are a lot of them.  Extends M<XML::Compile::Schema>.
+
 =item M<XML::Compile::Dumper>
 Enables you to save pre-compiled XML handlers, the results of any
-C<compileClient>.  However, this results in huge files, so may not be
-worth the effort.
+C<compileClient>.  However, this results in huge files, so this may
+not be worth the effort.
 
 =back
 
@@ -95,7 +99,7 @@ worth the effort.
 
 Methods found in this manual page are shared by the end-user modules,
 and should not be used directly: objects of type C<XML::Compile> do not
-exist.
+exist!
 
 =section Constructors
 These constructors are base class methods to be extended,
@@ -104,11 +108,11 @@ and therefore should not be accessed directly.
 =c_method new [XMLDATA], OPTIONS
 
 The XMLDATA is a source of XML. See M<dataToXML()> for valid ways,
-for example as filename, string or undef.
+for example as filename, string or C<undef>.
 
-If you have compiled/collected all readers and writers you need,
-you may simply terminate the compiler object: that will clean-up
-(most of) the XML::LibXML objects.
+If you have compiled all readers and writers you need, you may simply
+terminate the compiler object: that will clean-up (most of) the
+XML::LibXML objects.
 
 =option  schema_dirs DIRECTORY|ARRAY-OF-DIRECTORIES
 =default schema_dirs C<undef>
@@ -137,37 +141,37 @@ sub init($)
 
 =section Accessors
 
-=ci_method addSchemaDirs DIRECTORIES|PACKAGE
+=ci_method addSchemaDirs DIRECTORIES|FILENAME
 Each time this method is called, the specified DIRECTORIES will be added
 in front of the list of already known schema directories.  Initially,
 the value of the environment variable C<SCHEMA_DIRECTORIES> is added
 (therefore tried as last resort). The constructor option C<schema_dirs>
-is processed first.
+is a little more favorite.
 
 Values which are C<undef> are skipped.  ARRAYs are flattened.  Arguments
 are split at colons (on UNIX) or semi-colons (windows) after flattening.
 The list of directories is returned, in all but VOID context.
 
-When a C<.pm> PACKAGE filename is provided, then the directory to be used is
-calculated from it (platform independent).  So, C<something/XML/Compile.pm>
-becomes C<something/XML/Compile/xsd/>.  This way, modules can simply add
-their definitions via C<< XML::Compile->addSchemaDirs(__FILE__) >> in a
-BEGIN block or in main.  M<ExtUtils::MakeMaker> will install everything
-what is found in the C<lib/> tree, so also xsd files.  Probably, you also
-want to use M<knownNamespace()>.
+When a C<.pm> package FILENAME is given, then the directory
+to be used is calculated from it (platform independently).  So,
+C<something/XML/Compile.pm> becomes C<something/XML/Compile/xsd/>.
+This way, modules can simply add their definitions via C<<
+XML::Compile->addSchemaDirs(__FILE__) >> in a BEGIN block or in main.
+M<ExtUtils::MakeMaker> will install everything what is found in the
+C<lib/> tree, so also your xsd files.  Probably, you also want to use
+M<knownNamespace()>.
 
 =example adding xsd's from your own distribution
-  # file ..../My/Package.pm
+  # file xxxxx/lib/My/Package.pm
   package My::Package;
 
   use XML::Compile;
   XML::Compile->addSchemaDirs(__FILE__);
-  # now ...../My/Package/xsd/ is also in the schema search path
+  # now xxxxx/lib/My/Package/xsd/ is also in the search path
 
   use constant MYNS => 'http://my-namespace-uri';
-  XML::Compile->knownNamespace
-   ( &MYNS => 'relative-filename-in-schemadir'
-   );
+  XML::Compile->knownNamespace(&MYNS => 'my-schema-file.xsd');
+  $schemas->importDefinitions(MYNS);
 =cut
 
 my @schema_dirs;
@@ -239,8 +243,8 @@ sub findSchemaFile($)
 
 =method dataToXML NODE|REF-XML-STRING|XML-STRING|FILENAME|FILEHANDLE|KNOWN
 Collect XML data, from a wide variety of sources.  In SCALAR context,
-a XML::LibXML::Element or XML::LibXML::Document is returned.  In LIST
-context, pairs of additional information follow the result.
+an XML::LibXML::Element or XML::LibXML::Document is returned.  In LIST
+context, pairs of additional information follow the scalar result.
 
 When a ready M<XML::LibXML::Node> (::Element or ::Document) NODE is
 provided, it is returned immediately and unchanged.  A SCALAR reference is
@@ -255,7 +259,7 @@ when this all gets installed.  Either define an environment variable
 named SCHEMA_LOCATION or use M<new(schema_dirs)> (option available to
 all end-user objects) to inform the library where to find these files.
 
-According the XML::LibXML::Parser manual page, passing a FILEHANDLE
+According the M<XML::LibXML::Parser> manual page, passing a FILEHANDLE
 is much slower than pasing a FILENAME.  However, it may be needed to
 open a file with an explicit character-set.
 
@@ -386,7 +390,7 @@ sub walkTree($$)
 
 =section Comparison
 
-Where other Perl modules, like M<SOAP::WSDL> help you using these schemas
+Where other Perl modules (like M<SOAP::WSDL>) help you using these schemas
 (often with a lot of run-time [XPath] searches), XML::Compile takes a
 different approach: instead of run-time processing of the specification,
 it will first compile the expected structure into a pure Perl CODE

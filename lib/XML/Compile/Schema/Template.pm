@@ -350,13 +350,13 @@ sub attribute_fixed_optional
 
 sub substgroup
 {   my ($path, $args, $type, %do) = @_;
-    my ($first) = keys %do;
-    sub { +{ kind    => 'substitution group'
+    my ($first, $do) = keys %do;
+    sub { my $subst =
+          +{ kind    => 'substitution group'
            , tag     => (unpack_type $type)[1]
            , struct  => [ "substitutionGroup $type:"
                         , map { "   $_" } sort keys %do ]
            , example => 'HASH with one pair'
-           , map { $_->() } values %do
            }
         };
 }
@@ -364,14 +364,16 @@ sub substgroup
 sub anyAttribute
 {   my ($path, $args, $handler, $yes, $no, $process) = @_;
     my $occurs = @$yes ? "in @$yes" : @$no ? "not in @$no" : 'any type';
-    bless sub { +{kind => 'attr' , struct  => "anyAttribute $occurs"} }, 'ANY';
+    bless sub { +{kind => 'attr' , struct  => "anyAttribute $occurs"
+                 , tag => 'ANYATTR', example => 'AnySimple'} }, 'ANY';
 }
 
 sub anyElement
 {   my ($path, $args, $handler, $yes, $no, $process, $min, $max) = @_;
     $yes ||= []; $no ||= [];
     my $occurs = @$yes ? "in @$yes" : @$no ? "not in @$no" : 'any type';
-    bless sub { +{kind => 'element', struct  => 'anyElement'} }, 'ANY';
+    bless sub { +{ kind => 'element', struct  => 'anyElement'
+                 , tag => "ANY", example => 'ANY' } }, 'ANY';
 }
 
 sub hook($$$$$$)
