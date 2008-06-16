@@ -490,6 +490,8 @@ sub applySimpleFacets($$$)
     return $st
         if $self->{ignore_facets} || !keys %facets;
 
+    my %facets_info = %facets;
+
     #
     # new facets overrule all of the base-class
     #
@@ -514,8 +516,8 @@ sub applySimpleFacets($$$)
             keys %facets;
 
       $in_list
-    ? $self->make(facets_list => $where, $st, \@early, \@late)
-    : $self->make(facets => $where, $st, @early, @late);
+    ? $self->make(facets_list => $where, $st, \%facets_info, \@early, \@late)
+    : $self->make(facets => $where, $st, \%facets_info, @early, @late);
 }
 
 sub element($)
@@ -759,9 +761,11 @@ sub particleElementSubst($)
     my @subgrps = $self->findSgMembers($type);
 
     # at least the base is expected
-    @subgrps
-        or error __x"no substitutionGroups found for {type} at {where}"
-               , type => $type, where => $where, class => 'schema';
+    unless(@subgrps)
+    {   trace __x"no substitutionGroups found for {type} at {where}"
+          , type => $type, where => $where, class => 'schema'
+             unless $self->{nosubst_notice}{$type}++;
+    }
 
     my @elems;
     foreach my $subst (@subgrps)

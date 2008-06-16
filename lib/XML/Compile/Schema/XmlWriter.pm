@@ -671,7 +671,7 @@ sub list
 }
 
 sub facets_list
-{   my ($path, $args, $st, $early, $late) = @_;
+{   my ($path, $args, $st, $info, $early, $late) = @_;
     sub { defined $_[1] or return undef;
           my @el = ref $_[1] eq 'ARRAY' ? (grep {defined} @{$_[1]}) : $_[1];
 
@@ -692,7 +692,7 @@ sub facets_list
 }
 
 sub facets
-{   my ($path, $args, $st, @do) = @_;
+{   my ($path, $args, $st, $info, @do) = @_;
     sub { defined $_[1] or return undef;
           my $v = $st->(@_);
           for(reverse @do)
@@ -717,6 +717,8 @@ sub union
 sub substgroup
 {   my ($path, $args, $type, %do) = @_;
 
+    keys %do or return bless sub { () }, 'BLOCK';
+
     bless
     sub { my ($doc, $values) = @_;
           foreach my $take (keys %do)
@@ -725,10 +727,9 @@ sub substgroup
 
               return $do{$take}->($doc, $subst);
           }
+          ();
         }, 'BLOCK';
 }
-
-
 
 # Attributes
 

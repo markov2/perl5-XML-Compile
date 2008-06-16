@@ -218,14 +218,54 @@ sub init($)
     $self;
 }
 
+#--------------------------------------
+
 =section Accessors
 
-=method namespaces
-Returns the M<XML::Compile::Schema::NameSpaces> object which is used
-to collect schemas.
+=method addHook HOOKDATA|HOOK|undef
+HOOKDATA is a LIST of options as key-value pairs, HOOK is a HASH with
+the same data.  C<undef> is ignored. See M<addHooks()> and
+L</Schema hooks> below.
 =cut
 
-sub namespaces() { shift->{namespaces} }
+sub addHook(@)
+{   my $self = shift;
+    push @{$self->{hooks}}, @_>=1 ? {@_} : defined $_[0] ? shift : ();
+    $self;
+}
+
+=method addHooks HOOK, [HOOK, ...]
+Add multiple hooks at once.  These must all be HASHes. See L</Schema hooks>
+and M<addHook()>. C<undef> values are ignored.
+=cut
+
+sub addHooks(@)
+{   my $self = shift;
+    push @{$self->{hooks}}, grep {defined} @_;
+    $self;
+}
+
+=method hooks
+Returns the LIST of defined hooks (as HASHes).
+=cut
+
+sub hooks() { @{shift->{hooks}} }
+
+=method addTypemaps PAIRS
+Add new XML-Perl type relations.  See L</Typemaps>.
+=method addTypemap PAIR
+Synonym for M<addTypemap()>.
+=cut
+
+sub addTypemaps(@)
+{   my $map = shift->{typemap};
+    while(@_ > 1)
+    {   my $k = shift;
+        $map->{$k} = shift;
+    }
+    $map;
+}
+*addTypemap = \&addTypemaps;
 
 =method addSchemas XML, OPTIONS
 Collect all the schemas defined in the XML data.  The XML parameter
@@ -278,153 +318,8 @@ sub addSchemas($@)
     @schemas;
 }
 
-=method importDefinitions XMLDATA, OPTIONS
-Import (include) the schema information included in the XMLDATA.  The
-XMLDATA must be acceptable for M<dataToXML()>.  The resulting node
-and the OPTIONS are passed to M<addSchemas()>. The schema node does
-not need to be the top element: any schema node found in the data
-will be decoded.
-
-Returned is a list of M<XML::Compile::Schema::Instance> objects,
-for each processed schema component.
-
-If your program imports the same string or file definitions multiple
-times, it will re-use the schema information from the first import.
-This removal of dupplications will not work for open files or pre-parsed
-XML structures.
-
-As an extension to the handling M<dataToXML()> provides, you can specify an
-ARRAY of things which are acceptable to C<dataToXML>.  This way, you can
-specify multiple resources at once, each of which will be processed with
-the same OPTIONS.
-
-=option  details HASH
-=default details <from XMLDATA>
-Overrule the details information about the source of the data.
-
-=examples of use of importDefinitions
-  my $schema = XML::Compile::Schema->new;
-  $schema->importDefinitions('my-spec.xsd');
-
-  my $other = "<schema>...</schema>";  # use 'HERE' documents!
-  my @specs = ('my-spec.xsd', 'types.xsd', $other);
-  $schema->importDefinitions(\@specs, @options);
-=cut
-
-# The cache will certainly avoid penalties by the average module user,
-# which does not understand the sharing schema definitions between objects
-# especially in SOAP implementations.
-my (%cacheByFilestamp, %cacheByChecksum);
-
-sub importDefinitions($@)
-{   my ($self, $thing, %options) = @_;
-    my @data = ref $thing eq 'ARRAY' ? @$thing : $thing;
-
-    my @schemas;
-    foreach my $data (@data)
-    {   defined $data or next;
-        my ($xml, %details) = $self->dataToXML($data);
-        %details = %{delete $options{details}} if $options{details};
-
-        if(defined $xml)
-        {   my @added = $self->addSchemas($xml, %details, %options);
-            if(my $checksum = $details{checksum})
-            {    $cacheByChecksum{$checksum} = \@added;
-            }
-            elsif(my $filestamp = $details{filestamp})
-            {   $cacheByFilestamp{$filestamp} = \@added;
-            }
-            push @schemas, @added;
-        }
-        elsif(my $filestamp = $details{filestamp})
-        {   my $cached = $cacheByFilestamp{$filestamp};
-            $self->namespaces->add(@$cached);
-        }
-        elsif(my $checksum = $details{checksum})
-        {   my $cached = $cacheByChecksum{$checksum};
-            $self->namespaces->add(@$cached);
-        }
-    }
-    @schemas;
-}
-
-sub _parseScalar($)
-{   my ($thing, $data) = @_;
-    my $checksum = md5_hex $$data;
-
-    if($cacheByChecksum{$checksum})
-    {   trace "importDefinitions reusing string data with checksum $checksum";
-        return (undef, checksum => $checksum);
-    }
-
-    trace "importDefintions for scalar with checksum $checksum";
-    ( $thing->SUPER::_parseScalar($data)
-    , checksum => $checksum
-    );
-}
-
-sub _parseFile($)
-{   my ($thing, $fn) = @_;
-    my ($mtime, $size) = (stat $fn)[9,7];
-    my $filestamp = basename($fn) . '-'. $mtime . '-' . $size;
-
-    if($cacheByFilestamp{$filestamp})
-    {   trace "importDefinitions reusing schemas from file $filestamp";
-        return (undef, filestamp => $filestamp);
-    }
-
-    trace "importDefinitions for filestamp $filestamp";
-    ( $thing->SUPER::_parseFile($fn)
-    , filestamp => $filestamp
-    );
-}
-
-=method addHook HOOKDATA|HOOK|undef
-HOOKDATA is a LIST of options as key-value pairs, HOOK is a HASH with
-the same data.  C<undef> is ignored. See M<addHooks()> and
-L</Schema hooks> below.
-=cut
-
-sub addHook(@)
-{   my $self = shift;
-    push @{$self->{hooks}}, @_>=1 ? {@_} : defined $_[0] ? shift : ();
-    $self;
-}
-
-=method addHooks HOOK, [HOOK, ...]
-Add multiple hooks at once.  These must all be HASHes. See L</Schema hooks>
-and M<addHook()>. C<undef> values are ignored.
-=cut
-
-sub addHooks(@)
-{   my $self = shift;
-    push @{$self->{hooks}}, grep {defined} @_;
-    $self;
-}
-
-=method hooks
-Returns the LIST of defined hooks (as HASHes).
-=cut
-
-sub hooks() { @{shift->{hooks}} }
-
-=method addTypemaps PAIRS
-Add new XML-Perl type relations.  See L</Typemaps>.
-=method addTypemap PAIR
-Synonym for M<addTypemap()>.
-=cut
-
-sub addTypemaps(@)
-{   my $map = shift->{typemap};
-    while(@_ > 1)
-    {   my $k = shift;
-        $map->{$k} = shift;
-    }
-    $map;
-}
-*addTypemap = \&addTypemaps;
-
 #--------------------------------------
+
 =section Compilers
 
 =method compile ('READER'|'WRITER'), TYPE, OPTIONS
@@ -754,7 +649,7 @@ sub template($@)
      );
 
     my $ast = $compiled->();
-# use Data::Dumper; $Data::Dumper::Indent = 1; warn Dumper $ast;
+#use Data::Dumper; $Data::Dumper::Indent = 1; warn Dumper $ast;
 
     if($action eq 'XML')
     {   my $doc  = XML::LibXML::Document->new('1.1', 'UTF-8');
@@ -770,7 +665,117 @@ sub template($@)
         , action => $action;
 }
 
+#------------------------------------------
+
 =section Administration
+
+=method namespaces
+Returns the M<XML::Compile::Schema::NameSpaces> object which is used
+to collect schemas.
+=cut
+
+sub namespaces() { shift->{namespaces} }
+
+=method importDefinitions XMLDATA, OPTIONS
+Import (include) the schema information included in the XMLDATA.  The
+XMLDATA must be acceptable for M<dataToXML()>.  The resulting node
+and the OPTIONS are passed to M<addSchemas()>. The schema node does
+not need to be the top element: any schema node found in the data
+will be decoded.
+
+Returned is a list of M<XML::Compile::Schema::Instance> objects,
+for each processed schema component.
+
+If your program imports the same string or file definitions multiple
+times, it will re-use the schema information from the first import.
+This removal of dupplications will not work for open files or pre-parsed
+XML structures.
+
+As an extension to the handling M<dataToXML()> provides, you can specify an
+ARRAY of things which are acceptable to C<dataToXML>.  This way, you can
+specify multiple resources at once, each of which will be processed with
+the same OPTIONS.
+
+=option  details HASH
+=default details <from XMLDATA>
+Overrule the details information about the source of the data.
+
+=examples of use of importDefinitions
+  my $schema = XML::Compile::Schema->new;
+  $schema->importDefinitions('my-spec.xsd');
+
+  my $other = "<schema>...</schema>";  # use 'HERE' documents!
+  my @specs = ('my-spec.xsd', 'types.xsd', $other);
+  $schema->importDefinitions(\@specs, @options);
+=cut
+
+# The cache will certainly avoid penalties by the average module user,
+# which does not understand the sharing schema definitions between objects
+# especially in SOAP implementations.
+my (%cacheByFilestamp, %cacheByChecksum);
+
+sub importDefinitions($@)
+{   my ($self, $thing, %options) = @_;
+    my @data = ref $thing eq 'ARRAY' ? @$thing : $thing;
+
+    my @schemas;
+    foreach my $data (@data)
+    {   defined $data or next;
+        my ($xml, %details) = $self->dataToXML($data);
+        %details = %{delete $options{details}} if $options{details};
+
+        if(defined $xml)
+        {   my @added = $self->addSchemas($xml, %details, %options);
+            if(my $checksum = $details{checksum})
+            {    $cacheByChecksum{$checksum} = \@added;
+            }
+            elsif(my $filestamp = $details{filestamp})
+            {   $cacheByFilestamp{$filestamp} = \@added;
+            }
+            push @schemas, @added;
+        }
+        elsif(my $filestamp = $details{filestamp})
+        {   my $cached = $cacheByFilestamp{$filestamp};
+            $self->namespaces->add(@$cached);
+        }
+        elsif(my $checksum = $details{checksum})
+        {   my $cached = $cacheByChecksum{$checksum};
+            $self->namespaces->add(@$cached);
+        }
+    }
+    @schemas;
+}
+
+sub _parseScalar($)
+{   my ($thing, $data) = @_;
+    my $checksum = md5_hex $$data;
+
+    if($cacheByChecksum{$checksum})
+    {   trace "importDefinitions reusing string data with checksum $checksum";
+        return (undef, checksum => $checksum);
+    }
+
+    trace "importDefintions for scalar with checksum $checksum";
+    ( $thing->SUPER::_parseScalar($data)
+    , checksum => $checksum
+    );
+}
+
+sub _parseFile($)
+{   my ($thing, $fn) = @_;
+    my ($mtime, $size) = (stat $fn)[9,7];
+    my $filestamp = basename($fn) . '-'. $mtime . '-' . $size;
+
+    if($cacheByFilestamp{$filestamp})
+    {   trace "importDefinitions reusing schemas from file $filestamp";
+        return (undef, filestamp => $filestamp);
+    }
+
+    trace "importDefinitions for filestamp $filestamp";
+    ( $thing->SUPER::_parseFile($fn)
+    , filestamp => $filestamp
+    );
+}
 
 =method types
 List all types, defined by all schemas sorted alphabetically.

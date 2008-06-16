@@ -37,7 +37,12 @@ the schema describes.
 BEGIN {
    no strict 'refs';
    *$_ = *{"XML::Compile::Schema::XmlWriter::$_"}
-      for qw/tag_qualified tag_unqualified wrapper_ns/;
+      for qw/tag_qualified tag_unqualified/;
+}
+
+sub wrapper_ns
+{   my ($path, $args, $processor, $index) = @_;
+    $processor;
 }
 
 sub typemap_to_hooks($$)
@@ -269,13 +274,31 @@ sub list
 }
 
 sub facets_list
-{   my ($path, $args, $st, $early, $late) = @_;
+{   my ($path, $args, $st, $info, $early, $late) = @_;
     sub { (facets => "with some restrictions on list elements", $st->()) };
 }
 
+sub _fill_facets($@)
+{   my $type  = shift;
+    my @lines = $type.':';
+    while(@_)
+    {   my $facet = shift;
+        push @lines, '  ' if length($lines[-1]) + length($facet) > 55;
+        $lines[-1] .= ' '.$facet;
+    }
+    \@lines;
+}
+
 sub facets
-{   my ($path, $args, $st, @do) = @_;
-    sub { (facets => "with some value restrictions", $st->()) };
+{   my ($path, $args, $st, $info, @do) = @_;
+    my $comment
+       = keys %$info==1 && $info->{enumeration}
+       ? _fill_facets('Enum', sort @{$info->{enumeration}})
+       : keys %$info==1 && exists $info->{pattern}
+       ? _fill_facets('Pattern', @{$info->{pattern}})
+       : "with some value restrictions";
+
+    sub { (facets => $comment, $st->()) };
 }
 
 sub union
@@ -351,8 +374,7 @@ sub attribute_fixed_optional
 sub substgroup
 {   my ($path, $args, $type, %do) = @_;
     my ($first, $do) = keys %do;
-    sub { my $subst =
-          +{ kind    => 'substitution group'
+    sub { +{ kind    => 'substitution group'
            , tag     => (unpack_type $type)[1]
            , struct  => [ "substitutionGroup $type:"
                         , map { "   $_" } sort keys %do ]
@@ -363,6 +385,7 @@ sub substgroup
 
 sub anyAttribute
 {   my ($path, $args, $handler, $yes, $no, $process) = @_;
+    $yes ||= []; $no ||= [];
     my $occurs = @$yes ? "in @$yes" : @$no ? "not in @$no" : 'any type';
     bless sub { +{kind => 'attr' , struct  => "anyAttribute $occurs"
                  , tag => 'ANYATTR', example => 'AnySimple'} }, 'ANY';
@@ -456,7 +479,13 @@ sub perl_any($$)
     }
     push @lines, "# is a $ast->{type}" if $ast->{type} && $args->{show_type};
     push @lines, "# $ast->{occur}"  if $ast->{occur}   && $args->{show_occur};
-    push @lines, "# $ast->{facets}" if $ast->{facets}  && $args->{show_facets};
+
+    if($ast->{facets}  && $args->{show_facets})
+    {   my $facets = $ast->{facets};
+        my @facets = ref $facets ? @$facets : $facets;
+        s/^/# /gm for @facets;
+        push @lines, @facets;
+    }
 
     my @childs;
     push @childs, @{$ast->{attrs}}  if $ast->{attrs};

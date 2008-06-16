@@ -190,56 +190,9 @@ sub addSchemaDirs(@)
     defined wantarray ? @schema_dirs : ();
 }
 
-=ci_method knownNamespace NAMESPACE|PAIRS
-If used with only one NAMESPACE, it returns the filename in the
-distribution (not the full path) which contains the definition.
+#----------------------
 
-When PAIRS of NAMESPACE-FILENAME are given, then those get defined.
-This is typically called during the initiation of modules, like
-M<XML::Compile::WSDL11> and M<XML::Compile::SOAP>.  The definitions
-are global: not related to specific instances.
-
-The FILENAMES are relative to the directories as specified with some
-M<addSchemaDirs()> call.
-=cut
-
-my %namespace_file;
-sub knownNamespace($;@)
-{   my $thing = shift;
-    return $namespace_file{ $_[0] } if @_==1;
-
-    while(@_)
-    {  my $ns = shift;
-       $namespace_file{$ns} = shift;
-    }
-    undef;
-}
-
-=method findSchemaFile FILENAME
-Runs through all defined schema directories (see M<addSchemaDirs()>)
-in search of the specified FILENAME.  When the FILENAME is absolute,
-that will be used, and no search is needed.  An C<undef> is returned when
-the file is not found, otherwise a full path to the file is returned to
-the caller.
-
-Although the file may be found, it still could be unreadible.
-=cut
-
-sub findSchemaFile($)
-{   my ($self, $fn) = @_;
-
-    return (-f $fn ? $fn : undef)
-        if File::Spec->file_name_is_absolute($fn);
-
-    foreach my $dir (@schema_dirs)
-    {   my $full = File::Spec->catfile($dir, $fn);
-        return $full if -f $full;
-    }
-
-    undef;
-}
-
-=section Read XML
+=section Compilers
 
 =method dataToXML NODE|REF-XML-STRING|XML-STRING|FILENAME|FILEHANDLE|KNOWN
 Collect XML data, from a wide variety of sources.  In SCALAR context,
@@ -275,7 +228,10 @@ distribution package.
   my ($xml, %details) = $schema->dataToXML($something);
 =cut
 
-my $parser = XML::LibXML->new(line_numbers => 1);
+my $parser = XML::LibXML->new;
+$parser->line_numbers(1);
+$parser->no_network(1);
+
 sub dataToXML($)
 {   my ($self, $thing) = @_;
     defined $thing
@@ -370,7 +326,9 @@ sub _parseFileHandle($)
     );
 }
 
-=section Filters
+#--------------------------
+
+=section Administration
 
 =method walkTree NODE, CODE
 Walks the whole tree from NODE downwards, calling the CODE reference
@@ -384,6 +342,55 @@ sub walkTree($$)
     {   $self->walkTree($_, $code)
             for $node->getChildNodes;
     }
+}
+
+=ci_method knownNamespace NAMESPACE|PAIRS
+If used with only one NAMESPACE, it returns the filename in the
+distribution (not the full path) which contains the definition.
+
+When PAIRS of NAMESPACE-FILENAME are given, then those get defined.
+This is typically called during the initiation of modules, like
+M<XML::Compile::WSDL11> and M<XML::Compile::SOAP>.  The definitions
+are global: not related to specific instances.
+
+The FILENAMES are relative to the directories as specified with some
+M<addSchemaDirs()> call.
+=cut
+
+my %namespace_file;
+sub knownNamespace($;@)
+{   my $thing = shift;
+    return $namespace_file{ $_[0] } if @_==1;
+
+    while(@_)
+    {  my $ns = shift;
+       $namespace_file{$ns} = shift;
+    }
+    undef;
+}
+
+=method findSchemaFile FILENAME
+Runs through all defined schema directories (see M<addSchemaDirs()>)
+in search of the specified FILENAME.  When the FILENAME is absolute,
+that will be used, and no search is needed.  An C<undef> is returned when
+the file is not found, otherwise a full path to the file is returned to
+the caller.
+
+Although the file may be found, it still could be unreadible.
+=cut
+
+sub findSchemaFile($)
+{   my ($self, $fn) = @_;
+
+    return (-f $fn ? $fn : undef)
+        if File::Spec->file_name_is_absolute($fn);
+
+    foreach my $dir (@schema_dirs)
+    {   my $full = File::Spec->catfile($dir, $fn);
+        return $full if -f $full;
+    }
+
+    undef;
 }
 
 =chapter DETAILS

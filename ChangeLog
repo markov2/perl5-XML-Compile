@@ -4,6 +4,27 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.85: Mon Jun 16 15:07:23 CEST 2008
+
+	Fixes:
+
+	- template with multiple name-spaces crashed on the handling of
+	  prefixes.
+
+	- permit empty substitutionGroups.
+
+	Improvements:
+
+	- template will show facets, when only simple enumerate or pattern
+	  restrictions are used.
+
+	- switch network access explicitly off for default parser, to
+	  avoid unexpected network access.
+
+	- fixes in manual-page footer.
+
+	- reordering methods
+
 version 0.84: Fri Jun  6 12:50:21 CEST 2008
 
 	Fixes:

@@ -10,7 +10,7 @@ use TestTools;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 38;
+use Test::More tests => 39;
 
 my $TestNS2 = "http://second-ns";
 
@@ -52,7 +52,7 @@ __XML
 
 ok($@, 'compile-time error');
 my $error = $@;
-is($error, "error: no substitutionGroups found for {http://test-types}head at {http://test-types}test1#subst\n");
+is($error, "error: data for element or block starting with `t3' missing at {$TestNS}test1\n");
 
 $schema->importDefinitions( <<__EXTRA__ );
 <!-- alternatives in same namespace -->
