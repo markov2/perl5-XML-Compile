@@ -46,17 +46,18 @@ test_rw($schema, test1 => <<__XML__, {t1a => 'not-changeable', t1c => 42});
 <test1 t1c="42"><t1a>not-changeable</t1a></test1>
 __XML__
 
-my $error = reader_error($schema, test1 => <<__XML__);
-<test1><t1b>12</t1b></test1>
-__XML__
-is($error, "element `t1a' with fixed value `not-changeable' missing at {http://test-types}test1/el(t1a)");
+my $r1 = create_reader $schema, 'missing fixed reader', 'test1';
+isa_ok($r1, 'CODE');
+my $h1 = $r1->('<test1><t1b>12</t1b></test1>');
+is_deeply($h1, {t1b => 12, t1a => 'not-changeable', t1c => 42});
 
-my %t1b = (t1b => 12, t1c => 42);
-$error = writer_error($schema, test1 => \%t1b);
-is($error, "required value for `t1a' missing at {http://test-types}test1");
+my $w1 = create_writer $schema, 'missing fixed writer', 'test1';
+isa_ok($w1, 'CODE');
+my $x1 = writer_test $w1, {t1b => 13};
+compare_xml $x1, '<test1><t1b>13</t1b></test1>';
 
 my %t1c = (t1a => 'wrong', t1b => 12, t1c => 42);
-$error = writer_error($schema, test1 => \%t1c);
+my $error = writer_error($schema, test1 => \%t1c);
 is($error, "element `t1a' has value fixed to `not-changeable', got `wrong' at {http://test-types}test1/el(t1a)");
 
 #

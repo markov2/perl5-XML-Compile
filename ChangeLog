@@ -4,6 +4,36 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.86: Mon Jun 23 17:01:43 CEST 2008
+
+	Fixes:
+
+	- fixed attributes are always optional, both in reader and
+	  writer.
+
+	- fixed elements are optional, but do return that value as
+	  default in the reader.
+
+	- class labels to group error messages should be spelled
+	  _class in ::Translate.
+
+	- fix choice with multiple substitutionGroups or any's.
+
+	Changes:
+
+	- mixed element default will always return a HASH, not a node
+	  when there are no attributes defined.
+
+	Improvements:
+
+	- many more options to handle mixed elements.  See
+	  ::Schema::compile option mixed_elements.
+
+	- error for typemaps which specify a none-existing type, as
+	  coding help.
+
+	- error when both default and fixed are set.
+
 version 0.85: Mon Jun 16 15:07:23 CEST 2008
 
 	Fixes:
@@ -23,7 +53,9 @@ version 0.85: Mon Jun 16 15:07:23 CEST 2008
 
 	- fixes in manual-page footer.
 
-	- reordering methods
+	- reordering methods in documentation
+
+	- few additional trace statements
 
 version 0.84: Fri Jun  6 12:50:21 CEST 2008
 

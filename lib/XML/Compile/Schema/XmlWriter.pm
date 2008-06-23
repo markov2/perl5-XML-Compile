@@ -408,7 +408,7 @@ sub element_fixed
     $fixed   = $fixed->value if ref $fixed;
 
     sub { my ($doc, $value) = @_;
-          my $ret = defined $value ? $do->($doc, $value) : undef;
+          my $ret = defined $value ? $do->($doc, $value) : return;
           return $ret if defined $ret && $ret->textContent eq $fixed;
 
           defined $ret
@@ -556,7 +556,7 @@ sub tagged_element
 #
 
 sub mixed_element
-{   my ($path, $args, $tag, $attrs, $attrs_any) = @_;
+{   my ($path, $args, $tag, $elems, $attrs, $attrs_any) = @_;
     my @attrs = @$attrs;
     my @anya  = @$attrs_any;
 
@@ -765,24 +765,6 @@ sub attribute
 *attribute_default = \&attribute;
 
 sub attribute_fixed
-{   my ($path, $args, $ns, $tag, $do, $fixed) = @_;
-    $fixed   = $fixed->value if ref $fixed;
-
-    sub { my ($doc, $value) = @_;
-          defined $value
-              or error __x"required fixed attribute `{tag}' missing at {path}"
-                   , tag => $tag, path => $path;
-
-
-          $value eq $fixed
-              or error __x"value of attribute `{tag}' is fixed to `{fixed}', not `{got}' at {path}"
-                   , tag => $tag, got => $value, fixed => $fixed, path => $path;
-
-          $doc->createAttributeNS($ns, $tag, $fixed);
-        };
-}
-
-sub attribute_fixed_optional
 {   my ($path, $args, $ns, $tag, $do, $fixed) = @_;
     $fixed   = $fixed->value if ref $fixed;
 
@@ -998,6 +980,21 @@ random order.
          , "{$somens}$sometype"        => $attr # anyAttribute
          , pack_type($somens, $mytype) => $attr # nicer
          };
+
+=section Mixed elements
+
+[Available since 0.79]
+ComplexType and ComplexContent components can be declared with the
+C<<mixed="true">> attribute.
+
+XML::Compile does not have a way to express these mixtures of information
+and text as Perl data-structures; the only way you can use those to the
+full extend, is by juggling with XML::LibXML nodes yourself.
+
+You may provide a M<XML::LibXML::Element>, which is complete, or a
+HASH which contains attributes values and an XML node with key '_'.
+When '_' contains a string, it will be translated into an XML text
+node.
 
 =section Schema hooks
 

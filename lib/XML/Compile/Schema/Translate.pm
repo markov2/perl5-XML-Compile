@@ -3,7 +3,7 @@ use strict;
 
 package XML::Compile::Schema::Translate;
 
-# Errors are either in class 'usage': called with request
+# Errors are either in _class 'usage': called with request
 #                         or 'schema': syntax error in schema
 
 use Log::Report 'xml-compile', syntax => 'SHORT';
@@ -95,6 +95,7 @@ a table of types.
 =requires bricks CLASS
 =requires hooks ARRAY
 =requires action 'READER'|'WRITER'
+
 =option  typemap HASH
 =default typemap {}
 
@@ -115,13 +116,19 @@ sub compileTree($@)
     $self->{nss}
         or panic "no namespace tables";
 
-    my $hooks = $self->{hooks}
+    my $hooks   = $self->{hooks}
         or panic "no hooks list defined";
 
     $self->{action}
         or panic "action type is needed";
 
     my $typemap = $self->{typemap} || {};
+    my $nsp     = $self->namespaces;
+    foreach my $t (keys %$typemap)
+    {   $nsp->find(complexType => $t) || $nsp->find(simpleType => $t)
+            or error __x"complex or simpleType {type} for typemap unknown"
+                 , type => $t;
+    }
 
     { no strict 'refs';
       "${bricks}::typemap_to_hooks"->($hooks, $typemap);
@@ -154,7 +161,7 @@ sub assertType($$$$)
 
     error __x"field {field} contains '{value}' which is not a valid {type} at {where}"
         , field => $field, value => $value, type => $type, where => $where
-        , class => 'usage';
+        , _class => 'usage';
 
 }
 
@@ -219,7 +226,7 @@ sub topLevel($$)
        or error __x(( $fullname eq $path
                     ? N__"cannot find element or attribute `{name}'"
                     : N__"cannot find element or attribute `{name}' at {where}"
-                    ), name => $fullname, where => $path, class => 'usage');
+                    ), name => $fullname, where => $path, _class => 'usage');
 
     my $node = $top->{node};
 
@@ -265,7 +272,7 @@ sub topLevel($$)
       : $name eq 'attribute' ? $self->attributeOne($tree)
       : error __x"top-level {full} is not an element or attribute but {name} at {where}"
             , full => $fullname, name => $name, where => $tree->path
-            , class => 'usage';
+            , _class => 'usage';
 
     my $wrapper = $name eq 'element' ? 'element_wrapper' : 'attribute_wrapper';
     $self->make($wrapper, $path, $make);
@@ -297,7 +304,7 @@ sub typeByName($$)
     my $top = $self->namespaces->find(complexType => $typename)
            || $self->namespaces->find(simpleType  => $typename)
        or error __x"cannot find type {type} at {where}"
-            , type => $typename, where => $tree->path, class => 'usage';
+            , type => $typename, where => $tree->path, _class => 'usage';
 
     local @$self{ qw/elems_qual attrs_qual tns/ }
                  = $self->nsContext($top);
@@ -308,7 +315,7 @@ sub typeByName($$)
       $typedef eq 'simpleType'  ? $self->simpleType($typeimpl)
     : $typedef eq 'complexType' ? $self->complexType($typeimpl)
     : error __x"expecting simple- or complexType, not '{type}' at {where}"
-          , type => $typedef, where => $tree->path, class => 'schema';
+          , type => $typedef, where => $tree->path, _class => 'schema';
 }
 
 sub simpleType($;$)
@@ -316,7 +323,7 @@ sub simpleType($;$)
 
     $tree->nrChildren==1
        or error __x"simpleType must have exactly one child at {where}"
-            , where => $tree->path, class => 'schema';
+            , where => $tree->path, _class => 'schema';
 
     my $child = $tree->firstChild;
     my $name  = $child->localName;
@@ -331,7 +338,7 @@ sub simpleType($;$)
     : $name eq 'list'        ? $self->simpleList($nest)
     : $name eq 'union'       ? $self->simpleUnion($nest)
     : error __x"simpleType contains '{local}', must be restriction, list, or union at {where}"
-          , local => $name, where => $tree->path, class => 'schema';
+          , local => $name, where => $tree->path, _class => 'schema';
 
     delete @$type{'attrs','attrs_any'};  # spec says ignore attrs
     $type;
@@ -350,7 +357,7 @@ sub simpleList($)
     if(my $type = $node->getAttribute('itemType'))
     {   $tree->nrChildren==0
             or error __x"list with both itemType and content at {where}"
-                 , where => $where, class => 'schema';
+                 , where => $where, _class => 'schema';
 
         my $typename = $self->rel2abs($where, $node, $type);
         $per_item    = $self->typeByName($tree, $typename);
@@ -358,11 +365,11 @@ sub simpleList($)
     else
     {   $tree->nrChildren==1
             or error __x"list expects one simpleType child at {where}"
-                 , where => $where, class => 'schema';
+                 , where => $where, _class => 'schema';
 
         $tree->currentLocal eq 'simpleType'
             or error __x"list can only have a simpleType child at {where}"
-                 , where => $where, class => 'schema';
+                 , where => $where, _class => 'schema';
 
         $per_item    = $self->simpleType($tree->descend, 1);
     }
@@ -398,7 +405,7 @@ sub simpleUnion($)
             my $type = $self->typeByName($tree, $typename);
             my $st   = $type->{st}
                 or error __x"union only of simpleTypes, but {type} is complex at {where}"
-                     , type => $typename, where => $where, class => 'schema';
+                     , type => $typename, where => $where, _class => 'schema';
 
             push @types, $st;
         }
@@ -408,7 +415,7 @@ sub simpleUnion($)
     {   my $name = $child->localName;
         $name eq 'simpleType'
             or error __x"only simpleType's within union, found {local} at {where}"
-                 , local => $name, where => $where, class => 'schema';
+                 , local => $name, where => $where, _class => 'schema';
 
         my $ctype = $self->simpleType($tree->descend($child), 0);
         push @types, $ctype->{st};
@@ -435,11 +442,11 @@ sub simpleRestriction($$)
     else
     {   my $simple   = $tree->firstChild
             or error __x"no base in simple-restriction, so simpleType required at {where}"
-                   , where => $where, class => 'schema';
+                   , where => $where, _class => 'schema';
 
         $simple->localName eq 'simpleType'
             or error __x"simpleType expected, because there is no base attribute at {where}"
-                   , where => $where, class => 'schema';
+                   , where => $where, _class => 'schema';
 
         $base = $self->simpleType($tree->descend($simple, 'st'));
         $tree->nextChild;
@@ -447,13 +454,13 @@ sub simpleRestriction($$)
 
     my $st = $base->{st}
         or error __x"simple-restriction is not a simpleType at {where}"
-               , where => $where, class => 'schema';
+               , where => $where, _class => 'schema';
 
     my $do = $self->applySimpleFacets($tree, $st, $in_list);
 
     $tree->currentChild
         and error __x"elements left at tail at {where}"
-                , where => $tree->path, class => 'schema';
+                , where => $tree->path, _class => 'schema';
 
     +{ st => $do };
 }
@@ -476,14 +483,14 @@ sub applySimpleFacets($$$)
         my $value = $child->getAttribute('value');
         defined $value
             or error __x"no value for facet `{facet}' at {where}"
-                   , facet => $facet, where => $where, class => 'schema';
+                   , facet => $facet, where => $where, _class => 'schema';
 
            if($facet eq 'enumeration') { push @{$facets{enumeration}}, $value }
         elsif($facet eq 'pattern')     { push @{$facets{pattern}}, $value }
         elsif(!exists $facets{$facet}) { $facets{$facet} = $value }
         else
         {   error __x"facet `{facet}' defined twice at {where}"
-                , facet => $facet, where => $where, class => 'schema';
+                , facet => $facet, where => $where, _class => 'schema';
         }
     }
 
@@ -533,7 +540,7 @@ sub element($)
     my $node     = $tree->node;
     my $name     = $node->getAttribute('name')
         or error __x"element has no name at {where}"
-             , where => $tree->path, class => 'schema';
+             , where => $tree->path, _class => 'schema';
 
     $self->assertType($tree->path, name => NCName => $name);
     my $fullname = pack_type $self->{tns}, $name;
@@ -556,7 +563,7 @@ sub element($)
       : $form eq 'qualified'   ? 1
       : $form eq 'unqualified' ? 0
       : error __x"form must be (un)qualified, not `{form}' at {where}"
-            , form => $form, where => $tree->path, class => 'schema';
+            , form => $form, where => $tree->path, _class => 'schema';
 
     my $trans     = $qual ? 'tag_qualified' : 'tag_unqualified';
     my $tag       = $self->make($trans => $where, $node, $name, $self->{tns});
@@ -566,7 +573,7 @@ sub element($)
     if(my $isa = $node->getAttribute('type'))
     {   $nr_childs==0
             or error __x"no childs expected with attribute `type' at {where}"
-                   , where => $where, class => 'schema';
+                   , where => $where, _class => 'schema';
 
         $typename = $self->rel2abs($where, $node, $isa);
         $type     = $self->typeByName($tree, $typename);
@@ -577,7 +584,7 @@ sub element($)
     }
     elsif($nr_childs!=1)
     {   error __x"expected is only one child at {where}"
-          , where => $where, class => 'schema';
+          , where => $where, _class => 'schema';
     }
     else # nameless types
     {   my $child = $tree->firstChild;
@@ -588,7 +595,7 @@ sub element($)
           = $local eq 'simpleType'  ? $self->simpleType($nest, 0)
           : $local eq 'complexType' ? $self->complexType($nest)
           : error __x"illegal element child `{name}' at {where}"
-                , name => $local, where => $where, class => 'schema';
+                , name => $local, where => $where, _class => 'schema';
     }
 
     my ($before, $replace, $after)
@@ -601,7 +608,8 @@ sub element($)
     my $r;
     if($replace) { ; }             # overrule processing
     elsif($type->{mixed})          # complexType mixed
-    {   $r = $self->make(mixed_element => $where, $tag, $attrs, $attrs_any);
+    {   $r = $self->make(mixed_element =>
+            $where, $tag, $elems, $attrs, $attrs_any);
     }
     elsif(! defined $st)           # complexType
     {   $r = $self->make(complex_element =>
@@ -639,7 +647,8 @@ sub particle($)
     my $max   = $node->getAttribute('maxOccurs');
 
     unless(defined $min)
-    {   $min = $self->{action} eq 'WRITER' && $node->getAttribute('default')
+    {   $min = $self->{action} eq 'WRITER'
+            && ($node->getAttribute('default') || $node->getAttribute('fixed'))
              ? 0 : 1;
     }
 
@@ -662,7 +671,7 @@ sub particle($)
       : $local eq 'group'          ? $self->particleGroup($tree)
       : $local =~ $particle_blocks ? $self->particleBlock($tree)
       : error __x"unknown particle type '{name}' at {where}"
-            , name => $local, where => $tree->path, class => 'schema';
+            , name => $local, where => $tree->path, _class => 'schema';
 
     defined $label
         or return ();
@@ -688,25 +697,25 @@ sub particleGroup($)
     my $where = $tree->path . '#group';
     my $ref   = $node->getAttribute('ref')
         or error __x"group without ref at {where}"
-             , where => $where, class => 'schema';
+             , where => $where, _class => 'schema';
 
     my $typename = $self->rel2abs($where, $node, $ref);
 
     my $dest    = $self->namespaces->find(group => $typename)
         or error __x"cannot find group `{name}' at {where}"
-             , name => $typename, where => $where, class => 'schema';
+             , name => $typename, where => $where, _class => 'schema';
 
     my $group   = $tree->descend($dest->{node});
     return {} if $group->nrChildren==0;
 
     $group->nrChildren==1
         or error __x"only one particle block expected in group `{name}' at {where}"
-               , name => $typename, where => $where, class => 'schema';
+               , name => $typename, where => $where, _class => 'schema';
 
     my $local = $group->currentLocal;
     $local    =~ m/^(?:all|choice|sequence)$/
         or error __x"illegal group member `{name}' at {where}"
-               , name => $local, where => $where, class => 'schema';
+               , name => $local, where => $where, _class => 'schema';
 
     $self->particleBlock($group->descend);
 }
@@ -731,18 +740,12 @@ sub findSgMembers($)
     foreach my $subgrp ($self->namespaces->findSgMembers($type))
     {   my $node     = $subgrp->{node};
         my $abstract = $node->getAttribute('abstract') || 'false';
-        unless($self->isTrue($abstract))
-        {   push @subgrps, $subgrp;
-            next;
-        }
 
-        my $groupname = $node->getAttribute('name')
-            or error __x"substitutionGroup element needs name at {where}"
-                 , where => $node->path, class => 'schema';
-
-        my $subtype   = pack_type $self->{tns}, $groupname;
-        push @subgrps, $self->findSgMembers($subtype);
+        push @subgrps, $self->isTrue($abstract)
+           ? $self->findSgMembers($subgrp->{full})
+           : $subgrp;
     }
+#warn "SUBGRPS ", join "\n  ", map {$_->{full}} @subgrps;
     @subgrps;
 }
         
@@ -754,7 +757,7 @@ sub particleElementSubst($)
 
     my $groupname = $node->getAttribute('name')
         or error __x"substitutionGroup element needs name at {where}"
-               , where => $tree->path, class => 'schema';
+               , where => $tree->path, _class => 'schema';
 
     my $tns     = $self->{tns};
     my $type    = pack_type $tns, $groupname;
@@ -763,7 +766,7 @@ sub particleElementSubst($)
     # at least the base is expected
     unless(@subgrps)
     {   trace __x"no substitutionGroups found for {type} at {where}"
-          , type => $type, where => $where, class => 'schema'
+          , type => $type, where => $where, _class => 'schema'
              unless $self->{nosubst_notice}{$type}++;
     }
 
@@ -788,7 +791,7 @@ sub particleElement($)
  
         my $def      = $self->namespaces->find(element => $refname)
             or error __x"cannot find element '{name}' at {where}"
-                   , name => $refname, where => $where, class => 'schema';
+                   , name => $refname, where => $where, _class => 'schema';
 
         local @$self{ qw/elems_qual attrs_qual tns/ }
                      = $self->nsContext($def);
@@ -804,27 +807,30 @@ sub particleElement($)
 
     my $name     = $node->getAttribute('name')
         or error __x"element needs name or ref at {where}"
-               , where => $tree->path, class => 'schema';
+             , where => $tree->path, _class => 'schema';
 
     my $where    = $tree->path . "/el($name)";
     my $default  = $node->getAttributeNode('default');
     my $fixed    = $node->getAttributeNode('fixed');
+
+    $default && $fixed
+        and error __x"element can not have default and fixed at {where}"
+              , where => $tree->path, _class => 'schema';
 
     my $nillable = $node->getAttribute('nillable') || 'false';
     $self->assertType($where, nillable => boolean => $nillable);
 
     my $do       = $self->element($tree->descend($node, $name));
 
+    my $value
+       = $default ? $default->textContent
+       : $fixed   ? $fixed->textContent
+       :            undef;
     my $generate
      = $self->isTrue($nillable) ? 'element_nillable'
-     : defined $default         ? 'element_default'
-     : defined $fixed           ? 'element_fixed'
-     :                            'element';
-
-    my $value
-     = defined $default         ? $default->textContent
-     : defined $fixed           ? $fixed->textContent
-     : undef;
+     : $default   ? 'element_default'
+     : $fixed     ? 'element_fixed'
+     :              'element';
 
     my $ns    = $node->namespaceURI;
     my $do_el = $self->make($generate => $where, $ns, $name, $do, $value);
@@ -849,7 +855,7 @@ sub attributeOne($)
     {   my $refname = $self->rel2abs($tree, $node, $refattr);
         my $def     = $self->namespaces->find(attribute => $refname)
             or error __x"cannot find attribute {name} at {where}"
-                 , name => $refname, where => $tree->path, class => 'schema';
+                 , name => $refname, where => $tree->path, _class => 'schema';
 
         $ref        = $def->{node};
         local $self->{tns} = $def->{ns};
@@ -862,7 +868,7 @@ sub attributeOne($)
 
         $name       = $ref->getAttribute('name')
             or error __x"ref attribute without name at {where}"
-                 , where => $tree->path, class => 'schema';
+                 , where => $tree->path, _class => 'schema';
 
         if($typeattr = $ref->getAttribute('type'))
         {   # postpone interpretation
@@ -871,7 +877,7 @@ sub attributeOne($)
         {   my $other = $tree->descend($ref);
             $other->nrChildren==1 && $other->currentLocal eq 'simpleType'
                 or error __x"toplevel attribute {type} has no type attribute nor single simpleType child"
-                     , type => $refname, class => 'schema';
+                     , type => $refname, _class => 'schema';
             $type   = $self->simpleType($other->descend);
         }
         $form = $ref->getAttribute('form');
@@ -881,7 +887,7 @@ sub attributeOne($)
     {   $tree->currentLocal eq 'simpleType'
             or error __x"attribute child can only be `simpleType', not `{found}' at {where}"
                  , found => $tree->currentLocal, where => $tree->path
-                 , class => 'schema';
+                 , _class => 'schema';
 
         $name       = $node->getAttribute('name')
             or error __x"attribute without name at {where}"
@@ -894,7 +900,7 @@ sub attributeOne($)
     else
     {   $name       = $node->getAttribute('name')
             or error __x"attribute without name or ref at {where}"
-                   , where => $tree->path, class => 'schema';
+                   , where => $tree->path, _class => 'schema';
 
         $typeattr   = $node->getAttribute('type');
         $form       = $node->getAttribute('form');
@@ -913,14 +919,14 @@ sub attributeOne($)
 
     my $st      = $type->{st}
         or error __x"attribute not based in simple value type at {where}"
-             , where => $where, class => 'schema';
+             , where => $where, _class => 'schema';
 
     my $qual
       = ! defined $form        ? $self->{attrs_qual}
       : $form eq 'qualified'   ? 1
       : $form eq 'unqualified' ? 0
       : error __x"form must be (un)qualified, not {form} at {where}"
-            , form => $form, where => $where, class => 'schema';
+            , form => $form, where => $where, _class => 'schema';
 
     my $trans   = $qual ? 'tag_qualified' : 'tag_unqualified';
     my $ns      = $qual ? $self->{tns} : '';
@@ -929,15 +935,14 @@ sub attributeOne($)
     my $use     = $node->getAttribute('use') || '';
     $use =~ m/^(?:optional|required|prohibited|)$/
         or error __x"attribute use is required, optional or prohibited (not '{use}') at {where}"
-             , use => $use, where => $where, class => 'schema';
+             , use => $use, where => $where, _class => 'schema';
 
     my $default = $node->getAttributeNode('default');
     my $fixed   = $node->getAttributeNode('fixed');
 
     my $generate
      = defined $default    ? 'attribute_default'
-     : defined $fixed
-     ? ($use eq 'optional' ? 'attribute_fixed_optional' : 'attribute_fixed')
+     : defined $fixed      ? 'attribute_fixed'
      : $use eq 'required'  ? 'attribute_required'
      : $use eq 'prohibited'? 'attribute_prohibited'
      :                       'attribute';
@@ -957,13 +962,13 @@ sub attributeGroup($)
     my $where = $tree->path;
     my $ref   = $node->getAttribute('ref')
         or error __x"attributeGroup use without ref at {where}"
-             , where => $tree->path, class => 'schema';
+             , where => $tree->path, _class => 'schema';
 
     my $typename = $self->rel2abs($where, $node, $ref);
 
     my $def  = $self->namespaces->find(attributeGroup => $typename)
         or error __x"cannot find attributeGroup {name} at {where}"
-             , name => $typename, where => $where, class => 'schema';
+             , name => $typename, where => $where, _class => 'schema';
 
     $self->attributeList($tree->descend($def->{node}));
 }
@@ -1069,6 +1074,9 @@ sub complexType($)
 
     my $node  = $tree->node;
     my $mixed = $self->isTrue($node->getAttribute('mixed') || 'false');
+    undef $mixed
+        if $self->{action} eq 'READER'
+        && $self->{mixed_elements} eq 'STRUCTURAL';
 
     my $first = $tree->firstChild
         or return {mixed => $mixed};
@@ -1079,17 +1087,16 @@ sub complexType($)
 
     $tree->nrChildren==1
         or error __x"expected is single simpleContent or complexContent at {where}"
-             , where => $tree->path, class => 'schema';
+             , where => $tree->path, _class => 'schema';
 
     return $self->simpleContent($tree->descend($first))
         if $name eq 'simpleContent';
 
     return $self->complexContent($tree->descend($first), $mixed)
         if $name eq 'complexContent';
-       
 
     error __x"complexType contains particles, simpleContent or complexContent, not `{name}' at {where}"
-      , name => $name, where => $tree->path, class => 'schema';
+      , name => $name, where => $tree->path, _class => 'schema';
 }
 
 sub complexBody($$)
@@ -1114,7 +1121,7 @@ sub complexBody($$)
     defined $tree->currentChild
         and error __x"trailing non-attribute `{name}' at {where}"
               , name => $tree->currentChild->localName, where => $tree->path
-              , class => 'schema';
+              , _class => 'schema';
 
     {elems => \@elems, mixed => $mixed, @attrs};
 }
@@ -1158,7 +1165,7 @@ sub simpleContent($)
 
     $tree->nrChildren==1
         or error __x"need one simpleContent child at {where}"
-             , where => $tree->path, class => 'schema';
+             , where => $tree->path, _class => 'schema';
 
     my $name  = $tree->currentLocal;
     return $self->simpleContentExtension($tree->descend)
@@ -1168,7 +1175,7 @@ sub simpleContent($)
         if $name eq 'restriction';
 
      error __x"simpleContent needs extension or restriction, not `{name}' at {where}"
-         , name => $name, where => $tree->path, class => 'schema';
+         , name => $name, where => $tree->path, _class => 'schema';
 }
 
 sub simpleContentExtension($)
@@ -1190,12 +1197,12 @@ sub simpleContentExtension($)
     my $basetype = $self->typeByName($tree, $typename);
     defined $basetype->{st}
         or error __x"base of simpleContent not simple at {where}"
-             , where => $where, class => 'schema';
+             , where => $where, _class => 'schema';
  
     $self->extendAttrs($basetype, $self->attributeList($tree));
     $tree->currentChild
         and error __x"elements left at tail at {where}"
-              , where => $tree->path, class => 'schema';
+              , where => $tree->path, _class => 'schema';
 
     $basetype;
 
@@ -1221,11 +1228,11 @@ sub simpleContentRestriction($$)
     else
     {   my $first    = $tree->currentLocal
             or error __x"no base in complex-restriction, so simpleType required at {where}"
-                 , where => $where, class => 'schema';
+                 , where => $where, _class => 'schema';
 
         $first eq 'simpleType'
             or error __x"simpleType expected, because there is no base attribute at {where}"
-                 , where => $where, class => 'schema';
+                 , where => $where, _class => 'schema';
 
         $type = $self->simpleType($tree->descend);
         $tree->nextChild;
@@ -1233,7 +1240,7 @@ sub simpleContentRestriction($$)
 
     my $st = $type->{st}
         or error __x"not a simpleType in simpleContent/restriction at {where}"
-             , where => $where, class => 'schema';
+             , where => $where, _class => 'schema';
 
     $type->{st} = $self->applySimpleFacets($tree, $st, 0);
 
@@ -1241,7 +1248,7 @@ sub simpleContentRestriction($$)
 
     $tree->currentChild
         and error __x"elements left at tail at {where}"
-                , where => $where, class => 'schema';
+                , where => $where, _class => 'schema';
 
     $type;
 }
@@ -1257,7 +1264,7 @@ sub complexContent($$)
   
     $tree->nrChildren == 1
         or error __x"only one complexContent child expected at {where}"
-             , where => $tree->path, class => 'schema';
+             , where => $tree->path, _class => 'schema';
 
     my $name  = $tree->currentLocal;
  
@@ -1269,7 +1276,7 @@ sub complexContent($$)
         if $name eq 'restriction';
 
     error __x"complexContent needs extension or restriction, not `{name}' at {where}"
-        , name => $name, where => $tree->path, class => 'schema';
+        , name => $name, where => $tree->path, _class => 'schema';
 }
 
 sub complexContentExtension($)
@@ -1284,7 +1291,7 @@ sub complexContentExtension($)
     {   my $typename = $self->rel2abs($where, $node, $base);
         my $typedef  = $self->namespaces->find(complexType => $typename)
             or error __x"unknown base type '{type}' at {where}"
-                 , type => $typename, where => $tree->path, class => 'schema';
+                 , type => $typename, where => $tree->path, _class => 'schema';
 
         local @$self{ qw/elems_qual attrs_qual tns/ }
             = $self->nsContext($typedef);
@@ -1320,7 +1327,7 @@ sub rel2abs($$$)
     my $url = $node->lookupNamespaceURI($prefix);
 
     error __x"No namespace for prefix `{prefix}' in `{type}' at {where}"
-      , prefix => $prefix, type => $type, where => $where, class => 'schema'
+      , prefix => $prefix, type => $type, where => $where, _class => 'schema'
         if length $prefix && !defined $url;
 
      pack_type $url, $local;

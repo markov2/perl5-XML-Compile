@@ -496,6 +496,12 @@ output NIL when the nillable elements are missing.
 =default typemap {}
 Add this typemap to the relations defined by M<new(typemap)> or
 M<addTypemaps()>
+
+=option  mixed_elements CODE|PREDEFINED
+=default mixed_elements 'ATTRIBUTES'
+(reader) What to do when mixed schema elements are to be processed.  Read
+more in the L<DETAILS> section below, and in the manual page of
+M<XML::Compile::Schema::XmlReader>
 =cut
 
 sub compile($$@)
@@ -516,6 +522,7 @@ sub compile($$@)
       : $self->{unused_tags};
     $args{ignore_unused_tags}
       = !defined $iut ? undef : ref $iut eq 'Regexp' ? $iut : qr/^/;
+    $args{mixed_elements} ||= 'ATTRIBUTES';
 
     exists $args{include_namespaces} or $args{include_namespaces} = 1;
     $args{sloppy_integers}   ||= 0;
@@ -630,6 +637,7 @@ sub template($@)
     my $indent                  = $args{indent} || "  ";
     $args{check_occurs}         = 1;
     $args{include_namespaces} ||= 1;
+    $args{mixed_elements}     ||= 'ATTRIBUTES';
 
     my $bricks = 'XML::Compile::Schema::Template';
     eval "require $bricks";
@@ -1252,22 +1260,19 @@ in each case.
 
 =section ComplexType with "mixed" attribute
 
-[Available since 0.79]
+[largely improved in 0.86, reader only]
 ComplexType and ComplexContent components can be declared with the
 C<<mixed="true">> attribute.  This implies that text is not limited
 to the content of containers, but may also be used inbetween elements.
 Usually, you will only find ignorable white-space between elements.
 
-In this example, the C<a> container will be mixed:
+In this example, the C<a> container is marked to be mixed:
   <a> before <b>2</b> after </a>
 
-XML::Compile does not have a syntax to express these mixtures of
-information and text, so the only way you can use those, is by providing
-your self-constructed XML::LibXML node for such element.
-
-When reading an XML message, the parser will automatically stop on
-a mixed node, and return the whole node.  The writer will expect a
-prepared node.
+Each back-end has its own way of handling mixed elements.  The
+M<new(mixed_elements)> currently only modifies the reader's
+behavior; the writer's capabilities are limited.
+See M<XML::Compile::Schema::XmlReader>.
 
 =section Schema hooks
 
@@ -1397,11 +1402,12 @@ improved in one of the future releases, breaking backwards compatibility.
 
 =section Typemaps
 
-Often, XML will be used in object oriented programs, where the facts which
-are transported in the XML message are attributes of Perl objects.  Of course,
-you can always collect the data from each of the Objects into the required
-(huge) HASH, before triggering the reader or writer.  As alternative,
-you can link types in the XML schema with Perl objects and classes.
+Often, XML will be used in object oriented programs, where the facts
+which are transported in the XML message are attributes of Perl objects.
+Of course, you can always collect the data from each of the Objects into
+the required (huge) HASH manually, before triggering the reader or writer.
+As alternative, you can connect types in the XML schema with Perl objects
+and classes, which results in cleaner code.
 
 You can also specify typemaps with M<new(typemap)>, M<addTypemaps()>, and
 M<compile(typemap)>. Each type will only refer to the last map for that

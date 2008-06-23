@@ -193,7 +193,7 @@ sub choice($@)
           # a choice, instead on choice itself.  That always succeeds.
           foreach my $some (values %do)
           {   try { $some->(undef) };
-              $@ or return ();
+              $@ or return;
           }
 
           $local
@@ -214,9 +214,10 @@ sub choice($@)
 
           my @special_errors;
           foreach (@specials)
-          {   my @d = try { $_->($tree) };
-              $@ or return @d;
-              push @special_errors, $@->wasFatal->message;
+          {
+              my @d = try { $_->($tree) };
+              return @d if !$@ && @d;
+              push @special_errors, $@->wasFatal->message if $@;
           }
 
           foreach my $some (values %do, @specials)
@@ -524,15 +525,14 @@ sub element_default
 
 sub element_fixed
 {   my ($path, $args, $ns, $childname, $do, $fixed) = @_;
-    my $fix  = $do->($fixed);
+    my ($tag, $fix) = $do->($fixed);
 
     sub { my $tree = shift;
           my ($label, $value)
             = $tree && $tree->nodeLocal eq $childname ? $do->($tree) : ();
 
           defined $value
-              or error __x"element `{name}' with fixed value `{fixed}' missing at {path}"
-                     , name => $childname, fixed => $fix, path => $path;
+              or return ($tag => $fix);
 
           $value eq $fix
               or error __x"element `{name}' must have fixed value `{fixed}', got `{value}' at {path}"
@@ -612,18 +612,39 @@ sub tagged_element
 #
 
 sub mixed_element
-{   my ($path, $args, $tag, $attrs, $attrs_any) = @_;
+{   my ($path, $args, $tag, $elems, $attrs, $attrs_any) = @_;
     my @attrs = (odd_elements(@$attrs), @$attrs_any);
+    my $mixed = $args->{mixed_elements}
+         or panic "how to handle mixed?";
 
-    @attrs
-    ? sub { my $tree   = shift or return ();
+      ref $mixed eq 'CODE'
+    ? sub { my $tree = shift or return;
+            my $node = $tree->node or return;
+            my @v = $mixed->($node);
+            @v ? ($tag => $v[0]) : ();
+          }
+    : $mixed eq 'XML_NODE'
+    ? sub { $_[0] ? ($tag => $_[0]->node) : () }
+    : $mixed eq 'ATTRIBUTES'
+    ? sub { my $tree   = shift or return;
             my $node   = $tree->node;
             my @pairs  = map {$_->($node)} @attrs;
             ($tag => {_ => $node, @pairs});
+          } 
+    : $mixed eq 'TEXTUAL'
+    ? sub { my $tree   = shift or return;
+            my $node   = $tree->node;
+            my @pairs  = map {$_->($node)} @attrs;
+            ($tag => {_ => $node->textContent, @pairs});
+          } 
+    : $mixed eq 'XML_STRING'
+    ? sub { my $tree   = shift or return;
+            my $node   = $tree->node or return;
+            ($tag => $node->toString);
           }
-    : sub { my $tree   = shift;
-            $tree ? ($tag => $tree->node) : ();
-          };
+    : $mixed eq 'STRUCTURAL'
+    ? panic "mixed structural handled as normal element"
+    : panic "unknown mixed_elements value $mixed";
 }
 
 #
@@ -764,21 +785,6 @@ sub attribute_fixed
 {   my ($path, $args, $ns, $tag, $do, $fixed) = @_;
     my $def  = $do->($fixed);
 
-    sub { my $node = $_[0]->getAttributeNodeNS($ns, $tag);
-          my $value = defined $node ? $do->($node) : undef;
-
-          defined $value && $value eq $def
-              or error __x"value of attribute `{tag}' is fixed to `{fixed}', not `{value}' at {path}"
-                  , tag => $tag, fixed => $def, value => $value, path => $path;
-
-          ($tag => $def);
-        };
-}
-
-sub attribute_fixed_optional
-{   my ($path, $args, $ns, $tag, $do, $fixed) = @_;
-    my $def  = $do->($fixed);
-
     sub { my $node  = $_[0]->getAttributeNodeNS($ns, $tag)
               or return ($tag => $def);
 
@@ -797,6 +803,7 @@ sub substgroup
 {   my ($path, $args, $type, %do) = @_;
 
     keys %do or return bless sub { () }, 'BLOCK';
+#warn "SUBST $type; ",join '#', @_;
 
     bless
     sub { my $tree  = shift;
@@ -957,13 +964,13 @@ sub _decode_after($$)
       $call eq 'PRINT_PATH' ? sub {print "$_[2]\n"; $_[1] }
     : $call eq 'XML_NODE'  ?
       sub { my $h = $_[1];
-            ref $h eq 'HASH' or $h = { _ => $h };
+            $h = { _ => $h } if ref $h ne 'HASH';
             $h->{_XML_NODE} = $_[0];
             $h;
           }
     : $call eq 'ELEMENT_ORDER' ?
       sub { my ($xml, $h) = @_;
-            ref $h eq 'HASH' or $h = { _ => $h };
+            $h = { _ => $h } if ref $h ne 'HASH';
             my @order = map {type_of_node $_}
                 grep { $_->isa('XML::LibXML::Element') }
                     $xml->childNodes;
@@ -972,7 +979,7 @@ sub _decode_after($$)
           }
     : $call eq 'ATTRIBUTE_ORDER' ?
       sub { my ($xml, $h) = @_;
-            ref $h eq 'HASH' or $h = { _ => $h };
+            $h = { _ => $h } if ref $h ne 'HASH';
             my @order = map {$_->nodeName} $xml->attributes;
             $h->{_ATTRIBUTE_ORDER} = \@order;
             $h;
@@ -1094,6 +1101,63 @@ results, although this are being processed for validation needs.
 The C<minOccurs> and C<maxOccurs> of C<any> are ignored: the amount of
 elements is always unbounded.  Therefore, you will get an array of
 elements back per type. 
+
+=section Mixed elements
+
+[available since 0.86]
+ComplexType and ComplexContent components can be declared with the
+C<<mixed="true">> attribute.  This implies that text is not limited
+to the content of containers, but may also be used inbetween elements.
+Usually, you will only find ignorable white-space between elements.
+
+In this example, the C<a> container is marked to be mixed:
+  <a id="5"> before <b>2</b> after </a>
+
+Often the "mixed" option is bending one of both ways: either the element
+is needed as text, or the element should be parsed and the text ignored.
+The reader has various options to avoid the need of processing raw
+XML::LibXML nodes.
+
+With M<XML::Compile::Schema::compile(mixed_elements)> set to
+=over 4
+
+=item ATTRIBUTES  (the default)
+a HASH is returned, the attributes are processed.  The node is found
+as M<XML::LibXML::Element> with the key '_'.  Above example will
+produce
+  $r = { id => 5, _ => $xmlnode };
+
+=item TEXTUAL
+Like the previous, but now the textual representation of the content is
+returned with key '_'.  Above example will produce
+  $r = { id => 5, _ => ' before 2 after '};
+
+=item STRUCTURAL
+will remove all mixed-in text, and treat the element as normal element.
+The example will be transformed into
+  $r = { id => 5, b => 2 };
+
+=item XML_NODE
+return the M<XML::LibXML::Node> itself.  The example:
+  $r = $xmlnode;
+
+=item XML_STRING
+return the mixed node as XML string, just as in the source.  Be warned
+that it is rather expensive: the string was parsed and then stringified
+again, which is costly for large nodes.  Result:
+  $r = '<a id="5"> before <b>2</b> after </a>';
+
+=item CODE reference
+the reference is called with the M<XML::LibXML::Node> as first argument.
+When a value is returned (even undef), then the right tag with the value
+will be included in the translators result.  When an empty list is
+returned by the code reference, then nothing is returned (which may
+result in an error if the element is required according to the schema)
+=back
+
+When some of your mixed elements need different behavior from other
+elements, then you have to go play with the normal hooks in specific
+cases.
 
 =section Schema hooks
 
