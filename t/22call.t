@@ -13,10 +13,11 @@ use TestTools;
 
 use XML::Compile::Schema;
 use XML::Compile::Tester;
+#use Log::Report mode => 3;
 
-use Test::More tests => 12;
+use Test::More tests => 11;
 
-my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
+my $schema   = XML::Compile::Schema->new( <<__SCHEMA );
 <schema targetNamespace="$TestNS"
         xmlns="$SchemaNS"
         xmlns:me="$TestNS">
@@ -33,16 +34,13 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <element name="test2" type="int" />
 
 </schema>
-__SCHEMA__
+__SCHEMA
 
 ok(defined $schema);
 
 ###
 ### ComplexType writer
 ###
-
-my $doc = XML::LibXML->createDocument('1.0', 'utf-8');
-isa_ok($doc, 'XML::LibXML::Document');
 
 my $w1   = create_writer $schema, "complexType writer", 'test1';
 

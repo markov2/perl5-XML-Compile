@@ -145,7 +145,7 @@ sub compileTree($@)
     delete $self->{_created};
 
       $self->{include_namespaces}
-    ? $self->make(wrapper_ns => $path, $produce, $self->{output_namespaces})
+    ? $self->make(wrapper_ns => $path, $produce, $self->{prefixes})
     : $produce;
 }
 
@@ -541,22 +541,28 @@ sub element($)
     my $name     = $node->getAttribute('name')
         or error __x"element has no name at {where}"
              , where => $tree->path, _class => 'schema';
+    my $ns       = $self->{tns};
 
     $self->assertType($tree->path, name => NCName => $name);
-    my $fullname = pack_type $self->{tns}, $name;
+    my $fullname = pack_type $ns, $name;
+
+    # Handle re-usable fragments
 
     my $nodeid   = $node->nodePath.'#'.$fullname;
     my $already  = $self->{_created}{$nodeid};
     return $already if $already;
 
-    # detect recursion
+    # Detect recursion
+
     if(exists $self->{_nest}{$nodeid})
     {   my $outer = \$self->{_nest}{$nodeid};
         return sub { $$outer->(@_) };
     }
     $self->{_nest}{$nodeid} = undef;
 
-    my $where    = $tree->path. "#el($name)";
+    # Construct XML tag to use
+
+    my $where    = $tree->path;
     my $form     = $node->getAttribute('form');
     my $qual
       = !defined $form         ? $self->{elems_qual}
@@ -566,7 +572,9 @@ sub element($)
             , form => $form, where => $tree->path, _class => 'schema';
 
     my $trans     = $qual ? 'tag_qualified' : 'tag_unqualified';
-    my $tag       = $self->make($trans => $where, $node, $name, $self->{tns});
+    my $tag       = $self->make($trans => $where, $node, $name, $ns);
+
+    # Construct type processor
 
     my ($typename, $type);
     my $nr_childs = $tree->nrChildren;
@@ -598,15 +606,19 @@ sub element($)
                 , name => $local, where => $where, _class => 'schema';
     }
 
-    my ($before, $replace, $after)
-      = $self->findHooks($where, $typename, $node);
-
     my ($st, $elems, $attrs, $attrs_any)
       = @$type{ qw/st elems attrs attrs_any/ };
     $_ ||= [] for $elems, $attrs, $attrs_any;
 
+    # Collect the hooks
+
+    my ($before, $replace, $after)
+      = $self->findHooks($where, $typename, $node);
+
+    # Construct basic element handler
+
     my $r;
-    if($replace) { ; }             # overrule processing
+    if($replace) { ; }             # do not attempt to compile
     elsif($type->{mixed})          # complexType mixed
     {   $r = $self->make(mixed_element =>
             $where, $tag, $elems, $attrs, $attrs_any);
@@ -623,10 +635,13 @@ sub element($)
     {   $r = $self->make(simple_element => $where, $tag, $st);
     }
 
+    # Implement hooks
+
     my $do = ($before || $replace || $after)
       ? $self->make(hook => $where, $r, $tag, $before, $replace, $after)
       : $r;
 
+    # handle recursion
     # this must look very silly to you... however, this is resolving
     # recursive schemas: this way nested use of the same element
     # definition will catch the code reference of the outer definition.
@@ -666,7 +681,7 @@ sub particle($)
     return $self->anyElement($tree, $min, $max)
         if $local eq 'any';
 
-    my ($label, $process)
+    my ($pns, $label, $process)
       = $local eq 'element'        ? $self->particleElement($tree)
       : $local eq 'group'          ? $self->particleGroup($tree)
       : $local =~ $particle_blocks ? $self->particleBlock($tree)
@@ -676,14 +691,19 @@ sub particle($)
     defined $label
         or return ();
 
-    return $self->make(block_handler => $where, $label, $min, $max, $process, $local)
-        if ref $process eq 'BLOCK';
+    return $self->make(block_handler =>
+        $where, $label, $min, $max, $process, $local)
+            if ref $process eq 'BLOCK';
 
     my $required = $min==0 ? undef
       : $self->make(required => $where, $label, $process);
 
-    ($label => $self->make
-       (element_handler => $where, $label, $min, $max, $required, $process));
+    my $key = defined $pns ? $self->keyRewrite($pns, $label) : $label;
+
+    my $do  = $self->make(element_handler =>
+        $where, $key, $min, $max, $required, $process);
+
+    ( ($self->{action} eq 'READER' ? $label : $key) => $do);
 }
 
 sub particleGroup($)
@@ -706,7 +726,7 @@ sub particleGroup($)
              , name => $typename, where => $where, _class => 'schema';
 
     my $group   = $tree->descend($dest->{node});
-    return {} if $group->nrChildren==0;
+    return () if $group->nrChildren==0;
 
     $group->nrChildren==1
         or error __x"only one particle block expected in group `{name}' at {where}"
@@ -731,7 +751,7 @@ sub particleBlock($)
     my $label     = $pairs[0];
     my $blocktype = $node->localName;
 
-    ($label => $self->make($blocktype => $tree->path, @pairs));
+    (undef, $label => $self->make($blocktype => $tree->path, @pairs));
 }
 
 sub findSgMembers($)
@@ -745,7 +765,7 @@ sub findSgMembers($)
            ? $self->findSgMembers($subgrp->{full})
            : $subgrp;
     }
-#warn "SUBGRPS ", join "\n  ", map {$_->{full}} @subgrps;
+#warn "SUBGRPS for $type\n  ", join "\n  ", map {$_->{full}} @subgrps;
     @subgrps;
 }
         
@@ -770,14 +790,27 @@ sub particleElementSubst($)
              unless $self->{nosubst_notice}{$type}++;
     }
 
+    my %localnames;
     my @elems;
     foreach my $subst (@subgrps)
     {    local @$self{ qw/elems_qual attrs_qual tns/ }
             = $self->nsContext($subst);
-         push @elems, $self->particleElement($tree->descend($subst->{node}));
+
+         my $name = $subst->{name};
+         if(exists $localnames{$name})
+         {   trace "double $name is $localnames{$name} and $subst->{full}";
+             error "twice element `{name}' in substitutionGroup {group}, use rewrite_element"
+               , name => $name, group => $type;
+
+         }
+
+         $localnames{$name} = $subst->{full};
+         my $subst_elem     = $tree->descend($subst->{node});
+         my ($pns, $pname, $do) = $self->particleElement($subst_elem);
+         push @elems, $pname => $do;
     } 
 
-    ($groupname => $self->make(substgroup => $where, $type, @elems));
+    (undef, $groupname => $self->make(substgroup => $where, $type, @elems));
 }
 
 sub particleElement($)
@@ -809,7 +842,7 @@ sub particleElement($)
         or error __x"element needs name or ref at {where}"
              , where => $tree->path, _class => 'schema';
 
-    my $where    = $tree->path . "/el($name)";
+    my $where    = $tree->path . '/' . $name;
     my $default  = $node->getAttributeNode('default');
     my $fixed    = $node->getAttributeNode('fixed');
 
@@ -832,13 +865,63 @@ sub particleElement($)
      : $fixed     ? 'element_fixed'
      :              'element';
 
-    my $ns    = $node->namespaceURI;
+    my $ns    = $self->{tns}; #$node->namespaceURI;
     my $do_el = $self->make($generate => $where, $ns, $name, $do, $value);
 
-    $do_el = $self->make('element_href' => $where, $ns, $name, $do_el)
+    # hrefs are used by SOAP-RPC
+    $do_el = $self->make(element_href => $where, $ns, $name, $do_el)
         if $self->{permit_href} && $self->{action} eq 'READER';
  
-    ($name => $do_el);
+    ($ns, $name => $do_el);
+}
+
+sub keyRewrite($$)
+{   my ($self, $ns, $label) = @_;
+    my $key = $label;
+
+    foreach my $r ( @{$self->{rewrite}} )
+    {   if(ref $r eq 'HASH')
+        {   my $full = pack_type $ns, $key;
+            $key = $r->{$full} if defined $r->{$full};
+            $key = $r->{$key}  if defined $r->{$key};
+        }
+        elsif(ref $r eq 'CODE')
+        {   $key = $r->($ns, $key);
+        }
+        elsif($r eq 'UNDERSCORES')
+        {   $key =~ s/-/_/g;
+        }
+        elsif($r eq 'SIMPLIFIED')
+        {   $key =~ s/-/_/g;
+            $key =~ s/\W//g;
+            $key = lc $key;
+        }
+        elsif($r eq 'PREFIXED')
+        {   my $p = $self->{prefixes};
+            keys %$p > 1 || !exists $p->{''}
+                or error __x"no prefix table provided with key_rewrite";
+
+            my $prefix = $p->{$ns} ? $p->{$ns}{prefix} : '';
+            $key = $prefix . '_' . $key if $prefix ne '';
+        }
+        elsif($r =~ m/^PREFIXED\(\s*(.*?)\s*\)$/)
+        {   my @l = split /\s*\,\s*/, $1;
+            my $p = $self->{prefixes};
+            keys %$p > 1 || !exists $p->{''}
+                or error __x"no prefix table provided with key_rewrite";
+
+            my $prefix = $p->{$ns} ? $p->{$ns}{prefix} : '';
+            $key = $prefix . '_' . $key if grep {$prefix eq $_} @l;
+        }
+        else
+        {   error __x"key rewrite `{got}' not understood", got => $r;
+        }
+    }
+
+    trace "rewrote key $label to $key"
+        if $label ne $key;
+
+    $key;
 }
 
 sub attributeOne($)
@@ -1487,7 +1570,7 @@ options to interfere.
 
 =over 4
 
-=item output_namespaces HASH|ARRAY-of-PAIRS
+=item prefixes HASH|ARRAY-of-PAIRS
 The translator will create XML elements (WRITER) which use name-spaces,
 based on its own name-space/prefix mapping administration.  This is
 needed because the XML tree is created bottom-up, where XML::LibXML
@@ -1510,13 +1593,13 @@ The HASH structure looks like this:
 
   my $make = $schema->compile
     ( WRITER => ...
-    , output_namespaces => \%namespaces
+    , prefixes => \%namespaces
     );
 
   # share the same namespace defs with an other component
   my $other = $schema->compile
     ( WRITER => ...
-    , output_namespaces => \%namespaces
+    , prefixes => \%namespaces
     );
 
 When used is specified and larger than 0, then the namespace will
@@ -1525,7 +1608,7 @@ is false).
 
 Initializing using an ARRAY is a little simpler:
 
- output_namespaces => [ mypref => 'myns', ... => ... ];
+ prefixes => [ mypref => 'myns', ... => ... ];
 
 However, be warned that this does not work well with a false value
 for C<include_namespaces>: detected namespaces are added to an
@@ -1559,7 +1642,7 @@ nice namespace qualified elements.  In such situations, namespace the
 qualified-but-default prefix (i.e., no prefix) is confusing.  Therefore,
 the option defaults to false: do not use the invisible prefix.
 
-You may explicitly specify a blank prefix with C<output_namespaces>,
+You may explicitly specify a blank prefix with C<prefixes>,
 which will be used when applicable.
 =back
 

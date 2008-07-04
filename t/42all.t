@@ -91,7 +91,7 @@ __XML
 $error = reader_error($schema, test1 => <<__XML);
 <test1><t1_a>8</t1_a><extra>9</extra></test1>
 __XML
-is($error, "element `extra' not processed at {http://test-types}test1\#el(test1)");
+is($error, "element `extra' not processed at {http://test-types}test1");
 
 # all itself is not a all, unless minOccurs=0
 $error = reader_error($schema, test1 => <<__XML);
@@ -100,7 +100,7 @@ __XML
 is($error, "data for element or block starting with `t1_a' missing at {http://test-types}test1");
 
 $error = writer_error($schema, test1 => undef);
-is($error, "complex `test1' requires data at {http://test-types}test1\#el(test1)");
+is($error, "complex `test1' requires data at {http://test-types}test1");
 
 test_rw($schema, test2 => <<__XML, {t2_a => 11});
 <test2><t2_a>11</t2_a></test2>

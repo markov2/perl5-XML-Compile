@@ -10,9 +10,9 @@ use TestTools;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 49;
+use Test::More tests => 43;
 
-my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
+my $schema   = XML::Compile::Schema->new( <<__SCHEMA );
 <schema targetNamespace="$TestNS"
         xmlns="$SchemaNS"
         xmlns:me="$TestNS">
@@ -34,42 +34,32 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <element name="test2" type="me:t2" />
 
 </schema>
-__SCHEMA__
+__SCHEMA
 
 ok(defined $schema);
 
-my @errors;
-set_compile_defaults
-   invalid => sub {no warnings; push @errors, "$_[2] ($_[1])"};
-
-test_rw($schema, "test1" => <<__XML__, [1]);
+test_rw($schema, "test1" => <<__XML, [1]);
 <test1>1</test1>
-__XML__
-ok(!@errors);
+__XML
 
-test_rw($schema, "test1" => <<__XML__, [2, 3]);
+test_rw($schema, "test1" => <<__XML, [2, 3]);
 <test1>2 3</test1>
-__XML__
-ok(!@errors);
+__XML
 
-test_rw($schema, "test1" => <<__XML__, [4, 5, 6]);
+test_rw($schema, "test1" => <<__XML, [4, 5, 6]);
 <test1> 4
   5\t  6 </test1>
-__XML__
-ok(!@errors);
+__XML
 
-test_rw($schema, "test2" => <<__XML__, [1]);
+test_rw($schema, "test2" => <<__XML, [1]);
 <test2>1</test2>
-__XML__
-ok(!@errors);
+__XML
 
-test_rw($schema, "test2" => <<__XML__, [2, 3]);
+test_rw($schema, "test2" => <<__XML, [2, 3]);
 <test2>2 3</test2>
-__XML__
-ok(!@errors);
+__XML
 
-test_rw($schema, "test2" => <<__XML__, [4, 5, 6]);
+test_rw($schema, "test2" => <<__XML, [4, 5, 6]);
 <test2> 4
   5\t  6 </test2>
-__XML__
-ok(!@errors);
+__XML

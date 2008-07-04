@@ -91,7 +91,7 @@ ok(defined $h3, 'multiple after predefined');
 select $oldout;
 close BUF;
 
-like($output, qr/^[^\n]*el\(test1\)\n$/, 'PRINT_PATH');
+like($output, qr/\}test1\n$/, 'PRINT_PATH');
 compare_xml($h3, <<__EXPECT);
 <test1>
    <byType>aap</byType>

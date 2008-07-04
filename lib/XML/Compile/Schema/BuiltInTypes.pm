@@ -670,7 +670,7 @@ C<prefix:type> will be translated into the C<{$ns}type> notation.
 For writers, this translation can only happen when the C<$ns> is also
 in use on some other place in the message: the name-space declaration
 can not be added at run-time.  In other cases, you will get a run-time
-error.  Play with M<XML::Compile::Schema::compile(output_namespaces)>,
+error.  Play with M<XML::Compile::Schema::compile(prefixes)>,
 predefining evenything what may be used, setting the C<used> count to C<1>.
 =cut
 

@@ -4,6 +4,22 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.87: Fri Jul  4 15:12:17 CEST 2008
+
+	Changes:
+
+	- removed /el() and #el(name) from location of error message,
+	  which makes the location simpler and probably not less clear.
+
+	Improvements:
+
+	- implemented key_rewrite, tests in t/73rewrite.t
+
+	- removed double check for existence of required value in writer.
+
+	- renamed ::Schema::new() option 'output_namespaces' into
+	  the nicer 'prefixes'.  Old name still available.
+
 version 0.86: Mon Jun 23 17:01:43 CEST 2008
 
 	Fixes:

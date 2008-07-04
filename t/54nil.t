@@ -62,7 +62,7 @@ __XML__
 {   my %t1b = (e1 => undef, e2 => undef, e3 => 45);
     my $error = writer_error($schema, test1 => \%t1b);
 
-    is($error, "required value for `e1' missing at {http://test-types}test1");
+    is($error, "required value for element `e1' missing at {http://test-types}test1");
 }
 
 {   my $error = reader_error($schema, test1 => <<__XML__);

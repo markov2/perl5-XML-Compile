@@ -38,7 +38,7 @@ a (nested) Perl HASH structure onto XML.
 sub tag_qualified
 {   my ($path, $args, $node, $local, $ns) = @_;
 
-    my $out_ns = $args->{output_namespaces} ||= {};
+    my $out_ns = $args->{prefixes} ||= {};
     my $out;
     if($out = $out_ns->{$ns})
     {   # re-use existing prefix
@@ -283,14 +283,9 @@ sub element_handler
               my @values = ref $values eq 'ARRAY' ? @$values
                          : defined $values ? $values : ();
 
-              if(@values!=1)
-              {   @values
-                     or error __x"required value for `{tag}' missing at {path}"
-                          , tag => $label, path => $path;
-                    
-                  error __x"exactly one value needed for `{tag}', not {count} at {path}"
-                    , tag => $label, count => scalar @values, path => $path;
-              }
+              error __x"exactly one value needed for `{tag}', not {count} at {path}"
+                , tag => $label, count => scalar @values, path => $path
+                    if @values > 1;
 
               $required->($doc, $values[0]);
             };
@@ -391,7 +386,11 @@ sub required
     sub { my @nodes = $do->(@_);
           return @nodes if @nodes;
 
-          error __x"data for element or block starting with `{tag}' missing at {path}"
+          error __x"required data for block starting with `{tag}' missing at {path}"
+             , tag => $label, path => $path
+                 if ref $do eq 'BLOCK';
+
+          error __x"required value for element `{tag}' missing at {path}"
              , tag => $label, path => $path;
         };
     bless $req, 'BLOCK' if ref $do eq 'BLOCK';
@@ -640,7 +639,7 @@ sub builtin
       : N__"illegal value `{value}' for type {type} at {path}";
 
     my $format = $def->{format};
-    my $trans  = $args->{output_namespaces};
+    my $trans  = $args->{prefixes};
 
     $check
     ? ( defined $format

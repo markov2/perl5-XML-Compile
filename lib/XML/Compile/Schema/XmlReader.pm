@@ -319,22 +319,8 @@ sub block_handler
     # not be an additional nesting in the output tree.
     if($max ne 'unbounded' && $max==1)
     {   return ($label => $process) if $min==1;
-        my $code =      # $min==0
-        sub { my $tree    = shift or return ();
-              my $starter = $tree->currentChild or return;
-              my @pairs   = try { $process->($tree) };
-              if($@->wasFatal(class => 'misfit'))
-              {   # error is ok, if nothing consumed
-                  trace "misfit $label (optional) ".$@->wasFatal->message;
-                  my $ending = $tree->currentChild;
-                  $@->reportAll if !$ending || $ending!=$starter;
-                  return ();
-              }
-              elsif($@) {$@->reportAll};
-
-              @pairs;
-            };
-         return ($label => bless($code, 'BLOCK'));
+        my $code = sub { $_[0] && $_[0]->currentChild ? $process->($_[0]) : ()};
+        return ($label => bless($code, 'BLOCK'));
     }
 
     if($max ne 'unbounded' && $min>=$max)
@@ -801,9 +787,7 @@ sub attribute_fixed
 
 sub substgroup
 {   my ($path, $args, $type, %do) = @_;
-
     keys %do or return bless sub { () }, 'BLOCK';
-#warn "SUBST $type; ",join '#', @_;
 
     bless
     sub { my $tree  = shift;
@@ -1194,7 +1178,7 @@ M<XML::LibXML::Simple> to translate a part of your tree.  Simply
    ( type    => ...bad-type-definition...
    , replace =>
        sub { my ($xml, $args, $path, $local) = @_;
-             $local => XMLin($xml, ...);
+             ($local => XMLin($xml, ...));
            }
    );
 

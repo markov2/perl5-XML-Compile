@@ -91,7 +91,7 @@ ok(defined $h3, 'multiple after predefined');
 select $oldout;
 close BUF;
 
-like($output, qr/^[^\n]*\(byId\)\n$/, 'PRINT_PATH');
+like($output, qr[\}test1/byId\n$], 'PRINT_PATH');
 is(ref($h3->{byId}), 'HASH', 'simpleType expanded');
 ok(exists $h3->{byId}{_});
 cmp_ok($h3->{byId}{_}, '==', 2);

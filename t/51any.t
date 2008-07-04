@@ -150,7 +150,7 @@ my %h2c = (tns_a => 21, tns_e => 22
   );
 
 $error = writer_error($schema, test2 => \%h2c);
-is($error, "unused tags {http://x}for_at {http://x}for_el at {http://test-types}test2#el(test2)");
+is($error, "unused tags {http://x}for_at {http://x}for_el at {http://test-types}test2");
 
 #
 # Take only other namespace
@@ -190,7 +190,7 @@ my %h3c =
  );
 
 $error = writer_error($schema, test3 => \%h3c);
-is($error, "unused tags {http://test-types}nat_at {http://test-types}nat_el at {http://test-types}test3#el(test3)");
+is($error, "unused tags {http://test-types}nat_at {http://test-types}nat_el at {http://test-types}test3");
 
 #
 # Take any namespace

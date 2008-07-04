@@ -108,7 +108,7 @@ is($error, "attribute `a1_b' is required at {http://test-types}test1/\@a1_b");
 
 my %t1_c = (a1_b => 24, t1_a => 25);
 $error = writer_error($schema, test1 => \%t1_c);
-is($error, "required value for `t1_b' missing at {http://test-types}test1");
+is($error, "required value for element `t1_b' missing at {http://test-types}test1");
 
 ## test 2  attributeGroup
 

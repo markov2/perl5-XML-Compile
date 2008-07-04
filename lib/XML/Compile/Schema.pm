@@ -183,6 +183,10 @@ See M<addHooks()>.
 HASH of Schema type to Perl object or Perl class.  See L</Typemaps>, the
 serialization of objects.
 
+=option  key_rewrite HASH|CODE|ARRAY-of-HASH-and-CODE
+=default key_rewrite []
+Translate XML keys into different Perl keys.  See L</Key rewrite>.
+
 =option  ignore_unused_tags BOOLEAN|REGEXP
 =default ignore_unused_tags <false>
 (WRITER) Usually, a C<mistake> warning is produced when a user provides
@@ -212,6 +216,11 @@ sub init($)
     {   $self->addHooks(ref $h2 eq 'ARRAY' ? @$h2 : $h2);
     }
  
+    $self->{key_rewrite} = [];
+    if(my $kr = $args->{key_rewrite})
+    {   $self->addKeyRewrite(ref $kr eq 'ARRAY' ? @$kr : $kr);
+    }
+
     $self->{typemap}     = $args->{typemap} || {};
     $self->{unused_tags} = $args->{ignore_unused_tags};
 
@@ -318,6 +327,20 @@ sub addSchemas($@)
     @schemas;
 }
 
+=method addKeyRewrite CODE|HASH, CODE|HASH, ...
+Add new rewrite rules to the existing list (initially provided with
+M<new(key_rewrite)>).  The whole list of rewrite rules is returned.
+
+The last added set of rewrite rules will be applied first.  See
+L</Key rewrite>.
+=cut
+
+sub addKeyRewrite(@)
+{   my $self = shift;
+    unshift @{$self->{key_rewrite}}, @_;
+    @{$self->{key_rewrite}};
+}
+
 #--------------------------------------
 
 =section Compilers
@@ -401,14 +424,18 @@ When defined, this will overrule the C<attributeFormDefault> flags in
 all schemas.  When not qualified, the xml will not produce nor
 process prefixes on attributes.
 
+=option  prefixes HASH|ARRAY-of-PAIRS
+=default prefixes {}
+Can be used to pre-define prefixes for namespaces (for 'WRITER' or
+key rewrite) for instance to reserve common abbreviations like C<soap>
+for external use.  Each entry in the hash has as key the namespace uri.
+The value is a hash which contains C<uri>, C<prefix>, and C<used> fields.
+Pass a reference to a private hash to catch this index.  An ARRAY with
+prefix, uri PAIRS is simpler.
+
 =option  output_namespaces HASH|ARRAY-of-PAIRS
-=default output_namespaces {}
-Can be used to predefine an output namespace (when 'WRITER') for instance
-to reserve common abbreviations like C<soap> for external use.  Each
-entry in the hash has as key the namespace uri.  The value is a hash
-which contains C<uri>, C<prefix>, and C<used> fields.  Pass a reference
-to a private hash to catch this index.  An ARRAY with prefix, uri PAIRS
-is simpler.
+=default output_namespaces undef
+Pre release 0.87 name for the C<prefixes> option.
 
 =option  include_namespaces BOOLEAN
 =default include_namespaces <true>
@@ -419,7 +446,7 @@ XML components into one, and add the namespaces later.
 
 =option  namespace_reset BOOLEAN
 =default namespace_reset <false>
-Use the same prefixes in C<output_namespaces> as with some other compiled
+Use the same prefixes in C<prefixes> as with some other compiled
 piece, but reset the counts to zero first.
 
 =option  use_default_prefix BOOLEAN
@@ -500,8 +527,13 @@ M<addTypemaps()>
 =option  mixed_elements CODE|PREDEFINED
 =default mixed_elements 'ATTRIBUTES'
 (reader) What to do when mixed schema elements are to be processed.  Read
-more in the L<DETAILS> section below, and in the manual page of
+more in the L</DETAILS> section below, and in the manual page of
 M<XML::Compile::Schema::XmlReader>
+
+=option  key_rewrite HASH|CODE|ARRAY-of-HASH-and-CODE
+=default key_rewrite []
+Add key rewrite rules to the front of the list of rules, as set by
+M<new(key_rewrite)> and M<addKeyRewrite()>.  See L</Key rewrite>
 =cut
 
 sub compile($$@)
@@ -536,23 +568,23 @@ sub compile($$@)
             if $@;
     }
 
-    my $outns = $args{output_namespaces} ||= {};
-    if(ref $outns eq 'ARRAY')
-    {   my @ns = @$outns;
-        $outns = $args{output_namespaces} = {};
+    my $prefs = $args{prefixes} ||= $args{output_namespaces} || {};
+    if(ref $prefs eq 'ARRAY')
+    {   my @ns = @$prefs;
+        $prefs = $args{prefixes} = {};
         while(@ns)
         {   my ($prefix, $uri) = (shift @ns, shift @ns);
-            $outns->{$uri} = { uri => $uri, prefix => $prefix };
+            $prefs->{$uri} = { uri => $uri, prefix => $prefix };
         }
     }
 
     my $saw_default = 0;
-    foreach (values %$outns)
+    foreach (values %$prefs)
     {   $_->{used} = 0 if $args{namespace_reset};
         $saw_default ||= $_->{prefix} eq '';
     }
 
-    $outns->{''} = {uri => '', prefix => '', used => 0}
+    $prefs->{''} = {uri => '', prefix => '', used => 0}
         if !$saw_default && !$args{use_default_prefix};
 
     my $nss   = $self->namespaces;
@@ -564,6 +596,10 @@ sub compile($$@)
 
     my %map = ( %{$self->{typemap}}, %{$args{typemap} || {}} );
     trace "schema compile $action for $type";
+
+    my @rewrite = @{$self->{key_rewrite}};
+    my $kw = delete $args{key_rewrite} || [];
+    unshift @rewrite, ref $kw eq 'ARRAY' ? @$kw : $kw;
 
     my $impl
      = $action eq 'READER' ? 'XmlReader'
@@ -582,6 +618,7 @@ sub compile($$@)
      , hooks   => \@hooks
      , action  => $action
      , typemap => \%map
+     , rewrite => \@rewrite
      );
 }
 
@@ -1467,7 +1504,7 @@ of the following alternatives:
   ::Schema->compile(..., ignore_unused_tags => 1);
   ::Schema->compile(..., ignore_unused_tags => $not_for_xml);
 
-=subsection Limitations
+=subsection Typemap limitations
 
 There are some things you need to know:
 
@@ -1481,6 +1518,150 @@ some parent type.  The CODE reference may be very useful in this case.
 =item .
 A same kind of problem appears when you have a list in your object,
 which often is not named in the schema.
+
+=back
+
+=section Key rewrite
+
+[Added in release 0.87]
+The standard practice is to use the localName of the XML elements
+as key in the Perl HASH; the key rewrite mechanism is used to
+change that, sometimes to seperate elements which have the same
+localName within different name-spaces, in other cases just for
+fun or convenience.
+
+Rewrite rules are interpreted at "compile-time", which means that they
+B<do not slow-down> the XML construction or deconstruction.  The rules
+work the same for readers and writers, because they are applied to
+name found in the schema.
+
+Key rewrite rules can be set during schema object initiation,
+with M<new(key_rewrite)>, or to an existing schema object with
+M<addKeyRewrite()>.  The last defined rewrite rules will be applied
+first.  These rules will be used in all calls to M<compile()>.
+
+Besides, you can use M<compile(key_rewrite)> to add rules which
+are only used for a single compilation.  These are applied before
+the global rules.  All rules will always be attempted, and the
+changes will me made to the key after the previous change.
+
+=subsection rewrite via table
+
+When a HASH is provided as rule, then the XML element name is looked-up.
+If found, the value is used as translated key.
+
+First full name of the element is tried, and then the localName of
+the element.  The full name can be created with
+M<XML::Compile::Util::pack_type()> or by hand:
+
+  use XML::Compile::Util qw/pack_type/;
+
+  my %table =
+    ( pack_type($myns, 'el1') => 'nice_name1'
+    , "{$myns}el2" => 'alsoNice'
+    , el3          => 'in any namespace'
+    );
+  $schema->addKeyRewrite( \%table );
+
+=subsection rewrite via function
+
+When a CODE reference is provided, it will get called for each key
+which is found in the schema.  Passed are the name-space of the
+element and its local-name.  Returned is the key, which may be the
+local-name or something else.
+
+For instance, some people use capitals in element names and personally
+I do not like them:
+
+  sub dont_like_capitals($$)
+  {   my ($ns, $local) = @_;
+      lc $local;
+  }
+  $schema->addKeyRewrite( \&dont_like_capitals );
+
+for short:
+
+  my $schema = XML::Compile::Schema->new( ..., 
+      key_rewrite => sub { lc $_[1] } );
+
+=subsection rewrite when localName collides
+
+Let's start with an appology: we cannot auto-detect when these rewrite
+rules are needed, because the colliding keys are within the same HASH,
+but the processing is fragmented over various (sequence) blocks: the
+parser does not have the overview on which keys of the HASH are used
+for which elements.
+
+The problem occurs when one complex type or substitutionGroup contains
+multiple elements with the same localName, but from different name-spaces.
+In the perl representation of the data, the name-spaces get ignored
+(to make the programmer's life simple) but that may cause these nasty
+conflicts.
+
+=subsection rewrite for convenience
+
+In XML, we often see names like C<my-elem-name>, which in Perl
+would be accessed as
+
+  $h->{'my-elem-name'}
+
+In this case, you cannot leave-out the quotes in your perl code, which is
+quite inconvenient, because only 'barewords' can be used as keys unquoted.
+When you use option C<key_rewrite> for M<compile()> or M<new()>, you
+could decide to map dashes onto underscores.
+
+  key_rewrite
+     => sub { my ($ns, $local) = @_; $local =~ s/\-/_/g; $local }
+
+  key_rewrite => sub { $_[1] =~ s/\-/_/g; $_[1] }
+
+then C<< my-elem-name >> in XML will get mapped onto C<< my_elem_name >>
+in Perl, both in the READER as the WRITER.  Be warned that the substitute
+command returns the success, not the modified value!
+
+=subsection pre-defined rewrite rules
+
+=over 4
+=item UNDERSCORES
+Replace dashes (-) with underscores (_).
+
+=item SIMPLIFIED
+Rewrite rule with the constant name (STRING) C<SIMPLIFIED> will replace
+all dashes with underscores, translate capitals into lowercase, and
+remove all other characters which are none-bareword (if possible, I am
+too lazy to check)
+
+=item PREFIXED
+This requires a table for prefix to name-space translations, via
+M<compile(prefixes)>, which defines at least one non-empty (default)
+prefix.  The keys which represent elements in any name-space which has
+a prefix defined will have that prefix and an underscore prepended.
+
+Be warned that the name-spaces which you provide are used, not the
+once used in the schema.  Example:
+
+  my $r = $schema->compile
+    ( READER => $type
+    , prefixes    => [ mine => $myns ]
+    , key_rewrite => 'PREFIXED'
+    );
+
+  my $xml = $r->( <<__XML );
+<data xmlns="$myns"><x>42</x></data>
+__XML
+
+  print join ' => ', %$xml;    #   mine_x => 42
+
+=item PREFIXED(...)
+
+Like the previous, but now only use a selected sub-set of the available
+prefixes.  This is particular useful in writers, when explicit prefixes
+are also used to beautify the output.
+
+The prefixes are not checked against the prefix list, and may have
+surrounding blanks.
+
+  key_rewrite => 'PREFIXED(opt,sar)'
 
 =back
 

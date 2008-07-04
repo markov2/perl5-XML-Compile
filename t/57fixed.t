@@ -58,7 +58,7 @@ compare_xml $x1, '<test1><t1b>13</t1b></test1>';
 
 my %t1c = (t1a => 'wrong', t1b => 12, t1c => 42);
 my $error = writer_error($schema, test1 => \%t1c);
-is($error, "element `t1a' has value fixed to `not-changeable', got `wrong' at {http://test-types}test1/el(t1a)");
+is($error, "element `t1a' has value fixed to `not-changeable', got `wrong' at {http://test-types}test1/t1a");
 
 #
 # Optional fixed integers
