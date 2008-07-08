@@ -83,7 +83,8 @@ sub _block($@)
     sub { my @elems  = map { $_->() } odd_elements @pairs;
           my @tags   = map { $_->{tag} } @elems;
 
-          my $struct = "$block of ". join(', ',@tags);
+          local $" = ', ';
+          my $struct = @tags ? "$block of @tags" : "empty $block";
           my @lines;
           while(length $struct > 65)
           {   $struct =~ s/(.{1,60})(\s)//;
@@ -92,7 +93,6 @@ sub _block($@)
           push @lines, $struct;
           $lines[$_] =~ s/^/  / for 1..$#lines;
 
-          local $" = ', ';
            { tag    => $block
            , elems  => \@elems
            , struct => \@lines
@@ -131,7 +131,7 @@ sub block_handler
 
 sub element_handler
 {   my ($path, $args, $label, $min, $max, $req, $opt) = @_;
-    sub { my $data = $opt->();
+    sub { my $data = $opt->() or return;
           my $occur
            = $max eq 'unbounded' && $min==0 ? 'occurs any number of times'
            : $max ne 'unbounded' && $max==1 && $min==0 ? 'is optional' 
@@ -172,6 +172,11 @@ sub element_fixed
 sub element_nillable
 {   my ($path, $args, $ns, $childname, $do) = @_;
     sub { (occur => "$childname is nillable", $do->()) };
+}
+
+sub element_abstract
+{   my ($path, $args, $ns, $childname, $do) = @_;
+    sub { () };
 }
 
 my %recurse;
@@ -361,13 +366,13 @@ sub attribute_fixed
 }
 
 sub substgroup
-{   my ($path, $args, $type, %do) = @_;
-    my ($first, $do) = keys %do;
+{   my ($path, $args, $type, @do) = @_;
+    my @tags = sort map { $_->[0] } odd_elements @do;
+
     sub { +{ kind    => 'substitution group'
-           , tag     => (unpack_type $type)[1]
-           , struct  => [ "substitutionGroup $type:"
-                        , map { "   $_" } sort keys %do ]
-           , example => 'HASH with one pair'
+           , tag     => $do[1][0]
+           , struct  => [ "substitutionGroup $type:", map { "   $_" } @tags ]
+           , example => "{ $tags[0] => {...} }"
            }
         };
 }

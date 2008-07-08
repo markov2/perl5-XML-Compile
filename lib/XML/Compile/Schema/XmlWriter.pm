@@ -443,6 +443,14 @@ sub element_default
     sub { defined $_[1] ? $do->(@_) : (); };
 }
 
+sub element_abstract
+{   my ($path, $args, $ns, $childname, $do, $default) = @_;
+    sub { defined $_[1] or return ();
+          error __x"attempt to instantiate abstract element `{name}' at {where}"
+            , name => $childname, where => $path;
+        };
+}
+
 #
 # complexType/ComplexContent
 #
@@ -714,9 +722,10 @@ sub union
 }
 
 sub substgroup
-{   my ($path, $args, $type, %do) = @_;
+{   my ($path, $args, $type, %done) = @_;
 
-    keys %do or return bless sub { () }, 'BLOCK';
+    keys %done or return bless sub { () }, 'BLOCK';
+    my %do = map { @$_ } values %done;
 
     bless
     sub { my ($doc, $values) = @_;

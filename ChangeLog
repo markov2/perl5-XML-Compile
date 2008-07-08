@@ -4,6 +4,28 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.88: Tue Jul  8 10:38:26 CEST 2008
+
+	Fixes:
+
+	- SubstitutionGroups do not require to be based on abstract
+	  elements.
+
+	- include name-space while collecting nodes to read, not only
+	  local-names.	Now nodes with the same local-name but different
+	  name-space can be used in one block or substituteGroup.
+
+	- make rewrite work for substitutionGroups
+
+	Improvements:
+
+	- error when abstract elements are being used, tests
+	  in t/34abstract.t
+
+	- more speed at subst-group lookups.
+
+	- template shows empty blocks explicitly.
+
 version 0.87: Fri Jul  4 15:12:17 CEST 2008
 
 	Changes:

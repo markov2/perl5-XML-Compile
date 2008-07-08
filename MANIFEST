@@ -50,6 +50,7 @@ t/30compile.t
 t/31elem.t
 t/32attr.t
 t/33ref.t
+t/34abstract.t
 t/39ns.t
 t/40seq.t
 t/41choice.t

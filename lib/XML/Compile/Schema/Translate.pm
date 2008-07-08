@@ -576,19 +576,19 @@ sub element($)
 
     # Construct type processor
 
-    my ($typename, $type);
+    my ($componentsname, $components);
     my $nr_childs = $tree->nrChildren;
     if(my $isa = $node->getAttribute('type'))
     {   $nr_childs==0
             or error __x"no childs expected with attribute `type' at {where}"
                    , where => $where, _class => 'schema';
 
-        $typename = $self->rel2abs($where, $node, $isa);
-        $type     = $self->typeByName($tree, $typename);
+        $componentsname = $self->rel2abs($where, $node, $isa);
+        $components     = $self->typeByName($tree, $componentsname);
     }
     elsif($nr_childs==0)
-    {   $typename = $self->anyType($node);
-        $type     = $self->typeByName($tree, $typename);
+    {   $componentsname = $self->anyType($node);
+        $components     = $self->typeByName($tree, $componentsname);
     }
     elsif($nr_childs!=1)
     {   error __x"expected is only one child at {where}"
@@ -599,7 +599,7 @@ sub element($)
         my $local = $child->localname;
         my $nest  = $tree->descend($child);
 
-        $type
+        $components
           = $local eq 'simpleType'  ? $self->simpleType($nest, 0)
           : $local eq 'complexType' ? $self->complexType($nest)
           : error __x"illegal element child `{name}' at {where}"
@@ -607,19 +607,18 @@ sub element($)
     }
 
     my ($st, $elems, $attrs, $attrs_any)
-      = @$type{ qw/st elems attrs attrs_any/ };
+      = @$components{ qw/st elems attrs attrs_any/ };
     $_ ||= [] for $elems, $attrs, $attrs_any;
 
     # Collect the hooks
 
     my ($before, $replace, $after)
-      = $self->findHooks($where, $typename, $node);
+      = $self->findHooks($where, $componentsname, $node);
 
     # Construct basic element handler
-
     my $r;
     if($replace) { ; }             # do not attempt to compile
-    elsif($type->{mixed})          # complexType mixed
+    elsif($components->{mixed})          # complexType mixed
     {   $r = $self->make(mixed_element =>
             $where, $tag, $elems, $attrs, $attrs_any);
     }
@@ -681,7 +680,7 @@ sub particle($)
     return $self->anyElement($tree, $min, $max)
         if $local eq 'any';
 
-    my ($pns, $label, $process)
+    my ($label, $process)
       = $local eq 'element'        ? $self->particleElement($tree)
       : $local eq 'group'          ? $self->particleGroup($tree)
       : $local =~ $particle_blocks ? $self->particleBlock($tree)
@@ -698,7 +697,7 @@ sub particle($)
     my $required = $min==0 ? undef
       : $self->make(required => $where, $label, $process);
 
-    my $key = defined $pns ? $self->keyRewrite($pns, $label) : $label;
+    my $key = $local eq 'element' ? $self->keyRewrite($label) : $label;
 
     my $do  = $self->make(element_handler =>
         $where, $key, $min, $max, $required, $process);
@@ -751,66 +750,47 @@ sub particleBlock($)
     my $label     = $pairs[0];
     my $blocktype = $node->localName;
 
-    (undef, $label => $self->make($blocktype => $tree->path, @pairs));
+    ($label => $self->make($blocktype => $tree->path, @pairs));
 }
 
 sub findSgMembers($)
 {   my ($self, $type) = @_;
     my @subgrps;
-    foreach my $subgrp ($self->namespaces->findSgMembers($type))
-    {   my $node     = $subgrp->{node};
-        my $abstract = $node->getAttribute('abstract') || 'false';
-
-        push @subgrps, $self->isTrue($abstract)
-           ? $self->findSgMembers($subgrp->{full})
-           : $subgrp;
+    foreach my $s ($self->namespaces->findSgMembers($type))
+    {   push @subgrps, $s, $self->findSgMembers($s->{full});
     }
+
 #warn "SUBGRPS for $type\n  ", join "\n  ", map {$_->{full}} @subgrps;
     @subgrps;
 }
-        
-sub particleElementSubst($)
+
+sub particleElementRef($)
 {   my ($self, $tree) = @_;
 
     my $node  = $tree->node;
     my $where = $tree->path . '#subst';
 
-    my $groupname = $node->getAttribute('name')
-        or error __x"substitutionGroup element needs name at {where}"
-               , where => $tree->path, _class => 'schema';
+    my $name  = $node->getAttribute('name'); # toplevel always has a name
+    my $type  = pack_type $self->{tns}, $name;
 
-    my $tns     = $self->{tns};
-    my $type    = pack_type $tns, $groupname;
-    my @subgrps = $self->findSgMembers($type);
+    my @sgs   = $self->findSgMembers($type);
+    @sgs or return $self->particleElement($tree); # simple
 
-    # at least the base is expected
-    unless(@subgrps)
-    {   trace __x"no substitutionGroups found for {type} at {where}"
-          , type => $type, where => $where, _class => 'schema'
-             unless $self->{nosubst_notice}{$type}++;
-    }
+#warn "SUBST $type\n";
+#warn "  $_->{full}\n" for @sgs;
+    my ($label, $do) = $self->particleElement($tree);
+    my @elems = ($label => [$self->keyRewrite($label), $do]);
 
-    my %localnames;
-    my @elems;
-    foreach my $subst (@subgrps)
+    foreach my $subst (@sgs)
     {    local @$self{ qw/elems_qual attrs_qual tns/ }
             = $self->nsContext($subst);
 
-         my $name = $subst->{name};
-         if(exists $localnames{$name})
-         {   trace "double $name is $localnames{$name} and $subst->{full}";
-             error "twice element `{name}' in substitutionGroup {group}, use rewrite_element"
-               , name => $name, group => $type;
-
-         }
-
-         $localnames{$name} = $subst->{full};
-         my $subst_elem     = $tree->descend($subst->{node});
-         my ($pns, $pname, $do) = $self->particleElement($subst_elem);
-         push @elems, $pname => $do;
+         my $subst_elem = $tree->descend($subst->{node});
+         my ($l, $d) = $self->particleElement($subst_elem);
+         push @elems, $l => [$self->keyRewrite($l), $d];
     } 
 
-    (undef, $groupname => $self->make(substgroup => $where, $type, @elems));
+    ($name => $self->make(substgroup => $where, $type, @elems));
 }
 
 sub particleElement($)
@@ -823,24 +803,21 @@ sub particleElement($)
         my $where    = $tree->path . "/$ref";
  
         my $def      = $self->namespaces->find(element => $refname)
-            or error __x"cannot find element '{name}' at {where}"
+            or error __x"cannot find ref element '{name}' at {where}"
                    , name => $refname, where => $where, _class => 'schema';
 
-        local @$self{ qw/elems_qual attrs_qual tns/ }
-                     = $self->nsContext($def);
-
         my $refnode  = $def->{node};
-        my $abstract = $refnode->getAttribute('abstract') || 'false';
-        $self->assertType($where, abstract => boolean => $abstract);
 
-        return $self->isTrue($abstract)
-          ? $self->particleElementSubst($tree->descend($refnode))
-          : $self->particleElement($tree->descend($refnode));
+        local @$self{ qw/elems_qual attrs_qual tns/ }
+            = $self->nsContext($def);
+
+        return $self->particleElementRef($tree->descend($refnode));
     }
 
     my $name     = $node->getAttribute('name')
         or error __x"element needs name or ref at {where}"
              , where => $tree->path, _class => 'schema';
+    my $full     = pack_type $self->{tns}, $name;
 
     my $where    = $tree->path . '/' . $name;
     my $default  = $node->getAttributeNode('default');
@@ -851,7 +828,7 @@ sub particleElement($)
               , where => $tree->path, _class => 'schema';
 
     my $nillable = $node->getAttribute('nillable') || 'false';
-    $self->assertType($where, nillable => boolean => $nillable);
+    my $abstract = $node->getAttribute('abstract') || 'false';
 
     my $do       = $self->element($tree->descend($node, $name));
 
@@ -859,25 +836,29 @@ sub particleElement($)
        = $default ? $default->textContent
        : $fixed   ? $fixed->textContent
        :            undef;
+
     my $generate
-     = $self->isTrue($nillable) ? 'element_nillable'
+     = $self->isTrue($abstract) ? 'element_abstract'
+     : $self->isTrue($nillable) ? 'element_nillable'
      : $default   ? 'element_default'
      : $fixed     ? 'element_fixed'
      :              'element';
 
+    my $nodetype  = $self->{elems_qual} ? $full : $name;
+
     my $ns    = $self->{tns}; #$node->namespaceURI;
-    my $do_el = $self->make($generate => $where, $ns, $name, $do, $value);
+    my $do_el = $self->make($generate => $where, $ns, $nodetype, $do, $value);
 
     # hrefs are used by SOAP-RPC
-    $do_el = $self->make(element_href => $where, $ns, $name, $do_el)
+    $do_el = $self->make(element_href => $where, $ns, $nodetype, $do_el)
         if $self->{permit_href} && $self->{action} eq 'READER';
  
-    ($ns, $name => $do_el);
+    ($nodetype => $do_el);
 }
 
-sub keyRewrite($$)
-{   my ($self, $ns, $label) = @_;
-    my $key = $label;
+sub keyRewrite($)
+{   my ($self, $label) = @_;
+    my ($ns, $key) = unpack_type $label;
 
     foreach my $r ( @{$self->{rewrite}} )
     {   if(ref $r eq 'HASH')
@@ -918,9 +899,10 @@ sub keyRewrite($$)
         }
     }
 
-    trace "rewrote key $label to $key"
-        if $label ne $key;
+    return (unpack_type $label)[1]
+        if $label eq $key;
 
+    trace "rewrote key $label to $key";
     $key;
 }
 

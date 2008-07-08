@@ -133,7 +133,7 @@ sub sequence($@)
     {   my ($take, $action) = @pairs;
         return bless
         sub { my $tree = shift;
-              $action->($tree && $tree->currentLocal eq $take ? $tree : undef);
+              $action->($tree && $tree->currentType eq $take ? $tree : undef);
             }, 'BLOCK';
     }
 
@@ -146,7 +146,7 @@ sub sequence($@)
               push @res, ref $do eq 'BLOCK'
                       || ref $do eq 'ANY'
                       || ! defined $tree
-                      || $tree->currentLocal eq $take
+                      || $tree->currentType eq $take
                        ? $do->($tree) : $do->(undef);
           }
 
@@ -165,28 +165,28 @@ sub choice($@)
     if(keys %do==1 && !@specials)
     {   my ($option, $action) = %do;
         return bless
-        sub { my $tree  = shift;
-              my $local = defined $tree  ? $tree->currentLocal : '';
+        sub { my $tree = shift;
+              my $type = defined $tree ? $tree->currentType : '';
               return $action->($tree)
-                  if $local eq $option;
+                  if $type eq $option;
 
               try { $action->(undef) };  # minOccurs=0
               $@ or return ();
 
-              $local
-                 or error __x"element `{tag}' expected for choice at {path}"
-                   , tag => $option, path => $path, _class => 'misfit';
+              $type
+                  or error __x"element `{tag}' expected for choice at {path}"
+                       , tag => $option, path => $path, _class => 'misfit';
 
-              error __x"single choice option `{option}' for `{tag}' at {path}"
-                , option => $option, tag => $local, path => $path
+              error __x"single choice option `{option}' at `{type}' at {path}"
+                , option => $option, type => $type, path => $path
                 , _class => 'misfit';
          }, 'BLOCK';
     }
 
     @specials or return bless
-    sub { my $tree  = shift;
-          my $local = defined $tree  ? $tree->currentLocal : undef;
-          my $elem  = defined $local ? $do{$local} : undef;
+    sub { my $tree = shift;
+          my $type = defined $tree  ? $tree->currentType : undef;
+          my $elem = defined $type ? $do{$type} : undef;
           return $elem->($tree) if $elem;
 
           # very silly situation: some people use a minOccurs within
@@ -196,20 +196,20 @@ sub choice($@)
               $@ or return;
           }
 
-          $local
+          $type
               or error __x"no element left to pick choice at {path}"
                    , path => $path, _class => 'misfit';
 
           trace "choose element from @{[sort keys %do]}";
 
           error __x"no applicable choice for `{tag}' at {path}"
-            , tag => $local, path => $path, _class => 'misfit';
+            , tag => $type, path => $path, _class => 'misfit';
     }, 'BLOCK';
 
     return bless
-    sub { my $tree  = shift;
-          my $local = defined $tree  ? $tree->currentLocal : undef;
-          my $elem  = defined $local ? $do{$local} : undef;
+    sub { my $tree = shift;
+          my $type = defined $tree ? $tree->currentType : undef;
+          my $elem = defined $type ? $do{$type} : undef;
           return $elem->($tree) if $elem;
 
           my @special_errors;
@@ -225,7 +225,7 @@ sub choice($@)
               $@ or return ();
           }
 
-          $local
+          $type
               or error __x"choice needs more elements at {path}"
                    , path => $path, _class => 'misfit';
 
@@ -234,7 +234,7 @@ sub choice($@)
           trace "failed specials in choice: $_" for @special_errors;
 
           error __x"no applicable choice for `{tag}' at {path}"
-            , tag => $local, path => $path, _class => 'misfit';
+            , tag => $type, path => $path, _class => 'misfit';
     }, 'BLOCK';
 }
 
@@ -250,7 +250,7 @@ sub all($@)
     {   my ($take, $do) = %pairs;
         return bless
         sub { my $tree = shift;
-              $do->($tree && $tree->currentLocal eq $take ? $tree : undef);
+              $do->($tree && $tree->currentType eq $take ? $tree : undef);
             }, 'BLOCK';
     }
 
@@ -259,8 +259,8 @@ sub all($@)
           my %do   = %pairs;
           my @res;
           while(1)
-          {   my $local = $tree && $tree->currentLocal or last;
-              my $do    = delete $do{$local}  or last; # already seen?
+          {   my $type = $tree && $tree->currentType or last;
+              my $do   = delete $do{$type}  or last; # already seen?
               push @res, $do->($tree);
           }
 
@@ -280,8 +280,8 @@ sub all($@)
           my @res;
        PARTICLE:
           while(1)
-          {   my $local = $tree->currentLocal or last;
-              if(my $do = delete $do{$local})
+          {   my $type = $tree->currentType or last;
+              if(my $do = delete $do{$type})
               {   push @res, $do->($tree);
                   next PARTICLE;
               }
@@ -461,12 +461,13 @@ sub element_handler
 
 sub required
 {   my ($path, $args, $label, $do) = @_;
+
     my $req =
     sub { my $tree  = shift;  # can be undef
           my @pairs = $do->($tree);
           @pairs
-              or error __x"data for element or block starting with `{tag}' missing at {path}"
-                     , tag => $label, path => $path, _class => 'misfit';
+          or error __x"data for element or block starting with `{tag}' missing at {path}"
+               , tag => $label, path => $path, _class => 'misfit';
           @pairs;
         };
     ref $do eq 'BLOCK' ? bless($req, 'BLOCK') : $req;
@@ -478,7 +479,7 @@ sub element_href
     sub { my $tree  = shift;
           return ($childname => $tree->node)
               if defined $tree
-              && $tree->nodeLocal eq $childname
+              && $tree->nodeType eq $childname
               && $tree->node->hasAttribute('href');
 
           $do->($tree);
@@ -489,7 +490,7 @@ sub element
 {   my ($path, $args, $ns, $childname, $do) = @_;
 
     sub { my $tree  = shift;
-          my $value = defined $tree && $tree->nodeLocal eq $childname
+          my $value = defined $tree && $tree->nodeType eq $childname
              ? $do->($tree) : $do->(undef);
           defined $value ? ($childname => $value) : ();
         };
@@ -502,7 +503,7 @@ sub element_default
     sub { my $tree = shift;
           return ($childname => $def)
               if !defined $tree 
-              || $tree->nodeLocal ne $childname
+              || $tree->nodeType ne $childname
               || $tree->node->textContent eq '';
 
           $do->($tree);
@@ -515,7 +516,7 @@ sub element_fixed
 
     sub { my $tree = shift;
           my ($label, $value)
-            = $tree && $tree->nodeLocal eq $childname ? $do->($tree) : ();
+            = $tree && $tree->nodeType eq $childname ? $do->($tree) : ();
 
           defined $value
               or return ($tag => $fix);
@@ -537,7 +538,7 @@ sub element_nillable
 
     sub { my $tree = shift;
           my $value;
-          if(defined $tree && $tree->nodeLocal eq $childname)
+          if(defined $tree && $tree->nodeType eq $childname)
           {   my $nil  = $tree->node->getAttribute('nil') || 'false';
               return ($childname => 'NIL')
                   if $nil eq 'true' || $nil eq '1';
@@ -547,6 +548,16 @@ sub element_nillable
           else { $value = $do->(undef) }
 
           defined $value ? ($childname => $value) : ();
+        };
+}
+
+sub element_abstract
+{   my ($path, $args, $ns, $childname, $do) = @_;
+    sub { my $tree = shift or return ();
+          $tree->nodeType eq $childname or return ();
+
+          error __x"abstract element `{name}' used at {path}"
+            , name => $childname, path => $path;
         };
 }
 
@@ -568,7 +579,7 @@ sub complex_element
 
           defined $tree->currentChild
               and error __x"element `{name}' not processed at {path}"
-                      , name => $tree->currentLocal, path => $path
+                      , name => $tree->currentType, path => $path
                       , _class => 'misfit';
 
           ($tag => \%complex);
@@ -786,21 +797,21 @@ sub attribute_fixed
 # SubstitutionGroups
 
 sub substgroup
-{   my ($path, $args, $type, %do) = @_;
+{   my ($path, $args, $base, %do) = @_;
     keys %do or return bless sub { () }, 'BLOCK';
 
     bless
-    sub { my $tree  = shift;
-          my $local = ($tree ? $tree->currentLocal : undef)
+    sub { my $tree = shift;
+          my $type = ($tree ? $tree->currentType : undef)
               or error __x"no data for substitution group {type} at {path}"
-                    , type => $type, path => $path;
+                    , type => $base, path => $path;
 
-          my $do    = $do{$local}
+          my $do   = $do{$type}
               or return;
 
-          my @subst = $do->($tree->descend);
+          my @subst = $do->[1]($tree->descend);
           $tree->nextChild;
-          @subst;
+          @subst ? ($do->[0] => $subst[1]) : ();   # rewrite
         }, 'BLOCK';
 }
 

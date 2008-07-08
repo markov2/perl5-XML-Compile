@@ -147,10 +147,17 @@ The expanded ELEMENT name is used to collect a set of alternatives which
 are in this substitutionGroup (super-class like alternatives). 
 =cut
 
-sub substitutionGroupMembers($)
-{   my $sgs = shift->{sgs}      or return ();
-    my $sg  = $sgs->{ (shift) } or return ();
-    @$sg;
+sub substitutionGroupMembers($) { @{ $_[0]->{sgs}{ $_[1] } || [] }; }
+
+=method mergeSubstGroupsInto HASH
+=cut
+
+# Fast!
+sub mergeSubstGroupsInto($)
+{   my ($self, $h) = @_;
+    while( my($type, $members) = each %{$self->{sgs}})
+    {   push @{$h->{$type}}, @$members;
+    }
 }
 
 =section Index
@@ -244,6 +251,7 @@ sub _collectTypes($)
         }
 
         my $abstract = $node->getAttribute('abstract') || 'false';
+        my $final    = $node->getAttribute('final')    || 'false';
 
         unless($defkinds{$local})
         {   mistake __x"ignoring unknown definition-type {local}", type => $local;
@@ -251,12 +259,12 @@ sub _collectTypes($)
         }
 
         my $info  = $self->{$local}{$label} =
-          { type => $local, id => $id,   node => $node
-          , full => pack_type($ns, $name)
-          , ns   => $ns,  name => $name, prefix => $prefix
-          , afd  => $afd, efd  => $efd,  schema => $self
-          , ref  => $ref, sg   => $sg
+          { type => $local, id => $id, node => $node
+          , full => pack_type($ns, $name), ref => $ref, sg => $sg
+          , ns => $ns,  name => $name, prefix => $prefix
+          , afd => $afd, efd => $efd, schema => $self
           , abstract => ($abstract eq 'true' || $abstract eq '1')
+          , final => ($final eq 'true' || $final eq '1')
           };
         weaken($info->{schema});
 
@@ -338,7 +346,8 @@ sub printIndex(;$)
         foreach (sort {$a->{name} cmp $b->{name}} values %$table)
         {   next if $_->{abstract} && ! $list_abstract;
             my $abstract = $_->{abstract} ? ' [abstract]' : '';
-            $fh->print("    $_->{name}$abstract\n");
+            my $final    = $_->{final}    ? ' [final]' : '';
+            $fh->print("    $_->{name}$abstract$final\n");
         }
     }
 }

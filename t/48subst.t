@@ -10,11 +10,11 @@ use TestTools;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 39;
+use Test::More tests => 51;
 
 my $TestNS2 = "http://second-ns";
 
-my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
+my $schema   = XML::Compile::Schema->new( <<__SCHEMA );
 <schema targetNamespace="$TestNS"
         xmlns="$SchemaNS"
         xmlns:one="$TestNS">
@@ -42,7 +42,7 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 
 <!-- more schemas below -->
 </schema>
-__SCHEMA__
+__SCHEMA
 
 ok(defined $schema);
 
@@ -52,9 +52,9 @@ __XML
 
 ok($@, 'compile-time error');
 my $error = $@;
-is($error, "error: data for element or block starting with `t3' missing at {$TestNS}test1\n");
+is($error, "error: data for element or block starting with `head' missing at {$TestNS}test1\n");
 
-$schema->importDefinitions( <<__EXTRA__ );
+$schema->importDefinitions( <<__EXTRA );
 <!-- alternatives in same namespace -->
 <schemas>
 
@@ -76,7 +76,7 @@ $schema->importDefinitions( <<__EXTRA__ );
 <!-- alternatives in other namespace -->
 <schema targetNamespace="$TestNS2"
         xmlns="$SchemaNS"
-        xmlns:one="$TestNS">
+        xmlns:one="$TestNS"
         xmlns:two="$TestNS2">
 
 <element name="alt2" substitutionGroup="one:head">
@@ -90,7 +90,7 @@ $schema->importDefinitions( <<__EXTRA__ );
 </schema>
 
 </schemas>
-__EXTRA__
+__EXTRA
 
 my %t1 = (t1 => 42, alt1 => {a1 => 43}, t3 => 44);
 test_rw($schema, test1 => <<__XML, \%t1);
@@ -101,6 +101,12 @@ my %t2 = (t1 => 45, alt2 => {a2 => 46}, t3 => 47);
 test_rw($schema, test1 => <<__XML, \%t2);
 <test1><t1>45</t1><alt2><a2>46</a2></alt2><t3>47</t3></test1>
 __XML
+
+# abstract within substitutionGroup
+$error = reader_error($schema, test1 => <<__XML);
+<test1><t1>10</t1><head>11</head><t3>12</t3></test1>
+__XML
+is($error, "abstract element `head' used at {$TestNS}test1/head");
 
 ### test2
 
@@ -144,3 +150,37 @@ test_rw($schema, test2 => <<__XML, \%t5);
   <id2>57</id2>
 </test2>
 __XML
+
+### multi-level
+$schema->importDefinitions( <<__EXTRA );
+<schema targetNamespace="$TestNS2"
+        xmlns="$SchemaNS"
+        xmlns:one="$TestNS"
+        xmlns:two="$TestNS2">
+
+<element name="alt3" substitutionGroup="two:alt2" type="int" />
+</schema>
+__EXTRA
+
+my %t6 = (head => [ {alt3 => 61} ], id2 => 62);
+test_rw($schema, test2 => <<__XML, \%t6);
+<test2>
+  <alt3>61</alt3>
+  <id2>62</id2>
+</test2>
+__XML
+
+is($schema->template(PERL => "{$TestNS}test2"), <<__TEMPL);
+{ # sequence of head, id2
+
+  # substitutionGroup {http://test-types}head:
+  #    alt1
+  #    alt2
+  #    alt3
+  #    head
+  # occurs 0 <= # <= 3 times
+  head =>  [ "{ alt1 => {...} }", ],
+
+  # is a {http://www.w3.org/2001/XMLSchema}int
+  id2 => 42, }
+__TEMPL

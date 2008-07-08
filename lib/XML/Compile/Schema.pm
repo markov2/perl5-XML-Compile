@@ -684,12 +684,17 @@ sub template($@)
     error __x"typemaps not implemented for XML template examples"
         if $action eq 'XML' && defined $args{typemap} && keys %{$args{typemap}};
 
+    my @rewrite = @{$self->{key_rewrite}};
+    my $kw = delete $args{key_rewrite} || [];
+    unshift @rewrite, ref $kw eq 'ARRAY' ? @$kw : $kw;
+
     my $compiled = XML::Compile::Schema::Translate->compileTree
      ( $type
-     , bricks => $bricks
-     , nss    => $self->namespaces
-     , hooks  => []
-     , action => 'READER'
+     , bricks  => $bricks
+     , nss     => $self->namespaces
+     , hooks   => []
+     , action  => 'READER'
+     , rewrite => \@rewrite
      , %args
      );
 
@@ -1307,7 +1312,7 @@ In this example, the C<a> container is marked to be mixed:
   <a> before <b>2</b> after </a>
 
 Each back-end has its own way of handling mixed elements.  The
-M<new(mixed_elements)> currently only modifies the reader's
+M<compile(mixed_elements)> currently only modifies the reader's
 behavior; the writer's capabilities are limited.
 See M<XML::Compile::Schema::XmlReader>.
 
