@@ -95,8 +95,8 @@ __XML__
 #
 
 set_compile_defaults include_namespaces => 1
-                   , anyElement   => 'TAKE_ALL'
-                   , anyAttribute => 'TAKE_ALL';
+                   , any_element   => 'TAKE_ALL'
+                   , any_attribute => 'TAKE_ALL';
 
 my $r2b = create_reader($schema, test2 => 'test2');
 my $h2b = $r2b->( <<__XML__);
@@ -246,8 +246,8 @@ sub filter_any($$)
 };
 
 set_compile_defaults include_namespaces => 1
-                   , anyElement   => 'TAKE_ALL'
-                   , anyAttribute => \&filter_any;
+                   , any_element   => 'TAKE_ALL'
+                   , any_attribute => \&filter_any;
 
 my $r5b = create_reader($schema, test4 => 'test4');
 my $h5b = $r5b->( <<__XML__);

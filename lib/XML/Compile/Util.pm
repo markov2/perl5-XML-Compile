@@ -131,7 +131,7 @@ sub block_label($$)
     return $label if $kind eq 'element';
 
     $label =~ s/^(?:seq|cho|all|gr)_//;
-    $block_abbrev{$kind} . $label;
+    $block_abbrev{$kind} . (unpack_type $label)[1];
 }
 
 =function type_of_node NODE

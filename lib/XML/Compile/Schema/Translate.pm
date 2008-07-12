@@ -286,15 +286,15 @@ sub typeByName($$)
     #
 
     my $node  = $tree->node;
-    my $code  = XML::Compile::Schema::Specs->builtInType
+    my $def   = XML::Compile::Schema::Specs->builtInType
        ($node, $typename, sloppy_integers => $self->{sloppy_integers});
 
-    if($code)
+    if($def)
     {   my $where = $typename;
         my $st = $self->make
-          (builtin=> $where, $node, $typename, $code, $self->{check_values});
+          (builtin=> $where, $node, $typename, $def, $self->{check_values});
 
-        return +{ st => $st };
+        return +{ st => $st, is_list => $def->{is_list} };
     }
 
     #
@@ -456,7 +456,7 @@ sub simpleRestriction($$)
         or error __x"simple-restriction is not a simpleType at {where}"
                , where => $where, _class => 'schema';
 
-    my $do = $self->applySimpleFacets($tree, $st, $in_list);
+    my $do = $self->applySimpleFacets($tree, $st, $in_list || $base->{is_list});
 
     $tree->currentChild
         and error __x"elements left at tail at {where}"
@@ -512,7 +512,7 @@ sub applySimpleFacets($$$)
     # First the strictly ordered facets, before an eventual split
     # of the list, then the other facets
     my @early;
-    foreach my $ordered ( qw/whiteSpace pattern/ )
+    foreach my $ordered ( qw/whiteSpace/ )
     {   my $limit = delete $facets{$ordered};
         push @early, builtin_facet($where, $self, $ordered, $limit)
            if defined $limit;
@@ -546,7 +546,7 @@ sub element($)
     $self->assertType($tree->path, name => NCName => $name);
     my $fullname = pack_type $ns, $name;
 
-    # Handle re-usable fragments
+    # Handle re-usable fragments, fight against combinatorial explosions
 
     my $nodeid   = $node->nodePath.'#'.$fullname;
     my $already  = $self->{_created}{$nodeid};
@@ -618,7 +618,7 @@ sub element($)
     # Construct basic element handler
     my $r;
     if($replace) { ; }             # do not attempt to compile
-    elsif($components->{mixed})          # complexType mixed
+    elsif($components->{mixed})    # complexType mixed
     {   $r = $self->make(mixed_element =>
             $where, $tag, $elems, $attrs, $attrs_any);
     }
@@ -724,7 +724,7 @@ sub particleGroup($)
         or error __x"cannot find group `{name}' at {where}"
              , name => $typename, where => $where, _class => 'schema';
 
-    my $group   = $tree->descend($dest->{node});
+    my $group   = $tree->descend($dest->{node}, $dest->{local});
     return () if $group->nrChildren==0;
 
     $group->nrChildren==1
@@ -1053,7 +1053,7 @@ sub anyAttribute($)
     my $node      = $tree->node;
     my $where     = $tree->path . '@any';
 
-    my $handler   = $self->{anyAttribute};
+    my $handler   = $self->{any_attribute};
     my $namespace = $node->getAttribute('namespace')       || '##any';
     my $not_ns    = $node->getAttribute('notNamespace');
     my $process   = $node->getAttribute('processContents') || 'strict';
@@ -1079,7 +1079,7 @@ sub anyElement($$$)
 
     my $node      = $tree->node;
     my $where     = $tree->path . '#any';
-    my $handler   = $self->{anyElement};
+    my $handler   = $self->{any_element};
 
     my $namespace = $node->getAttribute('namespace')       || '##any';
     my $not_ns    = $node->getAttribute('notNamespace');
@@ -1140,8 +1140,7 @@ sub complexType($)
     my $node  = $tree->node;
     my $mixed = $self->isTrue($node->getAttribute('mixed') || 'false');
     undef $mixed
-        if $self->{action} eq 'READER'
-        && $self->{mixed_elements} eq 'STRUCTURAL';
+        if $self->{mixed_elements} eq 'STRUCTURAL';
 
     my $first = $tree->firstChild
         or return {mixed => $mixed};
@@ -1333,21 +1332,13 @@ sub complexContent($$)
 
     my $name  = $tree->currentLocal;
  
-    return $self->complexContentExtension($tree->descend)
-        if $name eq 'extension';
-
-    # nice for validating, but base can be ignored
-    return $self->complexBody($tree->descend, $mixed)
-        if $name eq 'restriction';
-
     error __x"complexContent needs extension or restriction, not `{name}' at {where}"
-        , name => $name, where => $tree->path, _class => 'schema';
-}
+       , name => $name, where => $tree->path, _class => 'schema'
+           if $name ne 'extension' && $name ne 'restriction';
 
-sub complexContentExtension($)
-{   my ($self, $tree) = @_;
-
-    my $node  = $tree->node;
+# variable rename needed
+    $tree     = $tree->descend;
+    $node     = $tree->node;
     my $base  = $node->getAttribute('base') || 'anyType';
     my $type  = {};
     my $where = $tree->path . '#cce';
@@ -1364,9 +1355,14 @@ sub complexContentExtension($)
         $type = $self->complexType($tree->descend($typedef->{node}));
     }
 
-    my $own = $self->complexBody($tree, 0);
-    unshift @{$own->{$_}}, @{$type->{$_} || []}
-        for qw/elems attrs attrs_any/;
+    my $own = $self->complexBody($tree, $mixed);
+
+    unshift @{$own->{$_}},    @{$type->{$_} || []}
+        for qw/attrs attrs_any/;
+
+    unshift @{$own->{elems}}, @{$type->{elems} || []}
+        if $name eq 'extension';
+
     $own->{mixed} ||= $type->{mixed};
 
     $own;
@@ -1639,13 +1635,13 @@ these elements.
 
 =over 4
 
-=item anyElement CODE|'TAKE_ALL'
-This will be called when the type definition contains an C<any>
+=item any_element CODE|'TAKE_ALL'
+[0.89] This will be called when the type definition contains an C<any>
 definition, after processing the other element components.  By
 default, all C<any> specifications will be ignored.
 
-=item anyAttribute CODE|'TAKE_ALL'
-This will be called when the type definitions contains an
+=item any_attribute CODE|'TAKE_ALL'
+[0.89] This will be called when the type definitions contains an
 C<anyAttribute> definition, after processing the other attributes.
 By default, all C<anyAttribute> specifications will be ignored.
 

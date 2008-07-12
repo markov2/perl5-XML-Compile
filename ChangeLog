@@ -4,6 +4,35 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.89: Sat Jul 12 12:40:57 CEST 2008
+
+	Fixes:
+
+	- pattern restrictions on lists must be applied "late",
+	  after the split.
+
+	- repair facets on lists.
+
+	- complexType/complexContent/restriction will only redefine the
+	  elements, but will still take the attributes from the base-class.
+	  Tests in new t/45ctcres.t
+
+	- disabled a broken pattern optimization.
+
+	Changes:
+
+	- ::Schema::compile() options anyElement and anyAttribute renamed
+	  to the consequent any_element and any_attribute.  The old names
+	  are still supported.
+
+	Improvements:
+
+	- xml2yaml output filename '-' for STDOUT
+
+	- xml2yaml exit when illegal options were detected
+
+	- mixed_elements option STRUCTURAL now also works for writers.
+
 version 0.88: Tue Jul  8 10:38:26 CEST 2008
 
 	Fixes:

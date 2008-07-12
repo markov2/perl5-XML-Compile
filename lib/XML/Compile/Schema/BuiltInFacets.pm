@@ -233,7 +233,7 @@ sub _pattern($$$)
     {   s/\\i/[a-zA-Z_:]/g;      # simplyfied, not correct
         s/\\I/[^a-zA-Z_:]/g;     # idem
         s/\\c/$XML::RegExp::NameChar/g;
-        s/(?<!\\)\(/(?:/g;       # incorrect, performance
+#       s/(?<!\\)\(/(?:/g;       # incorrect, performance
         s/\\p\{..\}/\\p{Is$1}/g;
         s/\\P\{..\}/\\P{Is$1}/g;
     }

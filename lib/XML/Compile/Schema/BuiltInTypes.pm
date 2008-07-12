@@ -619,6 +619,7 @@ $builtin_types{ENTITIES} =
  , format  => sub { my $v = shift; ref $v eq 'ARRAY' ? join(' ',@$v) : $v }
  , check   => sub { $_[0] !~ m/\:/ }
  , example => 'labels'
+ , is_list => 1
  };
 
 =function Name
@@ -643,6 +644,7 @@ $builtin_types{NMTOKENS} =
  { parse   => sub { [ split ' ', shift ] }
  , format  => sub { my $v = shift; ref $v eq 'ARRAY' ? join(' ',@$v) : $v }
  , example => 'tokens'
+ , is_list => 1
  };
 
 =section URI

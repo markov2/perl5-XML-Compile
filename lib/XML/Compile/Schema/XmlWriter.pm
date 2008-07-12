@@ -567,6 +567,14 @@ sub mixed_element
     my @attrs = @$attrs;
     my @anya  = @$attrs_any;
 
+    my $mixed = $args->{mixed_elements};
+    if($mixed eq 'ATTRIBUTES') { ; }
+    elsif($mixed eq 'STRUCTURAL')
+    {   # mixed_element eq STRUCTURAL is handled earlier
+        panic "mixed structural handled as normal element";
+    }
+    else { error __x"unknown mixed_elements value `{value}'", value => $mixed }
+
     if(!@attrs && !@anya)
     {   return
         sub { my ($doc, $data) = @_;
@@ -795,7 +803,7 @@ sub _split_any_list($$$)
     my (@attrs, @elems);
 
     foreach my $node (@nodes)
-    {   ref $node && !$node->isa('XML::LibXML')
+    {   ref $node && !UNIVERSAL::isa($node, 'XML::LibXML')
             or error __x"elements for 'any' are XML::LibXML nodes, not {string} at {path}"
                   , string => $node, path => $path;
 
@@ -991,8 +999,7 @@ random order.
 
 =section Mixed elements
 
-[Available since 0.79]
-ComplexType and ComplexContent components can be declared with the
+[0.79] ComplexType and ComplexContent components can be declared with the
 C<<mixed="true">> attribute.
 
 XML::Compile does not have a way to express these mixtures of information
@@ -1003,6 +1010,16 @@ You may provide a M<XML::LibXML::Element>, which is complete, or a
 HASH which contains attributes values and an XML node with key '_'.
 When '_' contains a string, it will be translated into an XML text
 node.
+
+M<XML::Compile::Schema::compile(mixed_elements)> can be set to
+=over 4
+=item ATTRIBUTES (default)
+Add attributes to the provided node.
+
+=item STRUCTURAL
+[0.89] behaves as if the attribute is not there: a data-structure can be
+used or an XML node.
+=back
 
 =section Schema hooks
 

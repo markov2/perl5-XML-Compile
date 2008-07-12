@@ -15,9 +15,11 @@ GetOptions
  , "output|o=s" => \$yaml_out
  , "schema|s=s" => \@schemas
  , "type|t=s"   => \$root_type
- , "xml|x=s"    => \$xml_input;
+ , "xml|x=s"    => \$xml_input
+   or exit 1;
 
 $xml_input = '-' if @schemas && !defined $xml_input;
+$yaml_out  = '-' unless defined $yaml_out;
 
 if(@ARGV)
 {   die "ERROR: either use options or no options, not mixed\n"
@@ -30,6 +32,7 @@ defined $xml_input
 
 @schemas
     or die "ERROR: no schema's specified\n";
+
 @schemas   = map { split /\,/ } @schemas;
 
 my $parser = XML::LibXML->new;
@@ -41,8 +44,7 @@ my $msg    = $xml_input eq '-'
 my $top = $msg->documentElement;
 $root_type ||= type_of_node $top;
 
-my $schema = XML::Compile::Schema->new;
-$schema->importDefinitions($_) for @schemas;
+my $schema = XML::Compile::Schema->new( \@schemas );
 
 my $read = $schema->compile
   ( READER => $root_type
@@ -51,16 +53,16 @@ my $read = $schema->compile
 
 my $data = Dump $read->($top);
 
-if($yaml_out)
+if($yaml_out eq '-')
+{   print $data;
+}
+else
 {   open OUT, ">:utf8", $yaml_out
         or die "ERROR: cannot write yaml to $yaml_out: $!\n";
 
     print OUT $data;
     close OUT
         or die "ERROR: write error for $yaml_out: $!\n";
-}
-else
-{   print $data;
 }
 
 exit 0;
@@ -118,7 +120,7 @@ for the shell.
 
 =item --output|-o filename
 
-By default, the output is to stdout.
+By default (or when the filename is a dash), the output is printed to stdout.
 
 =back
 

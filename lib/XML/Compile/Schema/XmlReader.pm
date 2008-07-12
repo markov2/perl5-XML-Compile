@@ -641,7 +641,7 @@ sub mixed_element
           }
     : $mixed eq 'STRUCTURAL'
     ? panic "mixed structural handled as normal element"
-    : panic "unknown mixed_elements value $mixed";
+    : error __x"unknown mixed_elements value `{value}'", value => $mixed;
 }
 
 #
@@ -703,8 +703,12 @@ sub facets_list
 {   my ($path, $args, $st, $info, $early, $late) = @_;
     sub { defined $_[0] or return undef;
           my $v = $st->(@_);
-          for(@$early) { defined $v or return (); $v = $_->($v) }
-          my @v = defined $v ? split(" ",$v) : ();
+          my @v;
+          if(ref $v eq 'ARRAY') { @v = @$v } # no early limits for extension
+          else
+          {   for(@$early) { defined $v or return (); $v = $_->($v) }
+              @v = defined $v ? split(" ",$v) : ();
+          }
           my @r;
       EL: for my $e (@v)
           {   for(@$late) { defined $e or next EL; $e = $_->($e) }
@@ -991,7 +995,7 @@ permitted by C<any> and C<anyAttribute> specifications in the schema,
 you have to implement that yourself.  The problem is C<XML::Compile>
 has less knowledge than you about the possible data.
 
-=subsection anyAttribute
+=subsection option any_attribute
 
 By default, the C<anyAttribute> specification is ignored.  When C<TAKE_ALL>
 is given, all attributes which are fulfilling the name-space requirement
@@ -1003,7 +1007,7 @@ covered by the name-spaces permitted by the anyAttribute definition,
 then it will also appear in that list (and hence the handler will
 be called as well).
 
-Use M<XML::Compile::Schema::compile(anyAttribute)> to write your
+Use M<XML::Compile::Schema::compile(any_attribute)> to write your
 own handler, to influence the behavior.  The handler will be called for
 each attribute, and you must return list of pairs of derived information.
 When the returned is empty, the attribute data is lost.  The value may
@@ -1086,7 +1090,7 @@ Which will result in
 The filter will be called twice, but return nothing in the first
 case.  You can implement any kind of complex processing in the filter.
 
-=subsection any element
+=subsection option any_element
 
 By default, the C<any> definition in a schema will ignore all elements
 from the container which are not used.  Also in this case C<TAKE_ALL>
@@ -1188,8 +1192,8 @@ M<XML::LibXML::Simple> to translate a part of your tree.  Simply
  $schema->addHook
    ( type    => ...bad-type-definition...
    , replace =>
-       sub { my ($xml, $args, $path, $local) = @_;
-             ($local => XMLin($xml, ...));
+       sub { my ($xml, $args, $path, $type) = @_;
+             ($type => XMLin($xml, ...));
            }
    );
 

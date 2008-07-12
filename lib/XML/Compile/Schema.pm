@@ -475,19 +475,23 @@ You can also improve the speed of Math::BigInt by installing
 Math::BigInt::GMP.  Add C<< use Math::BigInt try => 'GMP'; >> to the
 top of your main script to get more performance.
 
-=option  anyElement CODE
-=default anyElement C<undef>
-In general, C<any> schema components cannot be handled automatically.
+=option  any_element CODE
+=default any_element C<undef>
+[0.89] In general, C<any> schema components cannot be handled automatically.
 If  you need to create or process any information, then read about
 wildcards in the DETAILS chapter of the manual-page for the specific
 back-end.
+Before release 0.89 this option was named C<anyElement>, which will
+still work.
 
-=option  anyAttribute CODE
-=default anyAttribute C<undef>
-In general, C<anyAttribute> schema components cannot be handled
+=option  any_attribute CODE
+=default any_attribute C<undef>
+[0.89] In general, C<anyAttribute> schema components cannot be handled
 automatically.  If  you need to create or process anyAttribute
 information, then read about wildcards in the DETAILS chapter of the
 manual-page for the specific back-end.
+Before release 0.89 this option was named C<anyElement>, which will
+still work.
 
 =option  hook HOOK|ARRAY-OF-HOOKS
 =default hook C<undef>
@@ -526,9 +530,8 @@ M<addTypemaps()>
 
 =option  mixed_elements CODE|PREDEFINED
 =default mixed_elements 'ATTRIBUTES'
-(reader) What to do when mixed schema elements are to be processed.  Read
-more in the L</DETAILS> section below, and in the manual page of
-M<XML::Compile::Schema::XmlReader>
+What to do when mixed schema elements are to be processed.  Read
+more in the L</DETAILS> section below.
 
 =option  key_rewrite HASH|CODE|ARRAY-of-HASH-and-CODE
 =default key_rewrite []
@@ -554,7 +557,6 @@ sub compile($$@)
       : $self->{unused_tags};
     $args{ignore_unused_tags}
       = !defined $iut ? undef : ref $iut eq 'Regexp' ? $iut : qr/^/;
-    $args{mixed_elements} ||= 'ATTRIBUTES';
 
     exists $args{include_namespaces} or $args{include_namespaces} = 1;
     $args{sloppy_integers}   ||= 0;
@@ -600,6 +602,12 @@ sub compile($$@)
     my @rewrite = @{$self->{key_rewrite}};
     my $kw = delete $args{key_rewrite} || [];
     unshift @rewrite, ref $kw eq 'ARRAY' ? @$kw : $kw;
+
+    $args{mixed_elements} ||= 'ATTRIBUTES';
+
+    # Option rename in 0.88
+    $args{any_element}    ||= delete $args{anyElement};
+    $args{any_attribute}  ||= delete $args{anyAttribute};
 
     my $impl
      = $action eq 'READER' ? 'XmlReader'
@@ -713,6 +721,13 @@ sub template($@)
 
     error __x"template output is either in XML or PERL layout, not '{action}'"
         , action => $action;
+}
+
+sub beautify(@)
+{   my $self = shift;
+    eval "require XML::Compile::Schema::Beautify";
+    panic "cannot load beautifier: $@" if $@;
+    $self->beautify(@_);
 }
 
 #------------------------------------------
@@ -1085,7 +1100,7 @@ beforehand.
 When the maxOccurs larger than 1 is specified for an element, an ARRAY
 of those elements is produced.  When it is specified for a block (sequence,
 choice, all, group), then an ARRAY of HASHes is returned.  See the special
-section about the subject.
+section about this subject.
 
 An error is produced when the number of elements found is less than
 C<minOccurs> (defaults to 1) or more than C<maxOccurs> (defaults to 1),
