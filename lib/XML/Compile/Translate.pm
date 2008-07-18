@@ -1,7 +1,7 @@
 use warnings;
 use strict;
 
-package XML::Compile::Schema::Translate;
+package XML::Compile::Translate;
 
 # Errors are either in _class 'usage': called with request
 #                         or 'schema': syntax error in schema
@@ -14,6 +14,12 @@ use XML::Compile::Schema::BuiltInFacets;
 use XML::Compile::Schema::BuiltInTypes qw/%builtin_types/;
 use XML::Compile::Util                 qw/pack_type unpack_type type_of_node/;
 use XML::Compile::Iterator             ();
+
+my %translators =
+ ( READER   => 'XML::Compile::Translate::Reader'
+ , WRITER   => 'XML::Compile::Translate::Writer'
+ , TEMPLATE => 'XML::Compile::Translate::Template'
+ );
 
 # Elements from the schema to ignore: remember, we are collecting data
 # from the schema, but only use selective items to produce processors.
@@ -28,12 +34,12 @@ my $attribute_defs  = qr/^(?:attribute|attributeGroup|anyAttribute)$/;
 
 =chapter NAME
 
-XML::Compile::Schema::Translate - create an XML data parser
+XML::Compile::Translate - create an XML data parser
 
 =chapter SYNOPSIS
 
  # for internal use only
- my $code = XML::Compile::Schema::Translate->compileTree(...);
+ my $code = XML::Compile::Translate->compile(...);
 
 =chapter DESCRIPTION
 
@@ -82,7 +88,61 @@ See chapter L</DETAILS> for more on how the tune the translator.
 
 =chapter METHODS
 
-=c_method compileTree ELEMENT|ATTRIBUTE|TYPE, OPTIONS
+=section Constructors
+
+=method new TRANSLATOR, OPTIONS
+The OPTIONS are described in M<XML::Compile::Schema::compile()>.  Those
+descriptions will probably move here, eventually.
+
+=requires nss L<XML::Compile::Schema::NameSpaces>
+=cut
+
+sub new($@)
+{   my ($baseclass, $trans) = (shift, shift);
+    my $class = $translators{$trans}
+       or error __x"translator back-end {name} not defined", name => $trans;
+
+    eval "require $class";
+    fault $@ if $@;
+
+    (bless {}, $class)->init( {@_} );
+}
+
+
+sub init($)
+{   my ($self, $args) = @_;
+
+    $self->{nss} = $args->{nss}
+        or panic "no namespace tables";
+
+    $self;
+}
+
+=ci_method register NAME
+Register a new back-end.
+=example
+ use XML::Compile::Translate::SomeBackend;
+ XML::Compile::Translate::SomeBackend->register('SomeNAME');
+ my $coderef = $schemas->compile('SomeNAME' => ...);
+=cut
+
+sub register($)
+{  my ($class, $name) = @_;
+   UNIVERSAL::isa($class, __PACKAGE__)
+       or error __x"back-end {class} does not extend {base}"
+            , class => $class, base => __PACKAGE__;
+   $translators{$name} = $class;
+}
+
+=section Attributes
+=cut
+
+# may disappear, so not documented publicly (yet)
+sub actsAs($) { panic "not implemented" }
+
+=section Handlers
+
+=c_method compile ELEMENT|ATTRIBUTE|TYPE, OPTIONS
 Do not call this function yourself, but use
 M<XML::Compile::Schema::compile()> (or wrappers around that).
 
@@ -90,48 +150,25 @@ This function returns a CODE reference, which can translate
 between Perl datastructures and XML, based on a schema.  Before
 this method is called is the schema already translated into
 a table of types.
-
-=requires nss L<XML::Compile::Schema::NameSpaces>
-=requires bricks CLASS
-=requires hooks ARRAY
-=requires action 'READER'|'WRITER'
-
-=option  typemap HASH
-=default typemap {}
-
 =cut
 
-sub compileTree($@)
-{   my ($class, $item, %args) = @_;
+sub compile($@)
+{   my ($self, $item, %args) = @_;
+    @$self{keys %args} = values %args;  # dirty
 
     my $path   = $item;
-    my $self   = bless \%args, $class;
-
     ref $item
         and panic "expecting an item as point to start at $path";
 
-    my $bricks = $self->{bricks}
-        or panic "no bricks to build";
+    my $hooks   = $self->{hooks}   ||= [];
+    my $typemap = $self->{typemap} ||= {};
+    $self->typemapToHooks($hooks, $typemap);
 
-    $self->{nss}
-        or panic "no namespace tables";
-
-    my $hooks   = $self->{hooks}
-        or panic "no hooks list defined";
-
-    $self->{action}
-        or panic "action type is needed";
-
-    my $typemap = $self->{typemap} || {};
     my $nsp     = $self->namespaces;
     foreach my $t (keys %$typemap)
     {   $nsp->find(complexType => $t) || $nsp->find(simpleType => $t)
             or error __x"complex or simpleType {type} for typemap unknown"
                  , type => $t;
-    }
-
-    { no strict 'refs';
-      "${bricks}::typemap_to_hooks"->($hooks, $typemap);
     }
 
     if(my $def = $self->namespaces->findID($item))
@@ -145,7 +182,7 @@ sub compileTree($@)
     delete $self->{_created};
 
       $self->{include_namespaces}
-    ? $self->make(wrapper_ns => $path, $produce, $self->{prefixes})
+    ? $self->makeWrapperNs($path, $produce, $self->{prefixes})
     : $produce;
 }
 
@@ -198,12 +235,6 @@ sub nsContext($)
 
 sub namespaces() { $_[0]->{nss} }
 
-sub make($@)
-{   my ($self, $component, $where, @args) = @_;
-    no strict 'refs';
-    "$self->{bricks}::$component"->($where, $self, @args);
-}
-
 sub topLevel($$)
 {   my ($self, $path, $fullname) = @_;
 
@@ -212,12 +243,12 @@ sub topLevel($$)
        (undef, $fullname, sloppy_integers => $self->{sloppy_integers});
 
     if($internal)
-    {   my $builtin = $self->make(builtin => $fullname, undef
+    {   my $builtin = $self->makeBuiltin($fullname, undef
             , $fullname, $internal, $self->{check_values});
-        my $builder = $self->{action} eq 'WRITER'
+        my $builder = $self->actsAs('WRITER')
           ? sub { $_[0]->createTextNode($builtin->(@_)) }
           : $builtin;
-        return $self->make('element_wrapper', $path, $builder);
+        return $self->makeElementWrapper($path, $builder);
     }
 
     my $nss  = $self->namespaces;
@@ -274,8 +305,9 @@ sub topLevel($$)
             , full => $fullname, name => $name, where => $tree->path
             , _class => 'usage';
 
-    my $wrapper = $name eq 'element' ? 'element_wrapper' : 'attribute_wrapper';
-    $self->make($wrapper, $path, $make);
+      $name eq 'element'
+    ? $self->makeElementWrapper($path, $make)
+    : $self->makeAttributeWrapper($path, $make);
 }
 
 sub typeByName($$)
@@ -291,8 +323,7 @@ sub typeByName($$)
 
     if($def)
     {   my $where = $typename;
-        my $st = $self->make
-          (builtin=> $where, $node, $typename, $def, $self->{check_values});
+        my $st = $self->makeBuiltin($where, $node, $typename, $def, $self->{check_values});
 
         return +{ st => $st, is_list => $def->{is_list} };
     }
@@ -377,7 +408,7 @@ sub simpleList($)
     my $st = $per_item->{st}
         or panic "list did not produce a simple type at $where";
 
-    $per_item->{st} = $self->make(list => $where, $st);
+    $per_item->{st} = $self->makeList($where, $st);
     $per_item->{is_list} = 1;
     $per_item;
 }
@@ -421,7 +452,7 @@ sub simpleUnion($)
         push @types, $ctype->{st};
     }
 
-    my $do = $self->make(union => $where, @types);
+    my $do = $self->makeUnion($where, @types);
     { st => $do, is_union => 1 };
 }
 
@@ -523,8 +554,8 @@ sub applySimpleFacets($$$)
             keys %facets;
 
       $in_list
-    ? $self->make(facets_list => $where, $st, \%facets_info, \@early, \@late)
-    : $self->make(facets => $where, $st, \%facets_info, @early, @late);
+    ? $self->makeFacetsList($where, $st, \%facets_info, \@early, \@late)
+    : $self->makeFacets($where, $st, \%facets_info, @early, @late);
 }
 
 sub element($)
@@ -571,8 +602,8 @@ sub element($)
       : error __x"form must be (un)qualified, not `{form}' at {where}"
             , form => $form, where => $tree->path, _class => 'schema';
 
-    my $trans     = $qual ? 'tag_qualified' : 'tag_unqualified';
-    my $tag       = $self->make($trans => $where, $node, $name, $ns);
+    my $trans     = $qual ? 'makeTagQualified' : 'makeTagUnqualified';
+    my $tag       = $self->$trans($where, $node, $name, $ns);
 
     # Construct type processor
 
@@ -619,25 +650,22 @@ sub element($)
     my $r;
     if($replace) { ; }             # do not attempt to compile
     elsif($components->{mixed})    # complexType mixed
-    {   $r = $self->make(mixed_element =>
-            $where, $tag, $elems, $attrs, $attrs_any);
+    {   $r = $self->makeMixedElement($where, $tag, $elems, $attrs, $attrs_any);
     }
     elsif(! defined $st)           # complexType
-    {   $r = $self->make(complex_element =>
-            $where, $tag, $elems, $attrs, $attrs_any);
+    {   $r = $self->makeComplexElement($where, $tag, $elems, $attrs,$attrs_any);
     }
     elsif(@$attrs || @$attrs_any)  # complex simpleContent
-    {   $r = $self->make(tagged_element =>
-            $where, $tag, $st, $attrs, $attrs_any);
+    {   $r = $self->makeTaggedElement($where, $tag, $st, $attrs, $attrs_any);
     }
     else                           # simple
-    {   $r = $self->make(simple_element => $where, $tag, $st);
+    {   $r = $self->makeSimpleElement($where, $tag, $st);
     }
 
     # Implement hooks
 
     my $do = ($before || $replace || $after)
-      ? $self->make(hook => $where, $r, $tag, $before, $replace, $after)
+      ? $self->makeHook($where, $r, $tag, $before, $replace, $after)
       : $r;
 
     # handle recursion
@@ -661,7 +689,7 @@ sub particle($)
     my $max   = $node->getAttribute('maxOccurs');
 
     unless(defined $min)
-    {   $min = $self->{action} eq 'WRITER'
+    {   $min = $self->actsAs('WRITER')
             && ($node->getAttribute('default') || $node->getAttribute('fixed'))
              ? 0 : 1;
     }
@@ -690,19 +718,17 @@ sub particle($)
     defined $label
         or return ();
 
-    return $self->make(block_handler =>
-        $where, $label, $min, $max, $process, $local)
-            if ref $process eq 'BLOCK';
+    return $self->makeBlockHandler($where, $label, $min, $max, $process,$local)
+        if ref $process eq 'BLOCK';
 
-    my $required = $min==0 ? undef
-      : $self->make(required => $where, $label, $process);
+    my $required;
+    $required = $self->makeRequired($where, $label, $process) if $min!=0;
 
-    my $key = $local eq 'element' ? $self->keyRewrite($label) : $label;
+    my $key   = $local eq 'element' ? $self->keyRewrite($label) : $label;
+    my $do    =
+        $self->makeElementHandler($where, $key, $min, $max, $required,$process);
 
-    my $do  = $self->make(element_handler =>
-        $where, $key, $min, $max, $required, $process);
-
-    ( ($self->{action} eq 'READER' ? $label : $key) => $do);
+    ( ($self->actsAs('READER') ? $label : $key) => $do);
 }
 
 sub particleGroup($)
@@ -750,7 +776,8 @@ sub particleBlock($)
     my $label     = $pairs[0];
     my $blocktype = $node->localName;
 
-    ($label => $self->make($blocktype => $tree->path, @pairs));
+    my $call      = 'make'.ucfirst $blocktype;
+    ($label => $self->$call($tree->path, @pairs));
 }
 
 sub findSgMembers($)
@@ -790,7 +817,7 @@ sub particleElementRef($)
          push @elems, $l => [$self->keyRewrite($l), $d];
     } 
 
-    ($name => $self->make(substgroup => $where, $type, @elems));
+    ($name => $self->makeSubstgroup($where, $type, @elems));
 }
 
 sub particleElement($)
@@ -838,20 +865,19 @@ sub particleElement($)
        :            undef;
 
     my $generate
-     = $self->isTrue($abstract) ? 'element_abstract'
-     : $self->isTrue($nillable) ? 'element_nillable'
-     : $default   ? 'element_default'
-     : $fixed     ? 'element_fixed'
-     :              'element';
+     = $self->isTrue($abstract) ? 'makeElementAbstract'
+     : $self->isTrue($nillable) ? 'makeElementNillable'
+     : $default   ? 'makeElementDefault'
+     : $fixed     ? 'makeElementFixed'
+     :              'makeElement';
 
     my $nodetype  = $self->{elems_qual} ? $full : $name;
-
     my $ns    = $self->{tns}; #$node->namespaceURI;
-    my $do_el = $self->make($generate => $where, $ns, $nodetype, $do, $value);
+    my $do_el = $self->$generate($where, $ns, $nodetype, $do, $value);
 
     # hrefs are used by SOAP-RPC
-    $do_el = $self->make(element_href => $where, $ns, $nodetype, $do_el)
-        if $self->{permit_href} && $self->{action} eq 'READER';
+    $do_el    = $self->makeElementHref($where, $ns, $nodetype, $do_el)
+        if $self->{permit_href} && $self->actsAs('READER');
  
     ($nodetype => $do_el);
 }
@@ -859,6 +885,7 @@ sub particleElement($)
 sub keyRewrite($)
 {   my ($self, $label) = @_;
     my ($ns, $key) = unpack_type $label;
+    my $oldkey = $key;
 
     foreach my $r ( @{$self->{rewrite}} )
     {   if(ref $r eq 'HASH')
@@ -899,10 +926,9 @@ sub keyRewrite($)
         }
     }
 
-    return (unpack_type $label)[1]
-        if $label eq $key;
+    trace "rewrote key $label to $key"
+        if $key ne $oldkey;
 
-    trace "rewrote key $label to $key";
     $key;
 }
 
@@ -961,7 +987,6 @@ sub attributeOne($)
         $form       = $node->getAttribute('form');
         $type       = $self->simpleType($tree->descend);
     }
-
     else
     {   $name       = $node->getAttribute('name')
             or error __x"attribute without name or ref at {where}"
@@ -993,9 +1018,9 @@ sub attributeOne($)
       : error __x"form must be (un)qualified, not {form} at {where}"
             , form => $form, where => $where, _class => 'schema';
 
-    my $trans   = $qual ? 'tag_qualified' : 'tag_unqualified';
+    my $trans   = $qual ? 'makeTagQualified' : 'makeTagUnqualified';
     my $ns      = $qual ? $self->{tns} : '';
-    my $tag     = $self->make($trans => $where, $node, $name, $ns);
+    my $tag     = $self->$trans($where, $node, $name, $ns);
 
     my $use     = $node->getAttribute('use') || '';
     $use =~ m/^(?:optional|required|prohibited|)$/
@@ -1006,14 +1031,14 @@ sub attributeOne($)
     my $fixed   = $node->getAttributeNode('fixed');
 
     my $generate
-     = defined $default    ? 'attribute_default'
-     : defined $fixed      ? 'attribute_fixed'
-     : $use eq 'required'  ? 'attribute_required'
-     : $use eq 'prohibited'? 'attribute_prohibited'
-     :                       'attribute';
+     = defined $default    ? 'makeAttributeDefault'
+     : defined $fixed      ? 'makeAttributeFixed'
+     : $use eq 'required'  ? 'makeAttributeRequired'
+     : $use eq 'prohibited'? 'makeAttributeProhibited'
+     :                       'makeAttribute';
 
     my $value = defined $default ? $default : $fixed;
-    my $do    = $self->make($generate => $where, $ns, $tag, $st, $value);
+    my $do    = $self->$generate($where, $ns, $tag, $st, $value);
     defined $do ? ($name => $do) : ();
 }
 
@@ -1062,7 +1087,7 @@ sub anyAttribute($)
         if $^W && $node->getAttribute('notQName');
 
     my ($yes, $no) = $self->translateNsLimits($namespace, $not_ns);
-    my $do = $self->make(anyAttribute => $where, $handler, $yes, $no, $process);
+    my $do = $self->makeAnyAttribute($where, $handler, $yes, $no, $process);
     defined $do ? $do : ();
 }
 
@@ -1089,8 +1114,7 @@ sub anyElement($$$)
         if $^W && $node->getAttribute('notQName');
 
     my ($yes, $no) = $self->translateNsLimits($namespace, $not_ns);
-    (any => $self->make(anyElement =>
-        $where, $handler, $yes, $no, $process, $min, $max));
+    (any => $self->makeAnyElement($where, $handler, $yes, $no, $process, $min, $max));
 }
 
 sub translateNsLimits($$)

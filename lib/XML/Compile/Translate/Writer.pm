@@ -1,5 +1,6 @@
 
-package XML::Compile::Schema::XmlWriter;
+package XML::Compile::Translate::Writer;
+use base 'XML::Compile::Translate';
 
 use strict;
 use warnings;
@@ -13,7 +14,7 @@ use XML::Compile::Util qw/pack_type unpack_type odd_elements
 
 =chapter NAME
 
-XML::Compile::Schema::XmlWriter - bricks to translate HASH to XML
+XML::Compile::Translate::Writer - translate HASH to XML
 
 =chapter SYNOPSIS
 
@@ -35,10 +36,12 @@ a (nested) Perl HASH structure onto XML.
 # The returned writer subroutines will always be called
 #       $writer->($doc, $value) 
 
-sub tag_qualified
-{   my ($path, $args, $node, $local, $ns) = @_;
+sub actsAs($) { $_[1] eq 'WRITER' }
 
-    my $out_ns = $args->{prefixes} ||= {};
+sub makeTagQualified
+{   my ($self, $path, $node, $local, $ns) = @_;
+
+    my $out_ns = $self->{prefixes} ||= {};
     my $out;
     if($out = $out_ns->{$ns})
     {   # re-use existing prefix
@@ -61,14 +64,14 @@ sub tag_qualified
     length($prefix) ? "$prefix:$local" : $local;
 }
 
-sub tag_unqualified
-{   my ($path, $args, $node, $name) = @_;
+sub makeTagUnqualified
+{   my ($self, $path, $node, $name) = @_;
     $name =~ s/.*\://;
     $name;
 }
 
-sub _typemap_class($$)
-{   my ($type, $class) = @_;
+sub _typemapClass($$)
+{   my ($self, $type, $class) = @_;
 
     no strict 'refs';
     keys %{$class.'::'}
@@ -86,8 +89,8 @@ sub _typemap_class($$)
     };
 }
 
-sub _typemap_object($$)
-{   my ($type, $object) = @_;
+sub _typemapObject($$)
+{   my ($self, $type, $object) = @_;
 
     $object->can('toXML')
         or error __x"object of class {pkg} does not implement toXML(), required for typemap {type}"
@@ -98,13 +101,13 @@ sub _typemap_object($$)
     };
 }
 
-sub typemap_to_hooks($$)
-{   my ($hooks, $typemap) = @_;
+sub typemapToHooks($$)
+{   my ($self, $hooks, $typemap) = @_;
     while(my($type, $action) = each %$typemap)
     {   defined $action or next;
         my $hook;
         if(!ref $action)
-        {   $hook = _typemap_class $type, $action;
+        {   $hook = $self->_typemapClass($type, $action);
             trace "created writer hook for type $type to class $action";
         }
         elsif(ref $action eq 'CODE')
@@ -117,7 +120,7 @@ sub typemap_to_hooks($$)
             trace "created writer hook for type $type to CODE";
         }
         else
-        {   $hook = _typemap_object $type, $action;
+        {   $hook = $self->_typemapObject($type, $action);
             trace "created reader hook for type $type to object";
 
         }
@@ -127,8 +130,8 @@ sub typemap_to_hooks($$)
     $hooks;
 }
 
-sub element_wrapper
-{   my ($path, $args, $processor) = @_;
+sub makeElementWrapper
+{   my ($self, $path, $processor) = @_;
     sub { my ($doc, $data) = @_;
           UNIVERSAL::isa($doc, 'XML::LibXML::Document')
               or error __x"first argument of call to writer must be an XML::LibXML::Document";
@@ -138,10 +141,10 @@ sub element_wrapper
           $top;
         };
 }
-*attribute_wrapper = \&element_wrapper;
+*makeAttributeWrapper = \&makeElementWrapper;
 
-sub wrapper_ns
-{   my ($path, $args, $processor, $index) = @_;
+sub makeWrapperNs
+{   my ($self, $path, $processor, $index) = @_;
     my @entries;
     foreach my $entry (values %$index)
     {   $entry->{used} or next;
@@ -157,8 +160,8 @@ sub wrapper_ns
         };
 }
 
-sub sequence($@)
-{   my ($path, $args, @pairs) = @_;
+sub makeSequence($@)
+{   my ($self, $path, @pairs) = @_;
 
     if(@pairs==2 && !ref $pairs[1])
     {   my ($take, $do) = @pairs;
@@ -186,8 +189,8 @@ sub sequence($@)
         }, 'BLOCK';
 }
 
-sub choice($@)
-{   my ($path, $args, %do) = @_;
+sub makeChoice($@)
+{   my ($self, $path, %do) = @_;
     my @specials;
     foreach my $el (keys %do)
     {   push @specials, delete $do{$el}
@@ -219,8 +222,8 @@ sub choice($@)
         }, 'BLOCK';
 }
 
-sub all($@)
-{   my ($path, $args, @pairs) = @_;
+sub makeAll($@)
+{   my ($self, $path, @pairs) = @_;
 
     if(@pairs==2 && !ref $pairs[1])
     {   my ($take, $do) = @pairs;
@@ -250,8 +253,8 @@ sub all($@)
 ## Element
 #
 
-sub element_handler
-{   my ($path, $args, $label, $min, $max, $required, $optional) = @_;
+sub makeElementHandler
+{   my ($self, $path, $label, $min, $max, $required, $optional) = @_;
     $max eq "0" and return sub {};
 
     if($min==0 && $max eq 'unbounded')
@@ -277,19 +280,8 @@ sub element_handler
     return $optional
         if $min==0 && $max==1;
 
-    if($min==1 && $max==1)
-    {   return
-        sub { my ($doc, $values) = @_;
-              my @values = ref $values eq 'ARRAY' ? @$values
-                         : defined $values ? $values : ();
-
-              error __x"exactly one value needed for `{tag}', not {count} at {path}"
-                , tag => $label, count => scalar @values, path => $path
-                    if @values > 1;
-
-              $required->($doc, $values[0]);
-            };
-    }
+    return $required
+        if $min==1 && $max==1;
 
     my $opt = $max - $min;
     sub { my ($doc, $values) = @_;
@@ -302,8 +294,8 @@ sub element_handler
         };
 }
 
-sub block_handler
-{   my ($path, $args, $label, $min, $max, $process, $kind) = @_;
+sub makeBlockHandler
+{   my ($self, $path, $label, $min, $max, $process, $kind) = @_;
     my $multi = block_label $kind, $label;
 
     if($min==0 && $max eq 'unbounded')
@@ -380,8 +372,8 @@ sub block_handler
     ($multi, bless($code, 'BLOCK'));
 }
 
-sub required
-{   my ($path, $args, $label, $do) = @_;
+sub makeRequired
+{   my ($self, $path, $label, $do) = @_;
     my $req =
     sub { my @nodes = $do->(@_);
           return @nodes if @nodes;
@@ -397,13 +389,13 @@ sub required
     $req;
 }
 
-sub element
-{   my ($path, $args, $ns, $childname, $do) = @_;
+sub makeElement
+{   my ($self, $path, $ns, $childname, $do) = @_;
     sub { defined $_[1] ? $do->(@_) : () }
 }
 
-sub element_fixed
-{   my ($path, $args, $ns, $childname, $do, $fixed) = @_;
+sub makeElementFixed
+{   my ($self, $path, $ns, $childname, $do, $fixed) = @_;
     $fixed   = $fixed->value if ref $fixed;
 
     sub { my ($doc, $value) = @_;
@@ -420,9 +412,9 @@ sub element_fixed
         };
 }
 
-sub element_nillable
-{   my ($path, $args, $ns, $childname, $do) = @_;
-    my $inas = $args->{interpret_nillable_as_optional};
+sub makeElementNillable
+{   my ($self, $path, $ns, $childname, $do) = @_;
+    my $inas = $self->{interpret_nillable_as_optional};
 
     sub
     {   my ($doc, $value) = @_;
@@ -438,13 +430,13 @@ sub element_nillable
     };
 }
 
-sub element_default
-{   my ($path, $args, $ns, $childname, $do, $default) = @_;
+sub makeElementDefault
+{   my ($self, $path, $ns, $childname, $do, $default) = @_;
     sub { defined $_[1] ? $do->(@_) : (); };
 }
 
-sub element_abstract
-{   my ($path, $args, $ns, $childname, $do, $default) = @_;
+sub makeElementAbstract
+{   my ($self, $path, $ns, $childname, $do, $default) = @_;
     sub { defined $_[1] or return ();
           error __x"attempt to instantiate abstract element `{name}' at {where}"
             , name => $childname, where => $path;
@@ -455,12 +447,12 @@ sub element_abstract
 # complexType/ComplexContent
 #
 
-sub complex_element
-{   my ($path, $args, $tag, $elems, $attrs, $any_attr) = @_;
+sub makeComplexElement
+{   my ($self, $path, $tag, $elems, $attrs, $any_attr) = @_;
     my @elems = odd_elements @$elems;
     my @attrs = @$attrs;
     my @anya  = @$any_attr;
-    my $iut   = $args->{ignore_unused_tags};
+    my $iut   = $self->{ignore_unused_tags};
 
     return
     sub
@@ -473,8 +465,9 @@ sub complex_element
                 or error __x"complex `{tag}' requires data at {path}"
                       , tag => $tag, path => $path;
 
+warn "$data is no HASH" unless ref $data eq 'HASH';
             error __x"complex `{tag}' requires a HASH of input data, not `{found}' at {path}"
-               , tag => $tag, found => $data, path => $path;
+               , tag => $tag, found => (ref $data || $data), path => $path;
         }
 
         my $copy   = { %$data };  # do not destroy caller's hash
@@ -510,8 +503,8 @@ sub complex_element
 # complexType/simpleContent
 #
 
-sub tagged_element
-{   my ($path, $args, $tag, $st, $attrs, $attrs_any) = @_;
+sub makeTaggedElement
+{   my ($self, $path, $tag, $st, $attrs, $attrs_any) = @_;
     my @attrs = @$attrs;
     my @anya  = @$attrs_any;
 
@@ -562,12 +555,12 @@ sub tagged_element
 # complexType mixed or complexContent mixed
 #
 
-sub mixed_element
-{   my ($path, $args, $tag, $elems, $attrs, $attrs_any) = @_;
+sub makeMixedElement
+{   my ($self, $path, $tag, $elems, $attrs, $attrs_any) = @_;
     my @attrs = @$attrs;
     my @anya  = @$attrs_any;
 
-    my $mixed = $args->{mixed_elements};
+    my $mixed = $self->{mixed_elements};
     if($mixed eq 'ATTRIBUTES') { ; }
     elsif($mixed eq 'STRUCTURAL')
     {   # mixed_element eq STRUCTURAL is handled earlier
@@ -629,8 +622,8 @@ sub mixed_element
 # simpleType
 #
 
-sub simple_element
-{   my ($path, $args, $tag, $st) = @_;
+sub makeSimpleElement
+{   my ($self, $path, $tag, $st) = @_;
     sub { my ($doc, $data) = @_;
           return $doc->importNode($data)
               if UNIVERSAL::isa($data, 'XML::LibXML::Element');
@@ -647,15 +640,15 @@ sub simple_element
         };
 }
 
-sub builtin
-{   my ($path, $args, $node, $type, $def, $check_values) = @_;
+sub makeBuiltin
+{   my ($self, $path, $node, $type, $def, $check_values) = @_;
     my $check  = $check_values ? $def->{check} : undef;
     my $err    = $path eq $type
       ? N__"illegal value `{value}' for type {type}"
       : N__"illegal value `{value}' for type {type} at {path}";
 
     my $format = $def->{format};
-    my $trans  = $args->{prefixes};
+    my $trans  = $self->{prefixes};
 
     $check
     ? ( defined $format
@@ -676,8 +669,8 @@ sub builtin
 
 # simpleType
 
-sub list
-{   my ($path, $args, $st) = @_;
+sub makeList
+{   my ($self, $path, $st) = @_;
     sub { defined $_[1] or return undef;
           my @el = ref $_[1] eq 'ARRAY' ? @{$_[1]} : $_[1];
           my @r = grep {defined} map {$st->($_[0], $_)} @el;
@@ -685,8 +678,8 @@ sub list
         };
 }
 
-sub facets_list
-{   my ($path, $args, $st, $info, $early, $late) = @_;
+sub makeFacetsList
+{   my ($self, $path, $st, $info, $early, $late) = @_;
     sub { defined $_[1] or return undef;
           my @el = ref $_[1] eq 'ARRAY' ? (grep {defined} @{$_[1]}) : $_[1];
 
@@ -706,8 +699,8 @@ sub facets_list
         };
 }
 
-sub facets
-{   my ($path, $args, $st, $info, @do) = @_;
+sub makeFacets
+{   my ($self, $path, $st, $info, @do) = @_;
     sub { defined $_[1] or return undef;
           my $v = $st->(@_);
           for(reverse @do)
@@ -716,8 +709,8 @@ sub facets
         };
 }
 
-sub union
-{   my ($path, $args, @types) = @_;
+sub makeUnion
+{   my ($self, $path, @types) = @_;
     sub { my ($doc, $value) = @_;
           defined $value or return undef;
           for(@types) {my $v = try { $_->($doc, $value) }; $@ or return $v }
@@ -729,8 +722,8 @@ sub union
         };
 }
 
-sub substgroup
-{   my ($path, $args, $type, %done) = @_;
+sub makeSubstgroup
+{   my ($self, $path, $type, %done) = @_;
 
     keys %done or return bless sub { () }, 'BLOCK';
     my %do = map { @$_ } values %done;
@@ -749,8 +742,8 @@ sub substgroup
 
 # Attributes
 
-sub attribute_required
-{   my ($path, $args, $ns, $tag, $do) = @_;
+sub makeAttributeRequired
+{   my ($self, $path, $ns, $tag, $do) = @_;
 
     sub { my $value = $do->(@_);
           return $_[0]->createAttributeNS($ns, $tag, $value)
@@ -761,8 +754,8 @@ sub attribute_required
         };
 }
 
-sub attribute_prohibited
-{   my ($path, $args, $ns, $tag, $do) = @_;
+sub makeAttributeProhibited
+{   my ($self, $path, $ns, $tag, $do) = @_;
 
     sub { my $value = $do->(@_);
           defined $value or return ();
@@ -772,16 +765,16 @@ sub attribute_prohibited
         };
 }
 
-sub attribute
-{   my ($path, $args, $ns, $tag, $do) = @_;
+sub makeAttribute
+{   my ($self, $path, $ns, $tag, $do) = @_;
     sub { my $value = $do->(@_);
           defined $value ? $_[0]->createAttribute($tag, $value) : ();
         };
 }
-*attribute_default = \&attribute;
+*makeAttributeDefault = \&makeAttribute;
 
-sub attribute_fixed
-{   my ($path, $args, $ns, $tag, $do, $fixed) = @_;
+sub makeAttributeFixed
+{   my ($self, $path, $ns, $tag, $do, $fixed) = @_;
     $fixed   = $fixed->value if ref $fixed;
 
     sub { my ($doc, $value) = @_;
@@ -797,8 +790,8 @@ sub attribute_fixed
 
 # any
 
-sub _split_any_list($$$)
-{   my ($path, $type, $v) = @_;
+sub _splitAnyList($$$)
+{   my ($self, $path, $type, $v) = @_;
     my @nodes = ref $v eq 'ARRAY' ? @$v : defined $v ? $v : return ([], []);
     my (@attrs, @elems);
 
@@ -824,8 +817,8 @@ sub _split_any_list($$$)
     return (\@attrs, \@elems);
 }
 
-sub anyAttribute
-{   my ($path, $args, $handler, $yes, $no, $process) = @_;
+sub makeAnyAttribute
+{   my ($self, $path, $handler, $yes, $no, $process) = @_;
     my %yes = map { ($_ => 1) } @{$yes || []};
     my %no  = map { ($_ => 1) } @{$no  || []};
 
@@ -842,7 +835,7 @@ sub anyAttribute
               $no{$ns} and next if keys %no;
 
               my ($attrs, $elems)
-                = _split_any_list $path, $type, delete $values->{$type};
+                = $self->_splitAnyList($path, $type, delete $values->{$type});
 
               $values->{$type} = $elems if @$elems;
               @$attrs or next;
@@ -861,8 +854,8 @@ sub anyAttribute
         }, 'ANY';
 }
 
-sub anyElement
-{   my ($path, $args, $handler, $yes, $no, $process, $min, $max) = @_;
+sub makeAnyElement
+{   my ($self, $path, $handler, $yes, $no, $process, $min, $max) = @_;
     my %yes = map { ($_ => 1) } @{$yes || []};
     my %no  = map { ($_ => 1) } @{$no  || []};
 
@@ -882,7 +875,7 @@ sub anyElement
               $no{$ns} and next if keys %no;
 
               my ($attrs, $elems)
-                 = _split_any_list $path, $type, delete $values->{$type};
+                 = $self->_splitAnyList($path, $type, delete $values->{$type});
 
               $values->{$type} = $attrs if @$attrs;
               @$elems or next;
@@ -913,8 +906,8 @@ sub anyElement
         }, 'ANY';
 }
 
-sub hook($$$$$$)
-{   my ($path, $args, $r, $tag, $before, $replace, $after) = @_;
+sub makeHook($$$$$$)
+{   my ($self, $path, $r, $tag, $before, $replace, $after) = @_;
     return $r unless $before || $replace || $after;
 
     error __x"writer only supports one production (replace) hook"
@@ -922,9 +915,9 @@ sub hook($$$$$$)
 
     return sub {()} if $replace && grep {$_ eq 'SKIP'} @$replace;
 
-    my @replace = $replace ? map {_decode_replace($path,$_)} @$replace : ();
-    my @before  = $before  ? map {_decode_before($path,$_) } @$before  : ();
-    my @after   = $after   ? map {_decode_after($path,$_)  } @$after   : ();
+    my @replace = $replace ? map {$self->_decodeReplace($path,$_)} @$replace:();
+    my @before  = $before  ? map {$self->_decodeBefore($path,$_) } @$before :();
+    my @after   = $after   ? map {$self->_decodeAfter($path,$_)  } @$after  :();
 
     sub
     {  my ($doc, $val) = @_;
@@ -947,24 +940,24 @@ sub hook($$$$$$)
      }
 }
 
-sub _decode_before($$)
-{   my ($path, $call) = @_;
+sub _decodeBefore($$)
+{   my ($self, $path, $call) = @_;
     return $call if ref $call eq 'CODE';
 
       $call eq 'PRINT_PATH' ? sub { print "$_[2]\n"; $_[1] }
     : error __x"labeled before hook `{name}' undefined", name => $call;
 }
 
-sub _decode_replace($$)
-{   my ($path, $call) = @_;
+sub _decodeReplace($$)
+{   my ($self, $path, $call) = @_;
     return $call if ref $call eq 'CODE';
 
     # SKIP already handled
     error __x"labeled replace hook `{name}' undefined", name => $call;
 }
 
-sub _decode_after($$)
-{   my ($path, $call) = @_;
+sub _decodeAfter($$)
+{   my ($self, $path, $call) = @_;
     return $call if ref $call eq 'CODE';
 
       $call eq 'PRINT_PATH' ? sub { print "$_[2]\n"; $_[1] }
@@ -981,7 +974,7 @@ processing those constructs.  The use of both schema components should
 be avoided: please specify your data-structures explicit by clean type
 extensions.
 
-The procedure for the XmlWriter is simple: add key-value pairs to your
+The procedure for the WRITER is simple: add key-value pairs to your
 hash, in which the value is a fully prepared M<XML::LibXML::Attr>
 or M<XML::LibXML::Element>.  The keys have the form C<{namespace}type>.
 The I<namespace> component is important, because only spec conformant
@@ -1042,7 +1035,7 @@ node will be cancelled.
 On the moment, the only predefined C<before> hook is C<PRINT_PATH>.
 
 =example before hook on user-provided HASH.
- sub before_on_complex($$$)
+ sub makeBeforeOnComplex($$$)
  {   my ($doc, $values, $path) = @_;
 
      my %copy = %$values;
@@ -1053,13 +1046,13 @@ On the moment, the only predefined C<before> hook is C<PRINT_PATH>.
  }
 
 =example before hook on simpleType data
- sub before_on_simple($$$)
+ sub makeBeforeOnSimple($$$)
  {   my ($doc, $value, $path) = @_;
      $value *= 100;    # convert euro to euro-cents
  }
 
 =example before hook with object for complexType
- sub before_on_object($$$)
+ sub makeBeforeOnObject($$$)
  {   my ($doc, $obj, $path) = @_;
 
      +{ name     => $obj->name
@@ -1078,7 +1071,7 @@ argument) to create a node.
 On the moment, the only predefined C<replace> hook is C<SKIP>.
 
 =example replace hook
- sub replace($$$)
+ sub makeReplace($$$)
  {  my ($doc, $values, $path, $tag) = @_
     my $node = $doc->createElement($tag);
     $node->appendText($values->{text});
@@ -1094,7 +1087,7 @@ the new XML node has to be returned.
 On the moment, the only predefined C<after> hook is C<PRINT_PATH>.
 
 =example add an extra sibbling after the usual process
- sub after($$$$)
+ sub makeAfter($$$$)
  {   my ($doc, $node, $path) = @_;
      my $child = $doc->createAttributeNS($myns, earth => 42);
      $node->addChild($child);
@@ -1110,14 +1103,14 @@ Also, when you need things that XML::Compile does not support (yet).
 
  {  my $text;
 
-    sub before($$$)
+    sub makeBefore($$$)
     {   my ($doc, $values, $path) = @_;
         my %copy = %$values;
         $text = delete $copy{text};
         \%copy;
     }
 
-    sub after($$$)
+    sub makeAfter($$$)
     {   my ($doc, $node, $path) = @_;
         $node->addChild($doc->createTextNode($text));
         $node;
@@ -1157,7 +1150,7 @@ C<toXML>method.
 
  package My::Perl::Class;
  ...
- sub toXML
+ sub makeToXML
  {   my ($self, $xmltype, $doc) = @_;
      ...
      { a => { b => 42 }, c => 'aaa' };
@@ -1181,7 +1174,7 @@ an interface.
  $schema->typemap($sometype => $object);
 
  package My::Perl::Class;
- sub toXML
+ sub makeToXML
  {   my ($self, $object, $xmltype, $doc) = @_;
      ...
  }
@@ -1199,7 +1192,7 @@ to the expectation.
 
  $schema->typemap($t1 => \&myhandler);
 
- sub myhandler
+ sub makeMyhandler
  {   my ($backend, $object, $xmltype, $doc) = @_;
      ...
  }

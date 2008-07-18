@@ -1,4 +1,5 @@
-package XML::Compile::Schema::XmlReader;
+package XML::Compile::Translate::Reader;
+use base 'XML::Compile::Translate';
 
 use strict;
 use warnings;
@@ -12,7 +13,7 @@ use XML::Compile::Iterator ();
 
 =chapter NAME
 
-XML::Compile::Schema::XmlReader - bricks to translate XML to HASH
+XML::Compile::Translate::Reader - translate XML to HASH
 
 =chapter SYNOPSIS
 
@@ -38,15 +39,17 @@ into a (nested) Perl HASH structure.
 # that the structure of found data is not conforming the needs. For optional
 # blocks, these errors are caught and un-done.
 
-sub tag_unqualified
-{   my $name = $_[3];
-    $name =~ s/.*?\://;   # strip prefix, that's all
-    $name;
-}
-*tag_qualified = \&tag_unqualified;
+sub actsAs($) { $_[1] eq 'READER' }
 
-sub typemap_to_hooks($$)
-{   my ($hooks, $typemap) = @_;
+sub makeTagUnqualified
+{   my ($self, $path, $node, $local, $ns) = @_;
+    $local =~ s/.*?\://;   # strip prefix, that's all
+    $local;
+}
+*makeTagQualified = \&makeTagUnqualified;
+
+sub typemapToHooks($$)
+{   my ($self, $hooks, $typemap) = @_;
     while(my($type, $action) = each %$typemap)
     {   defined $action or next;
         my $hook;
@@ -83,8 +86,8 @@ sub typemap_to_hooks($$)
     $hooks;
 }
 
-sub element_wrapper
-{   my ($path, $args, $processor) = @_;
+sub makeElementWrapper
+{   my ($self, $path, $processor) = @_;
     # no copy of $_[0], because it may be a large string
     sub { my $tree;
           if(ref $_[0] && UNIVERSAL::isa($_[0], 'XML::LibXML::Iterator'))
@@ -103,8 +106,8 @@ sub element_wrapper
         };
 }
 
-sub attribute_wrapper
-{   my ($path, $args, $processor) = @_;
+sub makeAttributeWrapper
+{   my ($self, $path, $processor) = @_;
 
     sub { my $attr = shift;
           ref $attr && $attr->isa('XML::LibXML::Attr')
@@ -118,8 +121,8 @@ sub attribute_wrapper
         };
 }
 
-sub wrapper_ns        # no namespaces in the HASH
-{   my ($path, $args, $processor, $index) = @_;
+sub makeWrapperNs        # no namespaces in the HASH
+{   my ($self, $path, $processor, $index) = @_;
     $processor;
 }
 
@@ -127,8 +130,8 @@ sub wrapper_ns        # no namespaces in the HASH
 ## Element
 #
 
-sub sequence($@)
-{   my ($path, $args, @pairs) = @_;
+sub makeSequence($@)
+{   my ($self, $path, @pairs) = @_;
     if(@pairs==2 && !ref $pairs[1])
     {   my ($take, $action) = @pairs;
         return bless
@@ -154,8 +157,8 @@ sub sequence($@)
         }, 'BLOCK';
 }
 
-sub choice($@)
-{   my ($path, $args, %do) = @_;
+sub makeChoice($@)
+{   my ($self, $path, %do) = @_;
     my @specials;
     foreach my $el (keys %do)
     {   push @specials, delete $do{$el}
@@ -238,8 +241,8 @@ sub choice($@)
     }, 'BLOCK';
 }
 
-sub all($@)
-{   my ($path, $args, %pairs) = @_;
+sub makeAll($@)
+{   my ($self, $path, %pairs) = @_;
     my %specials;
     foreach my $el (keys %pairs)
     {   $specials{$el} = delete $pairs{$el}
@@ -311,8 +314,8 @@ sub all($@)
         }, 'BLOCK';
 }
 
-sub block_handler
-{   my ($path, $args, $label, $min, $max, $process, $kind) = @_;
+sub makeBlockHandler
+{   my ($self, $path, $label, $min, $max, $process, $kind) = @_;
     my $multi = block_label $kind, $label;
 
     # flatten the HASH: when a block appears only once, there will
@@ -393,8 +396,8 @@ sub block_handler
     ($label => bless($code, 'BLOCK'));
 }
 
-sub element_handler
-{   my ($path, $args, $label, $min, $max, $required, $optional) = @_;
+sub makeElementHandler
+{   my ($self, $path, $label, $min, $max, $required, $optional) = @_;
     $max eq "0" and return sub {};
 
     if($max ne 'unbounded' && $max==1)
@@ -459,8 +462,8 @@ sub element_handler
         };
 }
 
-sub required
-{   my ($path, $args, $label, $do) = @_;
+sub makeRequired
+{   my ($self, $path, $label, $do) = @_;
 
     my $req =
     sub { my $tree  = shift;  # can be undef
@@ -473,8 +476,8 @@ sub required
     ref $do eq 'BLOCK' ? bless($req, 'BLOCK') : $req;
 }
 
-sub element_href
-{   my ($path, $args, $ns, $childname, $do) = @_;
+sub makeElementHref
+{   my ($self, $path, $ns, $childname, $do) = @_;
 
     sub { my $tree  = shift;
           return ($childname => $tree->node)
@@ -486,8 +489,8 @@ sub element_href
         };
 }
 
-sub element
-{   my ($path, $args, $ns, $childname, $do) = @_;
+sub makeElement
+{   my ($self, $path, $ns, $childname, $do) = @_;
 
     sub { my $tree  = shift;
           my $value = defined $tree && $tree->nodeType eq $childname
@@ -496,8 +499,8 @@ sub element
         };
 }
 
-sub element_default
-{   my ($path, $args, $ns, $childname, $do, $default) = @_;
+sub makeElementDefault
+{   my ($self, $path, $ns, $childname, $do, $default) = @_;
     my $def  = $do->($default);
 
     sub { my $tree = shift;
@@ -510,8 +513,8 @@ sub element_default
         };
 }
 
-sub element_fixed
-{   my ($path, $args, $ns, $childname, $do, $fixed) = @_;
+sub makeElementFixed
+{   my ($self, $path, $ns, $childname, $do, $fixed) = @_;
     my ($tag, $fix) = $do->($fixed);
 
     sub { my $tree = shift;
@@ -530,11 +533,11 @@ sub element_fixed
         };
 }
 
-sub element_nillable
-{   my ($path, $args, $ns, $childname, $do) = @_;
+sub makeElementNillable
+{   my ($self, $path, $ns, $childname, $do) = @_;
 
     # some people cannot read the specs.
-    my $inas = $args->{interpret_nillable_as_optional};
+    my $inas = $self->{interpret_nillable_as_optional};
 
     sub { my $tree = shift;
           my $value;
@@ -551,8 +554,8 @@ sub element_nillable
         };
 }
 
-sub element_abstract
-{   my ($path, $args, $ns, $childname, $do) = @_;
+sub makeElementAbstract
+{   my ($self, $path, $ns, $childname, $do) = @_;
     sub { my $tree = shift or return ();
           $tree->nodeType eq $childname or return ();
 
@@ -565,9 +568,10 @@ sub element_abstract
 # complexType and complexType/ComplexContent
 #
 
-sub complex_element
-{   my ($path, $args, $tag, $elems, $attrs, $attrs_any) = @_;
+sub makeComplexElement
+{   my ($self, $path, $tag, $elems, $attrs, $attrs_any) = @_;
     my @elems = odd_elements @$elems;
+my @e = @$elems;
     my @attrs = (odd_elements(@$attrs), @$attrs_any);
 
     sub { my $tree    = shift or return ();
@@ -590,8 +594,8 @@ sub complex_element
 # complexType/simpleContent
 #
 
-sub tagged_element
-{   my ($path, $args, $tag, $st, $attrs, $attrs_any) = @_;
+sub makeTaggedElement
+{   my ($self, $path, $tag, $st, $attrs, $attrs_any) = @_;
     my @attrs = (odd_elements(@$attrs), @$attrs_any);
 
     sub { my $tree   = shift or return ();
@@ -608,10 +612,10 @@ sub tagged_element
 # complexType mixed or complexContent mixed
 #
 
-sub mixed_element
-{   my ($path, $args, $tag, $elems, $attrs, $attrs_any) = @_;
+sub makeMixedElement
+{   my ($self, $path, $tag, $elems, $attrs, $attrs_any) = @_;
     my @attrs = (odd_elements(@$attrs), @$attrs_any);
-    my $mixed = $args->{mixed_elements}
+    my $mixed = $self->{mixed_elements}
          or panic "how to handle mixed?";
 
       ref $mixed eq 'CODE'
@@ -648,15 +652,15 @@ sub mixed_element
 # simpleType
 #
 
-sub simple_element
-{   my ($path, $args, $tag, $st) = @_;
+sub makeSimpleElement
+{   my ($self, $path, $tag, $st) = @_;
     sub { my $value = $st->(@_);
           defined $value ? ($tag => $value) : ();
         };
 }
 
-sub builtin
-{   my ($path, $args, $node, $type, $def, $check_values) = @_;
+sub makeBuiltin
+{   my ($self, $path, $node, $type, $def, $check_values) = @_;
     my $check = $check_values ? $def->{check} : undef;
     my $parse = $def->{parse};
     my $err   = $path eq $type
@@ -689,8 +693,8 @@ sub builtin
 
 # simpleType
 
-sub list
-{   my ($path, $args, $st) = @_;
+sub makeList
+{   my ($self, $path, $st) = @_;
     sub { my $tree = shift;
           defined $tree or return undef;
           my $v = ref $tree ? $tree->textContent : $tree;
@@ -699,8 +703,8 @@ sub list
         };
 }
 
-sub facets_list
-{   my ($path, $args, $st, $info, $early, $late) = @_;
+sub makeFacetsList
+{   my ($self, $path, $st, $info, $early, $late) = @_;
     sub { defined $_[0] or return undef;
           my $v = $st->(@_);
           my @v;
@@ -718,8 +722,8 @@ sub facets_list
         };
 }
 
-sub facets
-{   my ($path, $args, $st, $info, @do) = @_;
+sub makeFacets
+{   my ($self, $path, $st, $info, @do) = @_;
     sub { defined $_[0] or return undef;
           my $v = $st->(@_);
           for(@do) { defined $v or return (); $v = $_->($v) }
@@ -727,8 +731,8 @@ sub facets
         };
 }
 
-sub union
-{   my ($path, $args, @types) = @_;
+sub makeUnion
+{   my ($self, $path, @types) = @_;
     sub { my $tree = shift or return undef;
           for(@types) { my $v = try { $_->($tree) }; $@ or return $v }
           my $text = $tree->textContent;
@@ -741,8 +745,8 @@ sub union
 
 # Attributes
 
-sub attribute_required
-{   my ($path, $args, $ns, $tag, $do) = @_;
+sub makeAttributeRequired
+{   my ($self, $path, $ns, $tag, $do) = @_;
     sub { my $node = $_[0]->getAttributeNodeNS($ns, $tag);
           defined $node
              or error __x"attribute `{name}' is required at {path}"
@@ -754,8 +758,8 @@ sub attribute_required
         };
 }
 
-sub attribute_prohibited
-{   my ($path, $args, $ns, $tag, $do) = @_;
+sub makeAttributeProhibited
+{   my ($self, $path, $ns, $tag, $do) = @_;
     sub { my $node = $_[0]->getAttributeNodeNS($ns, $tag);
           defined $node or return ();
           error __x"attribute `{name}' is prohibited at {path}"
@@ -764,8 +768,8 @@ sub attribute_prohibited
         };
 }
 
-sub attribute
-{   my ($path, $args, $ns, $tag, $do) = @_;
+sub makeAttribute
+{   my ($self, $path, $ns, $tag, $do) = @_;
     sub { my $node = $_[0]->getAttributeNodeNS($ns, $tag);
           defined $node or return ();;
           my $val = $do->($node);
@@ -773,8 +777,8 @@ sub attribute
         };
 }
 
-sub attribute_default
-{   my ($path, $args, $ns, $tag, $do, $default) = @_;
+sub makeAttributeDefault
+{   my ($self, $path, $ns, $tag, $do, $default) = @_;
     my $def  = $do->($default);
 
     sub { my $node = $_[0]->getAttributeNodeNS($ns, $tag);
@@ -782,8 +786,8 @@ sub attribute_default
         };
 }
 
-sub attribute_fixed
-{   my ($path, $args, $ns, $tag, $do, $fixed) = @_;
+sub makeAttributeFixed
+{   my ($self, $path, $ns, $tag, $do, $fixed) = @_;
     my $def  = $do->($fixed);
 
     sub { my $node  = $_[0]->getAttributeNodeNS($ns, $tag)
@@ -800,8 +804,8 @@ sub attribute_fixed
 
 # SubstitutionGroups
 
-sub substgroup
-{   my ($path, $args, $base, %do) = @_;
+sub makeSubstgroup
+{   my ($self, $path, $base, %do) = @_;
     keys %do or return bless sub { () }, 'BLOCK';
 
     bless
@@ -821,8 +825,8 @@ sub substgroup
 
 # anyAttribute
 
-sub anyAttribute
-{   my ($path, $args, $handler, $yes, $no, $process) = @_;
+sub makeAnyAttribute
+{   my ($self, $path, $handler, $yes, $no, $process) = @_;
     return () unless defined $handler;
 
     my %yes = map { ($_ => 1) } @{$yes || []};
@@ -849,7 +853,7 @@ sub anyAttribute
             my @result;
             while(@attrs)
             {   my ($type, $data) = (shift @attrs, shift @attrs);
-                my ($label, $out) = $handler->($type, $data, $path, $args);
+                my ($label, $out) = $handler->($type, $data, $path, $self);
                 push @result, $label, $out if defined $label;
             }
             @result;
@@ -860,8 +864,8 @@ sub anyAttribute
 
 # anyElement
 
-sub anyElement
-{   my ($path, $args, $handler, $yes, $no, $process, $min, $max) = @_;
+sub makeAnyElement
+{   my ($self, $path, $handler, $yes, $no, $process, $min, $max) = @_;
     $handler ||= 'SKIP_ALL';
 
     my %yes = map { ($_ => 1) } @{$yes || []};
@@ -899,7 +903,7 @@ sub anyElement
              my @result;
              while(@elems)
              {   my ($type, $data) = (shift @elems, shift @elems);
-                 my ($label, $out) = $handler->($type, $data, $path, $args);
+                 my ($label, $out) = $handler->($type, $data, $path, $self);
                  push @result, $label, $out if defined $label;
              }
              @result;
@@ -910,16 +914,16 @@ sub anyElement
 
 # any kind of hook
 
-sub hook($$$$$$)
-{   my ($path, $args, $r, $tag, $before, $replace, $after) = @_;
+sub makeHook($$$$$$)
+{   my ($self, $path, $r, $tag, $before, $replace, $after) = @_;
     return $r unless $before || $replace || $after;
 
     return sub { ($_[0]->node->localName => 'SKIPPED') }
         if $replace && grep {$_ eq 'SKIP'} @$replace;
 
-    my @replace = $replace ? map {_decode_replace($path,$_)} @$replace : ();
-    my @before  = $before  ? map {_decode_before($path,$_) } @$before  : ();
-    my @after   = $after   ? map {_decode_after($path,$_)  } @$after   : ();
+    my @replace = $replace ? map {$self->_decodeReplace($path,$_)} @$replace:();
+    my @before  = $before  ? map {$self->_decodeBefore($path,$_) } @$before :();
+    my @after   = $after   ? map {$self->_decodeAfter($path,$_)  } @$after  :();
 
     sub
      { my $tree = shift or return ();
@@ -929,7 +933,7 @@ sub hook($$$$$$)
            defined $xml or return ();
        }
        my @h = @replace
-             ? map {$_->($xml,$args,$path,$tag)} @replace
+             ? map {$_->($xml,$self,$path,$tag)} @replace
              : $r->($tree->descend($xml));
        @h or return ();
        my $h = @h==1 ? {_ => $h[0]} : $h[1];  # detect simpleType
@@ -941,23 +945,23 @@ sub hook($$$$$$)
      }
 }
 
-sub _decode_before($$)
-{   my ($path, $call) = @_;
+sub _decodeBefore($$)
+{   my ($self, $path, $call) = @_;
     return $call if ref $call eq 'CODE';
 
       $call eq 'PRINT_PATH' ? sub {print "$_[1]\n"; $_[0] }
     : error __x"labeled before hook `{call}' undefined", call => $call;
 }
 
-sub _decode_replace($$)
-{   my ($path, $call) = @_;
+sub _decodeReplace($$)
+{   my ($self, $path, $call) = @_;
     return $call if ref $call eq 'CODE';
 
     error __x"labeled replace hook `{call}' undefined", call => $call;
 }
 
-sub _decode_after($$)
-{   my ($path, $call) = @_;
+sub _decodeAfter($$)
+{   my ($self, $path, $call) = @_;
     return $call if ref $call eq 'CODE';
 
       $call eq 'PRINT_PATH' ? sub {print "$_[2]\n"; $_[1] }
@@ -1013,7 +1017,7 @@ each attribute, and you must return list of pairs of derived information.
 When the returned is empty, the attribute data is lost.  The value may
 be a complex structure.
 
-=example anyAttribute in XmlReader
+=example anyAttribute in a READER
 Say your schema looks like this:
 
  <schema targetNamespace="http://mine"
@@ -1071,7 +1075,7 @@ extra attribute is always of type C<non-empty>, then you can do
   ( READER => '{http://mine}non-empty'
   );
 
- sub filter($$$$)
+ sub makeFilter($$$$)
  {   my ($fqn, $xml, $path, $translator) = @_;
      return () if $fqn ne '{http://mine}b';
      (b => $anyAttRead->($xml));
@@ -1225,7 +1229,7 @@ implements the C<fromXML> method as constructor.
 
  package My::Perl::Class;
  ...
- sub fromXML
+ sub makeFromXML
  {   my ($class, $data, $xmltype) = @_;
      my $self = $class->new($data);
      ...
@@ -1241,13 +1245,13 @@ In the simpelest implementation, the class stores its data exactly as
 the XML structure:
 
  package My::Perl::Class;
- sub fromXML
+ sub makeFromXML
  {   my ($class, $data, $xmltype) = @_;
      bless $data, $class;
  }
 
  # The same, even shorter:
- sub fromXML { bless $_[1], $_[0] }
+ sub makeFromXML { bless $_[1], $_[0] }
 
 =subsection Typemap to Object
 
@@ -1259,7 +1263,7 @@ to have one object spawning many different other objects.
  $schema->typemap($sometype => $object);
 
  package My::Perl::Class;
- sub fromXML
+ sub makeFromXML
  {   my ($object, $xmltype, $data) = @_;
      return Some::Other::Class->new($data);
  }
@@ -1273,7 +1277,7 @@ add the C<fromXML> method.
 The light version of an object factory works with CODE references.
 
  $schema->typemap($t1 => \&myhandler);
- sub myhandler
+ sub makeMyhandler
  {   my ($backend, $data, $type) = @_;
      return My::Perl::Class->new($data)
          if $backend eq 'READER';

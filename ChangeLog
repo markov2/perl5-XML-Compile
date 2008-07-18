@@ -4,6 +4,28 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.90: Fri Jul 18 21:52:52 CEST 2008
+
+	Changes:
+
+	- It was permitted to use an ARRAY with one element where a
+	  single elements was needed in the WRITER.  This has been
+	  removed because it did not work together with simpleType
+	  lists.
+
+	- Reworked the three back-ends from functional into clean OO.
+	  Module renames:
+	    ::Schema::Translate -> ::Translate
+	    ::Schema::XmlReader -> ::Translate::Reader
+	    ::Schema::XmlWriter -> ::Translate::Writer
+	    ::Schema::Template  -> ::Translate::Template 
+	  All functions renamed into methods from
+	    element_wrapper  into  makeElementWrapper
+
+	Improvements:
+
+	- you can now register new translator back-ends.
+
 version 0.89: Sat Jul 12 12:40:57 CEST 2008
 
 	Fixes:

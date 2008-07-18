@@ -29,10 +29,10 @@ lib/XML/Compile/Schema/BuiltInTypes.pm
 lib/XML/Compile/Schema/Instance.pm
 lib/XML/Compile/Schema/NameSpaces.pm
 lib/XML/Compile/Schema/Specs.pm
-lib/XML/Compile/Schema/Template.pm
-lib/XML/Compile/Schema/Translate.pm
-lib/XML/Compile/Schema/XmlReader.pm
-lib/XML/Compile/Schema/XmlWriter.pm
+lib/XML/Compile/Translate.pm
+lib/XML/Compile/Translate/Reader.pm
+lib/XML/Compile/Translate/Template.pm
+lib/XML/Compile/Translate/Writer.pm
 lib/XML/Compile/Util.pm
 lib/XML/Compile/xsd/1998-namespace.xsd
 lib/XML/Compile/xsd/1999-XMLSchema-part2.xsd

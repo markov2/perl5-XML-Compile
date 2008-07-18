@@ -1,7 +1,8 @@
 
-package XML::Compile::Schema::Template;
+package XML::Compile::Translate::Template;
+use base 'XML::Compile::Translate';
 
-use XML::Compile::Schema::XmlWriter;
+use XML::Compile::Translate::Writer;
 
 use strict;
 use warnings;
@@ -12,7 +13,7 @@ use Log::Report 'xml-compile', syntax => 'SHORT';
 
 =chapter NAME
 
-XML::Compile::Schema::Template - bricks to create an XML or PERL example
+XML::Compile::Translate::Template - create an XML or PERL example
 
 =chapter SYNOPSIS
 
@@ -36,17 +37,19 @@ the schema describes.
 
 BEGIN {
    no strict 'refs';
-   *$_ = *{"XML::Compile::Schema::XmlWriter::$_"}
-      for qw/tag_qualified tag_unqualified/;
+   *$_ = *{"XML::Compile::Translate::Writer::$_"}
+      for qw/makeTagQualified makeTagUnqualified/;
 }
 
-sub wrapper_ns
-{   my ($path, $args, $processor, $index) = @_;
+sub actsAs($) { $_[1] eq 'READER' }
+
+sub makeWrapperNs
+{   my ($self, $path, $processor, $index) = @_;
     $processor;
 }
 
-sub typemap_to_hooks($$)
-{   my ($hooks, $typemap) = @_;
+sub typemapToHooks($$)
+{   my ($self, $hooks, $typemap) = @_;
     while(my($type, $action) = each %$typemap)
     {   defined $action or next;
 
@@ -71,14 +74,14 @@ sub typemap_to_hooks($$)
     $hooks;
 }
 
-sub element_wrapper
-{   my ($path, $args, $processor) = @_;
+sub makeElementWrapper
+{   my ($self, $path, $processor) = @_;
     sub { $processor->() };
 }
-*attribute_wrapper = \&element_wrapper;
+*makeAttributeWrapper = \&makeElementWrapper;
 
 sub _block($@)
-{   my ($block, $path, $args, @pairs) = @_;
+{   my ($self, $block, $path, @pairs) = @_;
     bless
     sub { my @elems  = map { $_->() } odd_elements @pairs;
           my @tags   = map { $_->{tag} } @elems;
@@ -100,12 +103,12 @@ sub _block($@)
         }, 'BLOCK';
 }
 
-sub sequence { _block(sequence => @_) }
-sub choice   { _block(choice   => @_) }
-sub all      { _block(all      => @_) }
+sub makeSequence { my $self = shift; $self->_block(sequence => @_) }
+sub makeChoice   { my $self = shift; $self->_block(choice   => @_) }
+sub makeAll      { my $self = shift; $self->_block(all      => @_) }
 
-sub block_handler
-{   my ($path, $args, $label, $min, $max, $proc, $kind) = @_;
+sub makeBlockHandler
+{   my ($self, $path, $label, $min, $max, $proc, $kind) = @_;
 
     my $code =
     sub { my $data = $proc->();
@@ -129,8 +132,8 @@ sub block_handler
     ($label => $code);
 }
 
-sub element_handler
-{   my ($path, $args, $label, $min, $max, $req, $opt) = @_;
+sub makeElementHandler
+{   my ($self, $path, $label, $min, $max, $req, $opt) = @_;
     sub { my $data = $opt->() or return;
           my $occur
            = $max eq 'unbounded' && $min==0 ? 'occurs any number of times'
@@ -143,45 +146,45 @@ sub element_handler
         };
 }
 
-sub required
-{   my ($path, $args, $label, $do) = @_;
+sub makeRequired
+{   my ($self, $path, $label, $do) = @_;
     $do;
 }
 
-sub element_href
-{   my ($path, $args, $ns, $childname, $do) = @_;
+sub makeElementHref
+{   my ($self, $path, $ns, $childname, $do) = @_;
     $do;
 }
 
-sub element
-{   my ($path, $args, $ns, $childname, $do) = @_;
+sub makeElement
+{   my ($self, $path, $ns, $childname, $do) = @_;
     $do;
 }
 
-sub element_default
-{   my ($path, $args, $ns, $childname, $do, $default) = @_;
+sub makeElementDefault
+{   my ($self, $path, $ns, $childname, $do, $default) = @_;
     sub { (occur => "$childname defaults to example $default",  $do->()) };
 }
 
-sub element_fixed
-{   my ($path, $args, $ns, $childname, $do, $fixed) = @_;
+sub makeElementFixed
+{   my ($self, $path, $ns, $childname, $do, $fixed) = @_;
     $fixed   = $fixed->example;
     sub { (occur => "$childname fixed to example $fixed", $do->()) };
 }
 
-sub element_nillable
-{   my ($path, $args, $ns, $childname, $do) = @_;
+sub makeElementNillable
+{   my ($self, $path, $ns, $childname, $do) = @_;
     sub { (occur => "$childname is nillable", $do->()) };
 }
 
-sub element_abstract
-{   my ($path, $args, $ns, $childname, $do) = @_;
+sub makeElementAbstract
+{   my ($self, $path, $ns, $childname, $do) = @_;
     sub { () };
 }
 
 my %recurse;
-sub complex_element
-{   my ($path, $args, $tag, $elems, $attrs, $any_attr) = @_;
+sub makeComplexElement
+{   my ($self, $path, $tag, $elems, $attrs, $any_attr) = @_;
     my @parts = (odd_elements(@$elems, @$attrs), @$any_attr);
 
     sub { my (@attrs, @elems);
@@ -211,8 +214,8 @@ sub complex_element
         };
 }
 
-sub tagged_element
-{   my ($path, $args, $tag, $st, $attrs, $attrs_any) = @_;
+sub makeTaggedElement
+{   my ($self, $path, $tag, $st, $attrs, $attrs_any) = @_;
     my @parts = (odd_elements(@$attrs), @$attrs_any);
 
     my %content =
@@ -233,8 +236,8 @@ sub tagged_element
         };
 }
 
-sub mixed_element
-{   my ($path, $args, $tag, $elems, $attrs, $attrs_any) = @_;
+sub makeMixedElement
+{   my ($self, $path, $tag, $elems, $attrs, $attrs_any) = @_;
     my @parts = (odd_elements(@$attrs), @$attrs_any);
 
     my %mixed =
@@ -258,8 +261,8 @@ sub mixed_element
         };
 }
 
-sub simple_element
-{   my ($path, $args, $tag, $st) = @_;
+sub makeSimpleElement
+{   my ($self, $path, $tag, $st) = @_;
     sub { +{ kind    => 'simple'
 #          , struct  => "elem $tag is a single value"  # too obvious
            , tag     => $tag
@@ -268,24 +271,24 @@ sub simple_element
         };
 }
 
-sub builtin
-{   my ($path, $args, $node, $type, $def, $check_values) = @_;
+sub makeBuiltin
+{   my ($self, $path, $node, $type, $def, $check_values) = @_;
     my $example = $def->{example};
     sub { (type => $type, example => $example) };
 }
 
-sub list
-{   my ($path, $args, $st) = @_;
+sub makeList
+{   my ($self, $path, $st) = @_;
     sub { (struct => "a (blank separated) list of elements", $st->()) };
 }
 
-sub facets_list
-{   my ($path, $args, $st, $info, $early, $late) = @_;
+sub makeFacetsList
+{   my ($self, $path, $st, $info, $early, $late) = @_;
     sub { (facets => "with some restrictions on list elements", $st->()) };
 }
 
-sub _fill_facets($@)
-{   my $type  = shift;
+sub _fillFacets($@)
+{   my ($self,$type) = (shift, shift);
     my @lines = $type.':';
     while(@_)
     {   my $facet = shift;
@@ -295,20 +298,20 @@ sub _fill_facets($@)
     \@lines;
 }
 
-sub facets
-{   my ($path, $args, $st, $info, @do) = @_;
+sub makeFacets
+{   my ($self, $path, $st, $info, @do) = @_;
     my $comment
        = keys %$info==1 && $info->{enumeration}
-       ? _fill_facets('Enum', sort @{$info->{enumeration}})
+       ? $self->_fillFacets('Enum', sort @{$info->{enumeration}})
        : keys %$info==1 && exists $info->{pattern}
-       ? _fill_facets('Pattern', @{$info->{pattern}})
+       ? $self->_fillFacets('Pattern', @{$info->{pattern}})
        : "with some value restrictions";
 
     sub { (facets => $comment, $st->()) };
 }
 
-sub union
-{   my ($path, $args, @types) = @_;
+sub makeUnion
+{   my ($self, $path, @types) = @_;
     sub { my @choices = map { +{$_->()} } @types;
           +( kind    => 'union'
            , struct  => "one of the following (union)"
@@ -318,8 +321,8 @@ sub union
         };
 }
 
-sub attribute_required
-{   my ($path, $args, $ns, $tag, $do) = @_;
+sub makeAttributeRequired
+{   my ($self, $path, $ns, $tag, $do) = @_;
 
     sub { +{ kind    => 'attr'
            , tag     => $tag
@@ -329,13 +332,13 @@ sub attribute_required
         };
 }
 
-sub attribute_prohibited
-{   my ($path, $args, $ns, $tag, $do) = @_;
+sub makeAttributeProhibited
+{   my ($self, $path, $ns, $tag, $do) = @_;
     ();
 }
 
-sub attribute
-{   my ($path, $args, $ns, $tag, $do) = @_;
+sub makeAttribute
+{   my ($self, $path, $ns, $tag, $do) = @_;
     sub { +{ kind    => 'attr'
            , tag     => $tag
            , $do->()
@@ -343,8 +346,8 @@ sub attribute
         };
 }
 
-sub attribute_default
-{   my ($path, $args, $ns, $tag, $do) = @_;
+sub makeAttributeDefault
+{   my ($self, $path, $ns, $tag, $do) = @_;
     sub { +{ kind   => 'attr'
            , tag    => $tag
            , occurs => "attribute $tag has default"
@@ -353,8 +356,8 @@ sub attribute_default
         };
 }
 
-sub attribute_fixed
-{   my ($path, $args, $ns, $tag, $do, $fixed) = @_;
+sub makeAttributeFixed
+{   my ($self, $path, $ns, $tag, $do, $fixed) = @_;
     my $value = $fixed->value;
 
     sub { +{ kind    => 'attr'
@@ -365,8 +368,8 @@ sub attribute_fixed
         };
 }
 
-sub substgroup
-{   my ($path, $args, $type, @do) = @_;
+sub makeSubstgroup
+{   my ($self, $path, $type, @do) = @_;
     my @tags = sort map { $_->[0] } odd_elements @do;
 
     sub { +{ kind    => 'substitution group'
@@ -377,24 +380,24 @@ sub substgroup
         };
 }
 
-sub anyAttribute
-{   my ($path, $args, $handler, $yes, $no, $process) = @_;
+sub makeAnyAttribute
+{   my ($self, $path, $handler, $yes, $no, $process) = @_;
     $yes ||= []; $no ||= [];
     my $occurs = @$yes ? "in @$yes" : @$no ? "not in @$no" : 'any type';
     bless sub { +{kind => 'attr' , struct  => "anyAttribute $occurs"
                  , tag => 'ANYATTR', example => 'AnySimple'} }, 'ANY';
 }
 
-sub anyElement
-{   my ($path, $args, $handler, $yes, $no, $process, $min, $max) = @_;
+sub makeAnyElement
+{   my ($self, $path, $handler, $yes, $no, $process, $min, $max) = @_;
     $yes ||= []; $no ||= [];
     my $occurs = @$yes ? "in @$yes" : @$no ? "not in @$no" : 'any type';
     bless sub { +{ kind => 'element', struct  => 'anyElement'
                  , tag => "ANY", example => 'ANY' } }, 'ANY';
 }
 
-sub hook($$$$$$)
-{   my ($path, $args, $r, $tag, $before, $replace, $after) = @_;
+sub makeHook($$$$$$)
+{   my ($self, $path, $r, $tag, $before, $replace, $after) = @_;
 
     return $r unless $before || $replace || $after;
 
@@ -403,9 +406,9 @@ sub hook($$$$$$)
 
     return sub {()} if $replace && grep {$_ eq 'SKIP'} @$replace;
 
-    my @replace = $replace ? map {_decode_replace($path,$_)} @$replace : ();
-    my @before  = $before  ? map {_decode_before($path,$_) } @$before  : ();
-    my @after   = $after   ? map {_decode_after($path,$_)  } @$after   : ();
+    my @replace = $replace ? map {$self->_decodeReplace($path,$_)} @$replace:();
+    my @before  = $before  ? map {$self->_decodeBefore($path,$_) } @$before :();
+    my @after   = $after   ? map {$self->_decodeAfter($path,$_)  } @$after  :();
 
     sub
     {  for(@before) { $_->($tag, $path) or return }
@@ -418,22 +421,22 @@ sub hook($$$$$$)
      }
 }
 
-sub _decode_before($$)
-{   my ($path, $call) = @_;
+sub _decodeBefore($$)
+{   my ($self, $path, $call) = @_;
     return $call if ref $call eq 'CODE';
     error __x"labeled before hook `{name}' undefined", name => $call;
 }
 
-sub _decode_replace($$)
-{   my ($path, $call) = @_;
+sub _decodeReplace($$)
+{   my ($self, $path, $call) = @_;
     return $call if ref $call eq 'CODE';
 
     # SKIP already handled
     error __x"labeled replace hook `{name}' undefined", name => $call;
 }
 
-sub _decode_after($$)
-{   my ($path, $call) = @_;
+sub _decodeAfter($$)
+{   my ($self, $path, $call) = @_;
     return $call if ref $call eq 'CODE';
     error __x"labeled after hook `{name}' undefined", name => $call;
 }
@@ -444,8 +447,8 @@ sub _decode_after($$)
 ###
 
 sub toPerl($%)
-{   my ($class, $ast, %args) = @_;
-    my @lines = perl_any($ast, \%args);
+{   my ($self, $ast, %args) = @_;
+    my @lines = $self->_perlAny($ast, \%args);
 
     # remove leading  'type =>'
     for(my $linenr = 0; $linenr < @lines; $linenr++)
@@ -460,9 +463,9 @@ sub toPerl($%)
     $lines;
 }
 
-sub perl_any($$);
-sub perl_any($$)
-{   my ($ast, $args) = @_;
+sub _perlAny($$);
+sub _perlAny($$)
+{   my ($self, $ast, $args) = @_;
 
     my @lines;
     if($ast->{struct} && $args->{show_struct})
@@ -488,7 +491,7 @@ sub perl_any($$)
 
     my @subs;
     foreach my $child (@childs)
-    {   my @sub = perl_any($child, $args);
+    {   my @sub = $self->_perlAny($child, $args);
         @sub or next;
 
         # last line is code and gets comma
@@ -548,7 +551,7 @@ sub perl_any($$)
     elsif($kind eq 'union')    # union type
     {   foreach my $union ( @{$ast->{choice}} )
         {  # remove examples
-           my @l = grep { m/^#/ } perl_any($union,$args);
+           my @l = grep { m/^#/ } $self->_perlAny($union, $args);
            s/^\#/#  -/ for $l[0];
            s/^\#/#   / for @l[1..$#l];
            push @lines, @l;
@@ -576,13 +579,13 @@ sub perl_any($$)
 ###
 
 sub toXML($$%)
-{   my ($class, $doc, $ast, %args) = @_;
-    xml_any($doc, $ast, "\n$args{indent}", \%args);
+{   my ($self, $doc, $ast, %args) = @_;
+    $self->_xmlAny($doc, $ast, "\n$args{indent}", \%args);
 }
 
-sub xml_any($$$$);
-sub xml_any($$$$)
-{   my ($doc, $ast, $indent, $args) = @_;
+sub _xmlAny($$$$);
+sub _xmlAny($$$$)
+{   my ($self, $doc, $ast, $indent, $args) = @_;
     my @res;
 
     my @comment;
@@ -616,14 +619,14 @@ sub xml_any($$$$)
     my @elems = @{$ast->{elems} || []};
     foreach my $elem (@elems)
     {   if(ref $elem eq 'BLOCK' || ref $elem eq 'REP-BLOCK')
-        {   push @res, xml_any($doc, $elem, $indent, $args);
+        {   push @res, $self->_xmlAny($doc, $elem, $indent, $args);
         }
         elsif($elem->{tag} eq '_')
         {   push @res, $doc->createTextNode($indent.$elem->{example});
         }
         else
         {   push @res, $doc->createTextNode($indent)
-              , scalar xml_any($doc, $elem, $nest_indent, $args);
+              , scalar $self->_xmlAny($doc, $elem, $nest_indent, $args);
         }
     }
 

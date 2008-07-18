@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# hooks in XmlReader
+# hooks in ::Translate::Reader
 
 use warnings;
 use strict;

@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# hooks in XmlWriter
+# hooks in ::Translate::Writer
 
 use warnings;
 use strict;
