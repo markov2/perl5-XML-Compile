@@ -45,7 +45,7 @@ XML::Compile::Translate - create an XML data parser
 
 This module converts a schema type definition into a code
 reference which can be used to interpret a schema.  The sole public
-function in this package is M<compileTree()>, and is called by
+function in this package is M<compile()>, and is called by
 M<XML::Compile::Schema::compile()>, which does a lot of set-ups.
 Please do not try to use this package directly!
 
@@ -76,12 +76,10 @@ to interpret the message if you need them.
 
 A few nuts are still to crack:
  any* processContents always interpreted as lax
- schema version
  openContent
  attribute limitiations (facets) on dates
  full understanding of patterns (now limited)
  final is not protected
- QName writer namespace to prefix translation
 
 Of course, the latter list is all fixed in next release ;-)
 See chapter L</DETAILS> for more on how the tune the translator.
@@ -112,8 +110,8 @@ sub new($@)
 sub init($)
 {   my ($self, $args) = @_;
 
-    $self->{nss} = $args->{nss}
-        or panic "no namespace tables";
+    $self->{nss} = $args->{nss} or panic "no namespace tables";
+    $self->{prefixes} ||= {};
 
     $self;
 }
@@ -197,17 +195,28 @@ sub assertType($$$$)
     return if $checker->($value);
 
     error __x"field {field} contains '{value}' which is not a valid {type} at {where}"
-        , field => $field, value => $value, type => $type, where => $where
-        , _class => 'usage';
+      , field => $field, value => $value, type => $type, where => $where
+      , _class => 'usage';
 
 }
 
 sub extendAttrs($@)
-{   my ($self, $in, %add) = @_;
+{   my ($self, $in, $add) = @_;
 
-    # new attrs overrule
-    unshift @{$in->{attrs}},     @{$add{attrs}}     if $add{attrs};
-    unshift @{$in->{attrs_any}}, @{$add{attrs_any}} if $add{attrs_any};
+    if(my $a = $add->{attrs})
+    {   # new attrs overrule old definitions, remove doubles!
+        my (@attrs, %in);
+        my @all = (@{$add->{attrs} || []}, @{$in->{attrs} || []});
+        while(@all)
+        {   my ($type, $code) = (shift @all, shift @all);
+            $in{$type}++ and next;
+            push @attrs, $type => $code;
+        }
+        $in->{attrs} = \@attrs;
+    }
+
+    # don't know, probably not correct: only top-level any?
+    unshift @{$in->{attrs_any}}, @{$add->{attrs_any}} if $add->{attrs_any};
     $in;
 }
 
@@ -689,7 +698,7 @@ sub particle($)
     my $max   = $node->getAttribute('maxOccurs');
 
     unless(defined $min)
-    {   $min = $self->actsAs('WRITER')
+    {   $min = ($self->actsAs('WRITER') || $self->{default_values} ne 'EXTEND')
             && ($node->getAttribute('default') || $node->getAttribute('fixed'))
              ? 0 : 1;
     }
@@ -718,8 +727,12 @@ sub particle($)
     defined $label
         or return ();
 
-    return $self->makeBlockHandler($where, $label, $min, $max, $process,$local)
-        if ref $process eq 'BLOCK';
+    if(ref $process eq 'BLOCK')
+    {   my $key   = $self->keyRewrite($label);
+        my $multi = $self->blockLabel($local, $key);
+        return $self->makeBlockHandler($where, $label, $min, $max
+           , $process, $local, $multi);
+    }
 
     my $required;
     $required = $self->makeRequired($where, $label, $process) if $min!=0;
@@ -729,6 +742,26 @@ sub particle($)
         $self->makeElementHandler($where, $key, $min, $max, $required,$process);
 
     ( ($self->actsAs('READER') ? $label : $key) => $do);
+}
+
+# blockLabel KIND, LABEL
+# Particle blocks, like `sequence' and `choice', which have a maxOccurs
+# (maximum occurrence) which is 2 of more, are represented by an ARRAY
+# of HASHs.  The label with such a block is derived from its first element.
+# This function determines how.
+#  seq_address       sequence get seq_ prepended
+#  cho_gender        choices get cho_ before them
+#  all_money         an all block can also be repreated in spec >1.1
+#  gr_people         group refers to a block of above type, but
+#                       that type is not reflected in the name
+
+my %block_abbrev = qw/sequence seq_  choice cho_  all all_  group gr_/;
+sub blockLabel($$)
+{   my ($self, $kind, $label) = @_;
+    return $label if $kind eq 'element';
+
+    $label =~ s/^(?:seq|cho|all|gr)_//;
+    $block_abbrev{$kind} . (unpack_type $label)[1];
 }
 
 sub particleGroup($)
@@ -746,11 +779,14 @@ sub particleGroup($)
 
     my $typename = $self->rel2abs($where, $node, $ref);
 
-    my $dest    = $self->namespaces->find(group => $typename)
+    my $dest  = $self->namespaces->find(group => $typename)
         or error __x"cannot find group `{name}' at {where}"
              , name => $typename, where => $where, _class => 'schema';
 
-    my $group   = $tree->descend($dest->{node}, $dest->{local});
+    local @$self{ qw/elems_qual attrs_qual tns/ }
+       = $self->nsContext($dest);
+
+    my $group = $tree->descend($dest->{node}, $dest->{local});
     return () if $group->nrChildren==0;
 
     $group->nrChildren==1
@@ -760,7 +796,7 @@ sub particleGroup($)
     my $local = $group->currentLocal;
     $local    =~ m/^(?:all|choice|sequence)$/
         or error __x"illegal group member `{name}' at {where}"
-               , name => $local, where => $where, _class => 'schema';
+             , name => $local, where => $where, _class => 'schema';
 
     $self->particleBlock($group->descend);
 }
@@ -1114,7 +1150,8 @@ sub anyElement($$$)
         if $^W && $node->getAttribute('notQName');
 
     my ($yes, $no) = $self->translateNsLimits($namespace, $not_ns);
-    (any => $self->makeAnyElement($where, $handler, $yes, $no, $process, $min, $max));
+    (any => $self->makeAnyElement($where, $handler, $yes, $no
+              , $process, $min, $max));
 }
 
 sub translateNsLimits($$)
@@ -1133,11 +1170,11 @@ sub translateNsLimits($$)
     foreach my $list ($include, $exclude)
     {   my @list;
         if(defined $list && length $list)
-        {   foreach my $url (split " ", $list)
+        {   foreach my $uri (split " ", $list)
             {   push @list
-                 , $url eq '##targetNamespace' ? $tns
-                 : $url eq '##local'           ? ()
-                 : $url;
+                 , $uri eq '##targetNamespace' ? $tns
+                 : $uri eq '##local'           ? ()
+                 : $uri;
             }
         }
         push @return, @list ? \@list : undef;
@@ -1287,7 +1324,8 @@ sub simpleContentExtension($)
         or error __x"base of simpleContent not simple at {where}"
              , where => $where, _class => 'schema';
  
-    $self->extendAttrs($basetype, $self->attributeList($tree));
+    $self->extendAttrs($basetype, {$self->attributeList($tree)});
+
     $tree->currentChild
         and error __x"elements left at tail at {where}"
               , where => $tree->path, _class => 'schema';
@@ -1332,7 +1370,7 @@ sub simpleContentRestriction($$)
 
     $type->{st} = $self->applySimpleFacets($tree, $st, 0);
 
-    $self->extendAttrs($type, $self->attributeList($tree));
+    $self->extendAttrs($type, {$self->attributeList($tree)});
 
     $tree->currentChild
         and error __x"elements left at tail at {where}"
@@ -1367,6 +1405,7 @@ sub complexContent($$)
     my $type  = {};
     my $where = $tree->path . '#cce';
 
+use Data::Dumper;
     if($base ne 'anyType')
     {   my $typename = $self->rel2abs($where, $node, $base);
         my $typedef  = $self->namespaces->find(complexType => $typename)
@@ -1381,15 +1420,17 @@ sub complexContent($$)
 
     my $own = $self->complexBody($tree, $mixed);
 
-    unshift @{$own->{$_}},    @{$type->{$_} || []}
-        for qw/attrs attrs_any/;
+    $self->extendAttrs($type, $own);
 
-    unshift @{$own->{elems}}, @{$type->{elems} || []}
-        if $name eq 'extension';
+    if($name eq 'extension')
+    {   push @{$type->{elems}}, @{$own->{elems} || []};
+    }
+    else # restriction
+    {   $type->{elems} = $own->{elems};
+    }
 
-    $own->{mixed} ||= $type->{mixed};
-
-    $own;
+    $type->{mixed} ||= $own->{mixed};
+    $type;
 }
 
 sub complexMixed($)
@@ -1402,20 +1443,41 @@ sub complexMixed($)
 #
 
 # print $self->rel2abs($path, $node, '{ns}type')    ->  '{ns}type'
-# print $self->rel2abs($path, $node, 'prefix:type') ->  '{ns(prefix)}type'
+# print $self->rel2abs($path, $node, 'prefix:type') ->  '{ns-of-prefix}type'
 
 sub rel2abs($$$)
 {   my ($self, $where, $node, $type) = @_;
     return $type if substr($type, 0, 1) eq '{';
 
     my ($prefix, $local) = $type =~ m/^(.+?)\:(.*)/ ? ($1, $2) : ('', $type);
-    my $url = $node->lookupNamespaceURI($prefix);
+    my $uri = $node->lookupNamespaceURI($prefix);
+    $self->_registerNSprefix($self->{prefixes}, $prefix, $uri) if $uri;
 
     error __x"No namespace for prefix `{prefix}' in `{type}' at {where}"
       , prefix => $prefix, type => $type, where => $where, _class => 'schema'
-        if length $prefix && !defined $url;
+        if length $prefix && !defined $uri;
 
-     pack_type $url, $local;
+    pack_type $uri, $local;
+}
+
+sub _registerNSprefix($$$)
+{   my ($self, $table, $prefix, $uri) = @_;
+
+    return $table->{$uri}{prefix}
+        if $table->{$uri}; # namespace already has a prefix
+
+    my %prefs = map { ($_->{prefix} => 1) } values %$table;
+    my $take;
+    if(!$prefs{$prefix}) { $take = $prefix }
+    elsif(!$prefs{''})   { $take = '' }
+    else
+    {   # prefix already in use; create a new x\d+ prefix
+        my $count = 0;
+        $count++ while exists $prefs{"x$count"};
+        $take    = 'x'.$count;
+    }
+    $self->{prefixes}{$uri} = {prefix => $take, uri => $uri, used => 0};
+    $take;
 }
 
 sub anyType($)
@@ -1657,14 +1719,21 @@ Therefore, if you use them then you need to process that parts of
 XML yourself.  See the various backends on how to create or process
 these elements.
 
+Automatic decoding is problematic: you do not know what to expect, so
+cannot prepare for these data-structures compile-time.  However,
+M<XML::Compile::Cache> offers a way out: you can declare the handlers
+for these "any" components and therewith be prepared for them.  With
+C<XML::Compile::Cache::new(allow_undeclared)>, you can permit run-time
+compilation of  the found components.
+
 =over 4
 
-=item any_element CODE|'TAKE_ALL'
+=item any_element CODE|'TAKE_ALL'|'SKIP_ALL'
 [0.89] This will be called when the type definition contains an C<any>
 definition, after processing the other element components.  By
 default, all C<any> specifications will be ignored.
 
-=item any_attribute CODE|'TAKE_ALL'
+=item any_attribute CODE|'TAKE_ALL'|'SKIP_ALL'
 [0.89] This will be called when the type definitions contains an
 C<anyAttribute> definition, after processing the other attributes.
 By default, all C<anyAttribute> specifications will be ignored.

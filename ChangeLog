@@ -4,6 +4,69 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.91: Fri Aug  1 13:25:26 CEST 2008
+
+	Changes:
+
+	- removed block_label from ::Util because it does not work with
+	  key rewrite.  Probably not used by anyone.
+
+	- "any" without maxOccurs>1 did still return an ARRAY,
+	  which is inconsequent.  Needed to be fixed.
+
+	- the output order of attributes has changed: the extended additions
+	  before the base class attributes.  This does not change the meaning,
+	  but may be painful for your regression tests.
+
+	Fixes:
+
+	- Do not confuse un-used keys as 'any' elements in WRITER
+
+	- key rewrite PREFIXED did not work with blocks.
+
+	- QNAME in name-space-less schema's can go without prefix.
+
+	- Fixed QName in list.  Tests in new t/74qname.t
+
+	- undouble attributes when extending types.
+
+	- ::Schema::compile(use_default_prefix) renamed into
+	  use_default_namespace, which was already used in the
+	  ::Translate docs.  Both names will work.
+
+	- WRITER production errors did not arrive correctly to the
+	  application.  Reported by [Gert Doering]
+
+	- particle block handling in the WRITER was not as sophisticated
+	  as in the READER, which cause problems reported by [Gert Doering]
+
+	- groups which ref'd to an other name-spaces did not use the new
+	  targetNamespace.
+
+	- READER when choice/sequence/all with minOccurs=0 in the middle
+	  of a list of elements failed if the data was not present.
+
+	Improvements:
+
+	- List existence of XML::Rewrite.
+
+	- Collect prefix-table when reading.
+
+	- better error when an any_(element|attribute) is not understood.
+
+	- the writer will attempt to use the same prefixes as used in
+	  the schema, unless these name-spaces are already pre-defined
+	  in the 'prefixes' table.
+
+	- writer adds prefixes always in the same order (alphabetic) to
+	  ease regression-tests.
+
+	- be more careful that empty text fragments do not end-up as
+	  text nodes in the WRITER output.
+
+	- some error message did not show the path in the message where
+	  the error was produced.
+
 version 0.90: Fri Jul 18 21:52:52 CEST 2008
 
 	Changes:

@@ -10,7 +10,7 @@ use TestTools;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 38;
+use Test::More tests => 81;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -48,16 +48,25 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
   <list itemType="token" />
 </simpleType>
 
+<element name="test4">
+  <complexType>
+    <sequence>
+      <element name="e4a" type="int" />
+      <element name="e4b" type="int" default="72" />
+      <element name="e4e" type="int" minOccurs="0" />
+    </sequence>
+    <attribute name="a4c" type="int" />
+    <attribute name="a4d" type="int" default="73" />
+  </complexType>
+</element>
+
 </schema>
 __SCHEMA__
 
 ok(defined $schema);
 
-my @errors;
 set_compile_defaults
-   sloppy_integers => 1
- , invalid => sub {no warnings; push @errors, "$_[2] ($_[1])"; undef}
- ;
+   sloppy_integers => 1;
 
 ##
 ### Integers
@@ -66,7 +75,6 @@ set_compile_defaults
 test_rw($schema, "test1" => <<__XML, {t1a => 11, t1b => 12});
 <test1><t1a>11</t1a><t1b>12</t1b></test1>
 __XML
-ok(!@errors);
 
 # insert default in hash, but not when producing XML
 test_rw($schema, "test1" => <<__XML, {t1a => 10, t1b => 13}, <<__XML, {t1b => 13});
@@ -74,7 +82,6 @@ test_rw($schema, "test1" => <<__XML, {t1a => 10, t1b => 13}, <<__XML, {t1b => 13
 __XML
 <test1><t1b>13</t1b></test1>
 __XML
-ok(!@errors);
 
 ##
 ### Strings
@@ -88,9 +95,7 @@ __XML
 <test2><t2b>bar</t2b></test2>
 __XML
 
-##
 ### List
-##
 
 # bug-report rt.cpan.org#36093
 
@@ -105,4 +110,89 @@ test_rw($schema, "test3" => <<__XML, \%t31, <<__XML, {e3 => []});
 <test3><e3></e3></test3>
 __XML
 <test3><e3></e3></test3>
+__XML
+
+### various DEFAULT_VALUES modes [0.91]
+
+set_compile_defaults
+   sloppy_integers => 1
+ , default_values  => 'EXTEND';
+
+test_rw($schema, test4 => <<__XML, {e4a => 9, e4b => 10, a4c => 11, a4d => 12});
+<test4 a4c="11" a4d="12"><e4a>9</e4a><e4b>10</e4b></test4>
+__XML
+
+my $r4a = create_reader $schema, 'reader extend', 'test4';
+my $h4a = $r4a->( <<__XML );
+<test4><e4a>20</e4a><e4e>21</e4e></test4>
+__XML
+is_deeply($h4a, {e4a => 20, e4b => 72, a4d => 73, e4e => 21});
+
+$h4a = $r4a->( <<__XML );
+<test4 a4c="22" a4d="73"><e4a>23</e4a><e4b>72</e4b><e4e>24</e4e></test4>
+__XML
+is_deeply($h4a, {e4a => 23, e4b => 72, a4c => 22, a4d => 73, e4e => 24});
+
+my $w4a = create_writer $schema, 'writer extend', 'test4';
+my $x4a = writer_test $w4a, {e4a => 25};
+compare_xml($x4a, <<__XML);
+<test4 a4d="73">
+   <e4a>25</e4a>
+   <e4b>72</e4b>
+</test4>
+__XML
+
+# IGNORE
+
+set_compile_defaults
+   sloppy_integers => 1
+ , default_values  => 'IGNORE';
+
+test_rw($schema, test4 => <<__XML, {e4a => 9, e4b => 10, a4c => 11, a4d => 12});
+<test4 a4c="11" a4d="12"><e4a>9</e4a><e4b>10</e4b></test4>
+__XML
+
+my $r4b = create_reader $schema, 'reader ignore', 'test4';
+my $h4b = $r4b->( <<__XML );
+<test4><e4a>30</e4a><e4e>31</e4e></test4>
+__XML
+is_deeply($h4b, {e4a => 30, e4e => 31});
+
+$h4b = $r4b->( <<__XML );
+<test4 a4c="32" a4d="73"><e4a>33</e4a><e4b>72</e4b><e4e>34</e4e></test4>
+__XML
+is_deeply($h4b, {e4a => 33, e4b => 72, a4c => 32, a4d => 73, e4e => 34});
+
+my $w4b = create_writer $schema, 'writer ignore', 'test4';
+my $x4b = writer_test $w4b, {e4a => 35};
+compare_xml($x4b, '<test4><e4a>35</e4a></test4>');
+
+# MINIMAL
+
+set_compile_defaults
+   sloppy_integers => 1
+ , default_values  => 'MINIMAL';
+
+test_rw($schema, test4 => <<__XML, {e4a => 9, e4b => 10, a4c => 11, a4d => 12});
+<test4 a4c="11" a4d="12"><e4a>9</e4a><e4b>10</e4b></test4>
+__XML
+
+my $r4c = create_reader $schema, 'reader minimal', 'test4';
+my $h4c = $r4c->( <<__XML );
+<test4><e4a>40</e4a><e4e>41</e4e></test4>
+__XML
+is_deeply($h4c, {e4a => 40, e4e => 41});
+
+$h4c = $r4c->( <<__XML );
+<test4 a4c="42" a4d="73"><e4a>43</e4a><e4b>72</e4b><e4e>44</e4e></test4>
+__XML
+is_deeply($h4c, {e4a => 43, a4c => 42, e4b => undef, e4e => 44});
+
+my $w4c = create_writer $schema, 'writer minimal', 'test4';
+my $x4c = writer_test $w4c, {a4c => 45, a4d => 73, e4a => 46, e4b => 72, e4e => 47};
+compare_xml($x4c, <<__XML);
+<test4 a4c="45">
+   <e4a>46</e4a>
+   <e4e>47</e4e>
+</test4>
 __XML

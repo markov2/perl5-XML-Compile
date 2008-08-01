@@ -26,7 +26,7 @@ foreach my $package (@show_versions)
 
     no strict 'refs';
     my $report
-      = !$@    ? "version ". (${"package\::VERSION"} || 'unknown')
+      = !$@    ? "version ". (${"$package\::VERSION"} || 'unknown')
       : $@ =~ m/^Can't locate/ ? "not installed"
       : "reports error";
 

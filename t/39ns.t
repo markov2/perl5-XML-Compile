@@ -97,9 +97,10 @@ is(join("\n", join "\n", $schema->elements)."\n", <<__ELEMS__);
 {http://test2/ns}test6
 __ELEMS__
 
-set_compile_defaults elements_qualified   => 'ALL'
-                   , attributes_qualified => 1
-                   , include_namespaces   => 1;
+set_compile_defaults
+    elements_qualified   => 'ALL'
+  , attributes_qualified => 1
+  , include_namespaces   => 1;
 
 #
 # simple name-space on schema
@@ -116,16 +117,16 @@ test_rw($schema, "test2" => <<__XML, {c1_a => 11});
 __XML
 
 test_rw($schema, "{$NS2}test3" => <<__XML, {c1_a => 12, a1_a => 13});
-<test3 xmlns="$NS2" xmlns:x0="$TestNS" x0:a1_a="13">
-   <x0:c1_a>12</x0:c1_a>
+<test3 xmlns="$NS2" xmlns:that="$TestNS" that:a1_a="13">
+   <that:c1_a>12</that:c1_a>
 </test3>
 __XML
 
 my %t4 = (c1_a => 14, a1_a => 15, c4_a => 16, a4_a => 17);
 test_rw($schema, "{$NS2}test4" => <<__XML, \%t4);
-<test4 xmlns="$NS2" xmlns:x0="$TestNS"
-       x0:a1_a="15" a4_a="17">
-   <x0:c1_a>14</x0:c1_a>
+<test4 xmlns="$NS2" xmlns:that="$TestNS"
+       a4_a="17" that:a1_a="15">
+   <that:c1_a>14</that:c1_a>
    <c4_a>16</c4_a>
 </test4>
 __XML
@@ -151,8 +152,8 @@ set_compile_defaults
 
 my %h6 = (e5a => 42, e6a => 'aap');
 test_rw($schema, "{$NS2}test6" => <<__XML, \%h6)
-<test6 xmlns="$NS2" xmlns:x0="$TestNS">
-  <x0:e5a>42</x0:e5a>
+<test6 xmlns="$NS2" xmlns:that="$TestNS">
+  <that:e5a>42</that:e5a>
   <e6a>aap</e6a>
 </test6>
 __XML

@@ -88,6 +88,9 @@ Helps you write regression tests.
 Helps you administer compiled readers and writers, especially useful it
 there are a lot of them.  Extends M<XML::Compile::Schema>.
 
+=item M<XML::Rewrite>
+Clean-up XML structures: beautify, simplify, extract.
+
 =item M<XML::Compile::Dumper>
 Enables you to save pre-compiled XML handlers, the results of any
 C<compileClient>.  However, this results in huge files, so this may

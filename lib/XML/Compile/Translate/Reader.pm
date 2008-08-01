@@ -8,7 +8,7 @@ no warnings 'once';
 use Log::Report 'xml-compile', syntax => 'SHORT';
 use List::Util qw/first/;
 
-use XML::Compile::Util qw/pack_type odd_elements block_label type_of_node/;
+use XML::Compile::Util qw/pack_type odd_elements type_of_node/;
 use XML::Compile::Iterator ();
 
 =chapter NAME
@@ -24,6 +24,8 @@ XML::Compile::Translate::Reader - translate XML to HASH
 The translator understands schemas, but does not encode that into
 actions.  This module implements those actions to translate from XML
 into a (nested) Perl HASH structure.
+
+=chapter METHODS
 
 =cut
 
@@ -132,12 +134,13 @@ sub makeWrapperNs        # no namespaces in the HASH
 
 sub makeSequence($@)
 {   my ($self, $path, @pairs) = @_;
-    if(@pairs==2 && !ref $pairs[1])
+    if(@pairs==2)
     {   my ($take, $action) = @pairs;
-        return bless
-        sub { my $tree = shift;
-              $action->($tree && $tree->currentType eq $take ? $tree : undef);
-            }, 'BLOCK';
+        my $code
+         = (ref $action eq 'BLOCK' || ref $action eq 'ANY')
+         ? sub { $action->($_[0])}
+         : sub { $action->($_[0] && $_[0]->currentType eq $take ? $_[0]:undef)};
+        return bless $code, 'BLOCK';
     }
 
     bless
@@ -148,8 +151,7 @@ sub makeSequence($@)
           {   my ($take, $do) = (shift @do, shift @do);
               push @res, ref $do eq 'BLOCK'
                       || ref $do eq 'ANY'
-                      || ! defined $tree
-                      || $tree->currentType eq $take
+                      || (defined $tree && $tree->currentType eq $take)
                        ? $do->($tree) : $do->(undef);
           }
 
@@ -188,7 +190,7 @@ sub makeChoice($@)
 
     @specials or return bless
     sub { my $tree = shift;
-          my $type = defined $tree  ? $tree->currentType : undef;
+          my $type = defined $tree ? $tree->currentType : undef;
           my $elem = defined $type ? $do{$type} : undef;
           return $elem->($tree) if $elem;
 
@@ -204,7 +206,6 @@ sub makeChoice($@)
                    , path => $path, _class => 'misfit';
 
           trace "choose element from @{[sort keys %do]}";
-
           error __x"no applicable choice for `{tag}' at {path}"
             , tag => $type, path => $path, _class => 'misfit';
     }, 'BLOCK';
@@ -315,14 +316,26 @@ sub makeAll($@)
 }
 
 sub makeBlockHandler
-{   my ($self, $path, $label, $min, $max, $process, $kind) = @_;
-    my $multi = block_label $kind, $label;
+{   my ($self, $path, $label, $min, $max, $process, $kind, $multi) = @_;
 
     # flatten the HASH: when a block appears only once, there will
     # not be an additional nesting in the output tree.
     if($max ne 'unbounded' && $max==1)
-    {   return ($label => $process) if $min==1;
-        my $code = sub { $_[0] && $_[0]->currentChild ? $process->($_[0]) : ()};
+    {
+       return ($label => $process) if $min==1;
+
+        my $code =
+        sub { my $tree = shift or return ();
+              my $starter = $tree->currentChild or return ();
+              my @pairs   = try { $process->($tree) };
+              if($@->wasFatal(class => 'misfit'))
+              {   my $ending = $tree->currentChild;
+                  $@->reportAll if !$ending || $ending!=$starter;
+                  return ();
+              }
+              elsif($@) {$@->reportAll}
+              @pairs;
+            };
         return ($label => bless($code, 'BLOCK'));
     }
 
@@ -410,8 +423,8 @@ sub makeElementHandler
         : sub { my $tree  = shift or return ();
                 $tree->currentChild or return ();
                 my @pairs = $optional->($tree->descend);
-                @pairs or return ();
                 $tree->nextChild;
+                @pairs or return ();
                 ($label => $pairs[1]);
               };
     }
@@ -501,9 +514,21 @@ sub makeElement
 
 sub makeElementDefault
 {   my ($self, $path, $ns, $childname, $do, $default) = @_;
-    my $def  = $do->($default);
 
-    sub { my $tree = shift;
+    my $mode = $self->{default_values};
+    $mode eq 'IGNORE'
+       and return sub
+        { my $tree = shift or return ();
+          return () if $tree->nodeType ne $childname
+                    || $tree->node->textContent eq '';
+          $do->($tree);
+        };
+
+    my $def = $do->($default);
+
+    $mode eq 'EXTEND'
+       and return sub
+        { my $tree = shift;
           return ($childname => $def)
               if !defined $tree 
               || $tree->nodeType ne $childname
@@ -511,6 +536,18 @@ sub makeElementDefault
 
           $do->($tree);
         };
+
+     $mode eq 'MINIMAL'
+        and return sub
+        { my $tree = shift or return ();
+          return () if $tree->nodeType ne $childname
+                    || $tree->node->textContent eq '';
+          my $v = $do->($tree);
+          undef $v if defined $v && $v eq $def;
+          ($childname => $v);
+        };
+
+    error __x"illegal default_values mode `{mode}'", mode => $mode;
 }
 
 sub makeElementFixed
@@ -570,8 +607,8 @@ sub makeElementAbstract
 
 sub makeComplexElement
 {   my ($self, $path, $tag, $elems, $attrs, $attrs_any) = @_;
-    my @elems = odd_elements @$elems;
 my @e = @$elems;
+    my @elems = odd_elements @$elems;
     my @attrs = (odd_elements(@$attrs), @$attrs_any);
 
     sub { my $tree    = shift or return ();
@@ -671,7 +708,7 @@ sub makeBuiltin
     ? ( defined $parse
       ? sub { my $value = ref $_[0] ? $_[0]->textContent : $_[0];
               defined $value or return undef;
-              return $parse->($value, $_[0])
+              return $parse->($value, $_[1]||$_[0])
                   if $check->($value);
               error __x$err, value => $value, type => $type, path => $path;
             }
@@ -685,7 +722,7 @@ sub makeBuiltin
     : ( defined $parse
       ? sub { my $value = ref $_[0] ? $_[0]->textContent : $_[0];
               defined $value or return undef;
-              $parse->($value, $_[0]);
+              $parse->($value, $_[1]||$_[0]);
             }
       : sub { ref $_[0] ? shift->textContent : $_[0] }
       );
@@ -697,8 +734,11 @@ sub makeList
 {   my ($self, $path, $st) = @_;
     sub { my $tree = shift;
           defined $tree or return undef;
+          my $node
+             = UNIVERSAL::isa($tree, 'XML::LibXML::Node') ? $tree
+             : ref $tree ? $tree->node : undef;
           my $v = ref $tree ? $tree->textContent : $tree;
-          my @v = grep {defined} map {$st->($_)} split(" ",$v);
+          my @v = grep {defined} map {$st->($_, $node)} split(" ",$v);
           @v ? \@v : undef;
         };
 }
@@ -779,11 +819,29 @@ sub makeAttribute
 
 sub makeAttributeDefault
 {   my ($self, $path, $ns, $tag, $do, $default) = @_;
-    my $def  = $do->($default);
 
-    sub { my $node = $_[0]->getAttributeNodeNS($ns, $tag);
-          ($tag => (defined $node ? $do->($node) : $def))
-        };
+    my $mode = $self->{default_values};
+    $mode eq 'IGNORE'
+        and return sub
+          { my $node = $_[0]->getAttributeNodeNS($ns, $tag);
+            defined $node ? ($tag => $do->($node)) : () };
+
+    my $def = $do->($default);
+
+    $mode eq 'EXTEND'
+        and return sub
+          { my $node = $_[0]->getAttributeNodeNS($ns, $tag);
+            ($tag => ($node ? $do->($node) : $def))
+          };
+
+    $mode eq 'MINIMAL'
+        and return sub
+          { my $node = $_[0]->getAttributeNodeNS($ns, $tag);
+            my $v = $node ? $do->($node) : $def;
+            !defined $v || $v eq $def ? () : ($tag => $v);
+          };
+
+    error __x"illegal default_values mode `{mode}'", mode => $mode;
 }
 
 sub makeAttributeFixed
@@ -847,8 +905,9 @@ sub makeAnyAttribute
         };
 
     # Create filter if requested
-    my $run = $handler eq 'TAKE_ALL'
-    ? $all
+    my $run = $handler eq 'TAKE_ALL' ? $all
+    : ref $handler ne 'CODE'
+    ? error(__x"any_attribute handler `{got}' not understood", got => $handler)
     : sub { my @attrs = $all->(@_);
             my @result;
             while(@attrs)
@@ -872,8 +931,10 @@ sub makeAnyElement
     my %no  = map { ($_ => 1) } @{$no  || []};
 
     # Takes all, before filtering
-    my $all = bless
-    sub { my $tree  = shift or return ();
+    my $any = $max eq 'unbounded' || $max > 1
+    ? sub
+      {
+          my $tree  = shift or return ();
           my $count = 0;
           my %result;
           while(   (my $child = $tree->currentChild)
@@ -893,13 +954,30 @@ sub makeAnyElement
               or error __x"too few any elements, requires {min} and got {found}"
                     , min => $min, found => $count;
           %result;
-        }, 'ANY';
+      }
+    : sub
+      {   my $tree  = shift or return ();
+          my $child = $tree->currentChild
+              or return ();
+
+          my $ns = $child->namespaceURI || '';
+
+          (!keys %yes || $yes{$ns}) && !(keys %no && $no{$ns})
+              or return ();
+
+          $tree->nextChild;
+          (type_of_node($child), $child);
+      };
+ 
+    bless $any, 'ANY';
 
     # Create filter if requested
     my $run
-     = $handler eq 'TAKE_ALL' ? $all
-     : $handler eq 'SKIP_ALL' ? sub { $all->(@_); () }
-     : sub { my @elems = $all->(@_);
+     = $handler eq 'TAKE_ALL' ? $any
+     : $handler eq 'SKIP_ALL' ? sub { $any->(@_); () }
+     : ref $handler ne 'CODE'
+     ? error(__x"any_element handler `{got}' not understood", got => $handler)
+     : sub { my @elems = $any->(@_);
              my @result;
              while(@elems)
              {   my ($type, $data) = (shift @elems, shift @elems);
@@ -950,14 +1028,14 @@ sub _decodeBefore($$)
     return $call if ref $call eq 'CODE';
 
       $call eq 'PRINT_PATH' ? sub {print "$_[1]\n"; $_[0] }
-    : error __x"labeled before hook `{call}' undefined", call => $call;
+    : error __x"labeled before hook `{call}' undefined for READER",call=>$call;
 }
 
 sub _decodeReplace($$)
 {   my ($self, $path, $call) = @_;
     return $call if ref $call eq 'CODE';
 
-    error __x"labeled replace hook `{call}' undefined", call => $call;
+    error __x"labeled replace hook `{call}' undefined for READER", call=>$call;
 }
 
 sub _decodeAfter($$)
@@ -987,7 +1065,7 @@ sub _decodeAfter($$)
             $h->{_ATTRIBUTE_ORDER} = \@order;
             $h;
           }
-    : error __x"labeled after hook `{call}' undefined", call => $call;
+    : error __x"labeled after hook `{call}' undefined for READER", call=> $call;
 }
 
 =chapter DETAILS

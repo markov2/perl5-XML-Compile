@@ -9,7 +9,7 @@ use TestTools;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 146;
+use Test::More tests => 167;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -181,6 +181,21 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
     <sequence>  <!-- minOccurs=0 is required, but you know... -->
       <element name="t16a" type="int" maxOccurs="0" />
       <element name="t16b" type="int" />
+    </sequence>
+  </complexType>
+</element>
+
+<element name="test17" type="me:test17" />
+<complexType name="test17">
+  <sequence>
+    <element name="t17a" type="int" minOccurs="0" />
+  </sequence>
+</complexType>
+
+<element name="test18">
+  <complexType>
+    <sequence>
+      <element name="t18a" type="me:test17" />
     </sequence>
   </complexType>
 </element>
@@ -430,4 +445,18 @@ is($@, "error: complexContent needs extension or restriction, not `element' at {
 
 test_rw($schema, test16 => <<__XML, {t16b => 51});
 <test16><t16b>51</t16b></test16>
+__XML
+
+### test 17
+
+test_rw($schema, test17 => <<__XML, {t17a => 52});
+<test17><t17a>52</t17a></test17>
+__XML
+
+test_rw($schema, test17 => '<test17/>', {});
+
+### test 18
+
+test_rw($schema, test18 => <<__XML, {t18a => {t17a => 52}});
+<test18><t18a><t17a>52</t17a></t18a></test18>
 __XML

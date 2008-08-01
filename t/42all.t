@@ -213,4 +213,4 @@ $error = reader_error($schema, test6 => '<test6 />');
 like($error, qr[data for element or block starting with `t6_[abc]' missing at \{http://test-types\}test6]);
 
 $error = writer_error($schema, test6 => {});
-is($error, "found 0 blocks for `t6_a', must be between 1 and 3 inclusive");
+is($error, "found 0 blocks for `t6_a', must be between 1 and 3 inclusive at {http://test-types}test6");

@@ -37,8 +37,11 @@ XML::Compile::Schema - Compile a schema into CODE
 
  # adding schemas
  $schema->addSchemas($tree);
+
+ # three times the same: well-known url, filename in schemadir, url
  $schema->importDefinitions('http://www.w3.org/2001/XMLSchema');
  $schema->importDefinitions('2001-XMLSchema.xsd');
+ $schema->importDefinitions(SCHEMA2001);  # from ::Util
 
  # alternatively
  my @specs  = ('one.xsd', 'two.xsd', $schema_as_string);
@@ -368,7 +371,7 @@ to be called with an M<XML::LibXML::Document> object and a HASH, and
 returns a M<XML::LibXML::Node>.
 
 Most options below are B<explained in more detailed> in the manual-page
-M<XML::Compile::Schema::Translate>, which implements the compilation.
+M<XML::Compile::Translate>, which implements the compilation.
 
 =option  validation BOOLEAN
 =default validation <true>
@@ -434,6 +437,13 @@ The value is a hash which contains C<uri>, C<prefix>, and C<used> fields.
 Pass a reference to a private hash to catch this index.  An ARRAY with
 prefix, uri PAIRS is simpler.
 
+ prefixes => [ mine => $myns, two => $twons ]
+ prefixes => { $myns => 'mine', $twons => 'two' }
+
+ # the previous is short for:
+ prefixes => { $myns => [ uri => $myns, prefix => 'mine', used => 0 ]
+             , $twons => [ uri => $twons, prefix => 'two', ...] };
+
 =option  output_namespaces HASH|ARRAY-of-PAIRS
 =default output_namespaces undef
 Pre release 0.87 name for the C<prefixes> option.
@@ -450,11 +460,11 @@ XML components into one, and add the namespaces later.
 Use the same prefixes in C<prefixes> as with some other compiled
 piece, but reset the counts to zero first.
 
-=option  use_default_prefix BOOLEAN
-=default use_default_prefix <false>
-When mixing qualified and unqualified namespaces, then the use of
-a default prefix can be quite confusing.  Therefore, by default, all
-qualified elements will have an explicit prefix.
+=option  use_default_namespace BOOLEAN
+=default use_default_namespace <false>
+[0.91] When mixing qualified and unqualified namespaces, then the use of
+a default namespace can be quite confusing: a name-space without prefix.
+Therefore, by default, all qualified elements will have an explicit prefix.
 
 =option  sloppy_integers BOOLEAN
 =default sloppy_integers <false>
@@ -476,7 +486,7 @@ You can also improve the speed of Math::BigInt by installing
 Math::BigInt::GMP.  Add C<< use Math::BigInt try => 'GMP'; >> to the
 top of your main script to get more performance.
 
-=option  any_element CODE
+=option  any_element CODE|'TAKE_ALL'|'SKIP_ALL'
 =default any_element C<undef>
 [0.89] In general, C<any> schema components cannot be handled automatically.
 If  you need to create or process any information, then read about
@@ -485,7 +495,7 @@ back-end.
 Before release 0.89 this option was named C<anyElement>, which will
 still work.
 
-=option  any_attribute CODE
+=option  any_attribute CODE|'TAKE_ALL'|'SKIP_ALL'
 =default any_attribute C<undef>
 [0.89] In general, C<anyAttribute> schema components cannot be handled
 automatically.  If  you need to create or process anyAttribute
@@ -538,6 +548,16 @@ more in the L</DETAILS> section below.
 =default key_rewrite []
 Add key rewrite rules to the front of the list of rules, as set by
 M<new(key_rewrite)> and M<addKeyRewrite()>.  See L</Key rewrite>
+
+=option  default_values 'MINIMAL'|'IGNORE'|'EXTEND'
+=default default_values <depends on backend>
+How to treat default values as provided by the schema.
+With C<IGNORE> (the writer default), you will see exactly what is
+specified in the XML or HASH.  With C<EXTEND> (the reader default) will
+show the default and fixed values in the result.  C<MINIMAL> does remove
+all fields which are the same as the default setting: simplifies.
+See L</Default Values>.
+
 =cut
 
 sub compile($$@)
@@ -571,24 +591,12 @@ sub compile($$@)
             if $@;
     }
 
-    my $prefs = $args{prefixes} ||= $args{output_namespaces} || {};
-    if(ref $prefs eq 'ARRAY')
-    {   my @ns = @$prefs;
-        $prefs = $args{prefixes} = {};
-        while(@ns)
-        {   my ($prefix, $uri) = (shift @ns, shift @ns);
-            $prefs->{$uri} = { uri => $uri, prefix => $prefix };
-        }
-    }
-
-    my $saw_default = 0;
-    foreach (values %$prefs)
-    {   $_->{used} = 0 if $args{namespace_reset};
-        $saw_default ||= $_->{prefix} eq '';
-    }
-
-    $prefs->{''} = {uri => '', prefix => '', used => 0}
-        if !$saw_default && !$args{use_default_prefix};
+    my $prefs = $args{prefixes} = $self->_namespaceTable
+       ( ($args{prefixes} || $args{output_namespaces})
+       , $args{namespace_reset}
+       , !($args{use_default_namespace} || $args{use_default_prefix})
+         # use_default_prefix renamed in 0.90
+       );
 
     my $nss   = $self->namespaces;
 
@@ -605,6 +613,7 @@ sub compile($$@)
     unshift @rewrite, ref $kw eq 'ARRAY' ? @$kw : $kw;
 
     $args{mixed_elements} ||= 'ATTRIBUTES';
+    $args{default_values} ||= $action eq 'READER' ? 'EXTEND' : 'IGNORE';
 
     # Option rename in 0.88
     $args{any_element}    ||= delete $args{anyElement};
@@ -623,13 +632,31 @@ sub compile($$@)
      );
 }
 
+# also used in ::Cache init()
+sub _namespaceTable($;$$)
+{   my ($self, $table, $reset_count, $block_default) = @_;
+    $table = { reverse @$table }
+        if ref $table eq 'ARRAY';
+
+    $table->{$_} = { uri => $_, prefix => $table->{$_} }
+        for grep {ref $table->{$_} ne 'HASH'} keys %$table;
+
+    do { $_->{used} = 0 for values %$table }
+        if $reset_count;
+
+    $table->{''} = {uri => '', prefix => '', used => 0}
+        if $block_default && !grep {$_->{prefix} eq ''} values %$table;
+
+    $table;
+}
+
 =method template 'XML'|'PERL', TYPE, OPTIONS
 
 Schema's can be horribly complex and unreadible.  Therefore, this template
 method can be called to create an example which demonstrates how data of
 the specified TYPE as XML or Perl is organized in practice.
 
-Some OPTIONS are explained in M<XML::Compile::Schema::Translate>.
+Some OPTIONS are explained in M<XML::Compile::Translate>.
 There are some extra OPTIONS defined for the final output process.
 
 The templates produced are B<not always correct>.  Please contribute
@@ -676,6 +703,7 @@ sub template($@)
     $args{check_occurs}         = 1;
     $args{include_namespaces} ||= 1;
     $args{mixed_elements}     ||= 'ATTRIBUTES';
+    $args{default_values}     ||= 'EXTEND';
 
     # it could be used to add extra comment lines
     error __x"typemaps not implemented for XML template examples"
@@ -710,13 +738,6 @@ sub template($@)
 
     error __x"template output is either in XML or PERL layout, not '{action}'"
         , action => $action;
-}
-
-sub rewrite(@)
-{   my $self = shift;
-    eval "require XML::Compile::Schema::Rewrite";
-    panic "cannot load rewrite: $@" if $@;
-    $self->rewrite(@_);
 }
 
 #------------------------------------------
@@ -766,7 +787,7 @@ Overrule the details information about the source of the data.
 # The cache will certainly avoid penalties by the average module user,
 # which does not understand the sharing schema definitions between objects
 # especially in SOAP implementations.
-my (%cacheByFilestamp, %cacheByChecksum);
+my (%schemaByFilestamp, %schemaByChecksum);
 
 sub importDefinitions($@)
 {   my ($self, $thing, %options) = @_;
@@ -781,19 +802,19 @@ sub importDefinitions($@)
         if(defined $xml)
         {   my @added = $self->addSchemas($xml, %details, %options);
             if(my $checksum = $details{checksum})
-            {    $cacheByChecksum{$checksum} = \@added;
+            {   $schemaByChecksum{$checksum} = \@added;
             }
             elsif(my $filestamp = $details{filestamp})
-            {   $cacheByFilestamp{$filestamp} = \@added;
+            {   $schemaByFilestamp{$filestamp} = \@added;
             }
             push @schemas, @added;
         }
         elsif(my $filestamp = $details{filestamp})
-        {   my $cached = $cacheByFilestamp{$filestamp};
+        {   my $cached = $schemaByFilestamp{$filestamp};
             $self->namespaces->add(@$cached);
         }
         elsif(my $checksum = $details{checksum})
-        {   my $cached = $cacheByChecksum{$checksum};
+        {   my $cached = $schemaByChecksum{$checksum};
             $self->namespaces->add(@$cached);
         }
     }
@@ -804,7 +825,7 @@ sub _parseScalar($)
 {   my ($thing, $data) = @_;
     my $checksum = md5_hex $$data;
 
-    if($cacheByChecksum{$checksum})
+    if($schemaByChecksum{$checksum})
     {   trace "importDefinitions reusing string data with checksum $checksum";
         return (undef, checksum => $checksum);
     }
@@ -820,7 +841,7 @@ sub _parseFile($)
     my ($mtime, $size) = (stat $fn)[9,7];
     my $filestamp = basename($fn) . '-'. $mtime . '-' . $size;
 
-    if($cacheByFilestamp{$filestamp})
+    if($schemaByFilestamp{$filestamp})
     {   trace "importDefinitions reusing schemas from file $filestamp";
         return (undef, filestamp => $filestamp);
     }
@@ -1182,7 +1203,7 @@ the repeated block.  This array needs to have a name, because more of
 these blocks may appear together in a construct.  The B<name of the
 block> is derived from the I<type of block> and the name of the I<first
 element> in the block, regardless whether that element is present in
-the data or not.  See M<XML::Compile::Util::block_label()>.
+the data or not.
 
 So, our example data is translated into (and vice versa)
 
@@ -1318,7 +1339,7 @@ In this example, the C<a> container is marked to be mixed:
 Each back-end has its own way of handling mixed elements.  The
 M<compile(mixed_elements)> currently only modifies the reader's
 behavior; the writer's capabilities are limited.
-See M<XML::Compile::Schema::Template::Reader>.
+See M<XML::Compile::Translate::Reader>.
 
 =section Schema hooks
 
@@ -1365,8 +1386,8 @@ evaluated before the global hooks.
             , replace => 'SKIP'
             };
 
- # path contains "(volume)" or id is 'aap' or id is 'noot'
- my $hook = { path    => qr/\(volume\)/
+ # path contains "volume" or id is 'aap' or id is 'noot'
+ my $hook = { path    => qr/\bvolume\b/
             , id      => [ 'aap', 'noot' ]
             , before  => [ sub {...}, sub { ... } ]
             , after   => sub { ... }
@@ -1673,6 +1694,85 @@ surrounding blanks.
   key_rewrite => 'PREFIXED(opt,sar)'
 
 =back
+
+=section Default Values
+
+[0.91]
+With M<compile(default_values)> you can control how much information about
+default values defined by the schema will be passed into your program.
+
+The choices, available for both READER and WRITER, are:
+
+=over 4
+
+=item C<IGNORE>   (the WRITER's standard behavior)
+Only include element and attribute values in the result if they are in
+the XML message.  Behaviorally, this treats elements with default values
+as if they are just optional.  The WRITER does not try to be smarter than
+you.
+
+=item C<EXTEND>   (the READER's standard behavior)
+If some element or attribute is not in the source but has a default in
+the schema, that value will be produced.  This is very convenient for the
+READER, because your application does not have to hard-code the same
+constant values as defaults as well.
+
+=item C<MINIMAL>
+Only produce the values which differ from the defaults.  This choice is
+useful when producing XML, to reduce the size of the output.
+=back
+
+=example use of default_values EXTEND
+
+Let us process a schema using the schema schema.  A schema file can
+contain lines like this:  
+
+ <element minOccurs="0" ref="myelem"/>
+
+In mode C<EXTEND> (the READER default), this gets translated into:
+
+ element => { ref => 'myelem', maxOccurs => 1
+            , minOccurs => 0, nillable => 0 };
+
+With C<EXTEND> in the READER, all schema information is used to provide
+a complete overview of available information.  Your code does not need
+to check whether the attributes were available or not: attributes with
+defaults or fixed values are automatically added.
+
+Again mode C<EXTEND>, now for the writer:
+
+ element => { ref => 'myelem', minOccurs => 0 };
+ <element minOccurs="0" maxOccurs="1" ref="myelem" nillable="0"/>
+
+=example use of default_values IGNORE
+
+With option C<default_values> set to C<IGNORE> (the WRITER default), you
+would get
+
+ element => { ref => 'myelem', maxOccurs => 1, minOccurs => 0 }
+ <element minOccurs="0" maxOccurs="1" ref="myelem"/>
+
+The same in both translation directions.
+The nillable attribute is not used, so will not be shown by the READER.  The
+writer does not try to be smart, so does not add the nillable default.
+
+=example use of default_values MINIMAL
+
+With option C<default_values> set to C<MINIMAL>, the READER would do this:
+
+ <element minOccurs="0" maxOccurs="1" ref="myelem"/>
+ element => { ref => 'myelem', minOccurs => 0 }
+
+The maxOccurs default is "1", so will not be included, minimalizing the
+size of the HASH.
+
+For the WRITER:
+
+ element => { ref => 'myelem', minOccurs => 0, nillable => 0 }
+ <element minOccurs="0" ref="myelem"/>
+
+because the default value for nillable is '0', it will not show as attribute
+value.
 
 =cut
 

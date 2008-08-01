@@ -9,7 +9,7 @@ use TestTools;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 181;
+use Test::More tests => 195;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -126,6 +126,19 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 </element>
 <complexType name="t9t" />
 
+<element name="test10">
+  <complexType>
+    <sequence>
+      <element name="t10a" type="int" minOccurs="0" />
+      <choice minOccurs="0">
+        <element name="t10b" type="int" />
+        <element name="t10c" type="int" />
+      </choice>
+      <element name="t10d" type="int" minOccurs="0" />
+    </sequence>
+  </complexType>
+</element>
+
 </schema>
 __SCHEMA__
 
@@ -227,7 +240,7 @@ $error = reader_error($schema, test6 => '<test6 />');
 is($error, "no element left to pick choice at {http://test-types}test6");
 
 $error = writer_error($schema, test6 => {});
-is($error, "found 0 blocks for `t6_a', must be between 1 and 3 inclusive");
+is($error, "found 0 blocks for `t6_a', must be between 1 and 3 inclusive at {http://test-types}test6");
 
 $error = reader_error($schema, test6 => <<__XML);
 <test6><t6_a>30</t6_a><t6_a>31</t6_a><t6_c>32</t6_c><t6_a>33</t6_a></test6>
@@ -243,7 +256,7 @@ my %t6_b =
  );
 
 $error = writer_error($schema, test6 => \%t6_b);
-is($error, "found 4 blocks for `t6_a', must be between 1 and 3 inclusive");
+is($error, "found 4 blocks for `t6_a', must be between 1 and 3 inclusive at {http://test-types}test6");
 
 # test 7
 
@@ -263,7 +276,7 @@ test_rw($schema, test8 => <<__XML, { t8a => 16 });
 <test8><t8a>16</t8a></test8>
 __XML
 
-test_rw($schema, test8 => <<__XML, { });
+test_rw($schema, test8 => <<__XML, { });  # match minOccurs=0!
 <test8/>
 __XML
 
@@ -292,3 +305,19 @@ test_rw($schema, test9 => <<__XML, { t9c => 42 });
 </test9>
 __XML
 
+# test10
+
+test_rw($schema, test10 => <<__XML, { t10a => 3, t10b => 4, t10d => 5 });
+<test10>
+  <t10a>3</t10a>
+  <t10b>4</t10b>
+  <t10d>5</t10d>
+</test10>
+__XML
+
+test_rw($schema, test10 => <<__XML, { t10a => 6, t10d => 7 });
+<test10>
+  <t10a>6</t10a>
+  <t10d>7</t10d>
+</test10>
+__XML

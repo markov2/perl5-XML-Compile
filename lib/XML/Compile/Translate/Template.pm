@@ -8,7 +8,7 @@ use strict;
 use warnings;
 no warnings 'once';
 
-use XML::Compile::Util qw/odd_elements block_label unpack_type/;
+use XML::Compile::Util qw/odd_elements unpack_type/;
 use Log::Report 'xml-compile', syntax => 'SHORT';
 
 =chapter NAME
@@ -32,6 +32,8 @@ and creates a kind of abstract syntax tree from it, which can be used
 for documentational purposes.  Then, it implements to ways to represent
 that knowledge: as an XML or a Perl example of the data-structure which
 the schema describes.
+
+=chapter METHODS
 
 =cut
 
@@ -108,7 +110,7 @@ sub makeChoice   { my $self = shift; $self->_block(choice   => @_) }
 sub makeAll      { my $self = shift; $self->_block(all      => @_) }
 
 sub makeBlockHandler
-{   my ($self, $path, $label, $min, $max, $proc, $kind) = @_;
+{   my ($self, $path, $label, $min, $max, $proc, $kind, $multi) = @_;
 
     my $code =
     sub { my $data = $proc->();
@@ -123,7 +125,7 @@ sub makeBlockHandler
           {   bless $data, 'BLOCK';
           }
           else
-          {   $data->{tag}      = block_label $kind, $label;
+          {   $data->{tag}      = $multi;
               $data->{is_array} = 1;
               bless $data, 'REP-BLOCK';
           }
