@@ -4,6 +4,18 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.92: Wed Aug  6 11:33:27 CEST 2008
+
+	Fixes:
+
+	- minOccurs=0 in writer.  Reported by [Drew Taylor]
+
+	Improvements:
+
+	- WRITER "after" hook also gets the HASH value.
+
+	- extra tests for extension of empty complexType.
+
 version 0.91: Fri Aug  1 13:25:26 CEST 2008
 
 	Changes:
@@ -17,6 +29,9 @@ version 0.91: Fri Aug  1 13:25:26 CEST 2008
 	- the output order of attributes has changed: the extended additions
 	  before the base class attributes.  This does not change the meaning,
 	  but may be painful for your regression tests.
+
+	- writer adds prefixes always in the same order (alphabetic) to
+	  ease regression-tests.
 
 	Fixes:
 
@@ -57,9 +72,6 @@ version 0.91: Fri Aug  1 13:25:26 CEST 2008
 	- the writer will attempt to use the same prefixes as used in
 	  the schema, unless these name-spaces are already pre-defined
 	  in the 'prefixes' table.
-
-	- writer adds prefixes always in the same order (alphabetic) to
-	  ease regression-tests.
 
 	- be more careful that empty text fragments do not end-up as
 	  text nodes in the WRITER output.

@@ -12,7 +12,7 @@ use XML::Compile::Tester;
 use XML::Compile::Util qw/pack_type/;
 use Data::Dumper;
 
-use Test::More tests => 55;
+use Test::More tests => 57;
 use Test::Deep   qw/cmp_deeply/;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
@@ -65,9 +65,11 @@ isa_ok($w1, 'CODE', 'after read');
 my $w1h = $w1->($doc, 'two');
 isa_ok($w1h, 'XML::LibXML::Element', 'writer works');
 
-cmp_ok(scalar @out, '==', 3, 'hook called with 3 params');
+cmp_ok(scalar @out, '==', 4, 'hook called with 4 params');
 is($out[0], $doc, 'document');
 isa_ok($out[1], 'XML::LibXML::Element', 'generated node');
+is($out[2], $t1, 'type');
+is($out[3], 'two', 'data');
 
 ###
 ##### now the real thing
