@@ -98,13 +98,13 @@ is($out, <<__TEST1__);
       t2_a => 42,
 
       # is a {http://www.w3.org/2001/XMLSchema}int
+      a3_a => 42,
+
+      # is a {http://www.w3.org/2001/XMLSchema}int
       a2_a => 42,
 
       # is a {http://www.w3.org/2001/XMLSchema}string
-      a2_b => "example",
-
-      # is a {http://www.w3.org/2001/XMLSchema}int
-      a3_a => 42, }, ],
+      a2_b => "example", }, ],
   t1_d =>
   { # sequence of t1_e, t1_f
 
@@ -149,9 +149,9 @@ is($out, <<__TEST1b__);
     [ {   t3_a => "anything",
           t3_b => 42,
           t2_a => 42,
+          a3_a => 42,
           a2_a => 42,
-          a2_b => "example",
-          a3_a => 42, }, ],
+          a2_b => "example", }, ],
     t1_d =>
     {   t1_e => "example",
         t1_f =>  [ 3.1415, ], },
@@ -181,9 +181,9 @@ is($out, <<__TEST1c__);
     </t3_b>
     <!-- sequence of t2_a -->
     <t2_a type="int">42</t2_a>
+    <a3_a type="int">42</a3_a>
     <a2_a type="int">42</a2_a>
     <a2_b type="string">example</a2_b>
-    <a3_a type="int">42</a3_a>
   </t1_c>
   <t1_d>
     <!-- sequence of t1_e, t1_f -->
@@ -224,9 +224,9 @@ is($out, <<__TEST1d__);
     <t3_a>anything</t3_a>
     <t3_b>42</t3_b>
     <t2_a>42</t2_a>
+    <a3_a>42</a3_a>
     <a2_a>42</a2_a>
     <a2_b>example</a2_b>
-    <a3_a>42</a3_a>
   </t1_c>
   <t1_d>
     <t1_e>example</t1_e>

@@ -204,18 +204,23 @@ sub extendAttrs($@)
 {   my ($self, $in, $add) = @_;
 
     if(my $a = $add->{attrs})
-    {   # new attrs overrule old definitions, remove doubles!
-        my (@attrs, %in);
-        my @all = (@{$add->{attrs} || []}, @{$in->{attrs} || []});
+    {   # new attrs overrule old definitions (restrictions)
+        my (@attrs, %code);
+        my @all = (@{$in->{attrs} || []}, @{$add->{attrs} || []});
         while(@all)
         {   my ($type, $code) = (shift @all, shift @all);
-            $in{$type}++ and next;
-            push @attrs, $type => $code;
+            if($code{$type})
+            {   $attrs[$code{$type}] = $code;
+            }
+            else
+            {   push @attrs, $type => $code;
+                $code{$type} = $#attrs;
+            }
         }
         $in->{attrs} = \@attrs;
     }
 
-    # don't know, probably not correct: only top-level any?
+    # doing this correctly is too complex for now
     unshift @{$in->{attrs_any}}, @{$add->{attrs_any}} if $add->{attrs_any};
     $in;
 }
@@ -798,7 +803,8 @@ sub particleGroup($)
         or error __x"illegal group member `{name}' at {where}"
              , name => $local, where => $where, _class => 'schema';
 
-    $self->particleBlock($group->descend);
+    my ($blocklabel, $code) = $self->particleBlock($group->descend);
+    ($typename, $code);
 }
 
 sub particleBlock($)

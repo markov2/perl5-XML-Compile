@@ -1153,7 +1153,7 @@ extra attribute is always of type C<non-empty>, then you can do
   ( READER => '{http://mine}non-empty'
   );
 
- sub makeFilter($$$$)
+ sub filter($$$$)
  {   my ($fqn, $xml, $path, $translator) = @_;
      return () if $fqn ne '{http://mine}b';
      (b => $anyAttRead->($xml));
@@ -1307,7 +1307,7 @@ implements the C<fromXML> method as constructor.
 
  package My::Perl::Class;
  ...
- sub makeFromXML
+ sub fromXML
  {   my ($class, $data, $xmltype) = @_;
      my $self = $class->new($data);
      ...
@@ -1323,13 +1323,13 @@ In the simpelest implementation, the class stores its data exactly as
 the XML structure:
 
  package My::Perl::Class;
- sub makeFromXML
+ sub fromXML
  {   my ($class, $data, $xmltype) = @_;
      bless $data, $class;
  }
 
  # The same, even shorter:
- sub makeFromXML { bless $_[1], $_[0] }
+ sub fromXML { bless $_[1], $_[0] }
 
 =subsection Typemap to Object
 
@@ -1341,7 +1341,7 @@ to have one object spawning many different other objects.
  $schema->typemap($sometype => $object);
 
  package My::Perl::Class;
- sub makeFromXML
+ sub fromXML
  {   my ($object, $xmltype, $data) = @_;
      return Some::Other::Class->new($data);
  }
@@ -1355,7 +1355,7 @@ add the C<fromXML> method.
 The light version of an object factory works with CODE references.
 
  $schema->typemap($t1 => \&myhandler);
- sub makeMyhandler
+ sub myhandler
  {   my ($backend, $data, $type) = @_;
      return My::Perl::Class->new($data)
          if $backend eq 'READER';

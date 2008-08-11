@@ -68,7 +68,7 @@ __XML
 
 my %t4 = (c1_a => 14, a1_a => 15, c4_a => 16, a4_a => 17);
 test_rw($schema, "{}test4" => <<__XML, \%t4);
-<test4 a4_a="17" a1_a="15">
+<test4 a1_a="15" a4_a="17">
    <c1_a>14</c1_a>
    <c4_a>16</c4_a>
 </test4>

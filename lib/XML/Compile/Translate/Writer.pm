@@ -1089,7 +1089,7 @@ node will be cancelled.
 On the moment, the only predefined C<before> hook is C<PRINT_PATH>.
 
 =example before hook on user-provided HASH.
- sub makeBeforeOnComplex($$$)
+ sub beforeOnComplex($$$)
  {   my ($doc, $values, $path) = @_;
 
      my %copy = %$values;
@@ -1100,13 +1100,13 @@ On the moment, the only predefined C<before> hook is C<PRINT_PATH>.
  }
 
 =example before hook on simpleType data
- sub makeBeforeOnSimple($$$)
+ sub beforeOnSimple($$$)
  {   my ($doc, $value, $path) = @_;
      $value *= 100;    # convert euro to euro-cents
  }
 
 =example before hook with object for complexType
- sub makeBeforeOnObject($$$)
+ sub beforeOnObject($$$)
  {   my ($doc, $obj, $path) = @_;
 
      +{ name     => $obj->name
@@ -1125,7 +1125,7 @@ argument) to create a node.
 On the moment, the only predefined C<replace> hook is C<SKIP>.
 
 =example replace hook
- sub makeReplace($$$)
+ sub replace($$$)
  {  my ($doc, $values, $path, $tag) = @_
     my $node = $doc->createElement($tag);
     $node->appendText($values->{text});
@@ -1141,7 +1141,7 @@ the new XML node has to be returned.
 On the moment, the only predefined C<after> hook is C<PRINT_PATH>.
 
 =example add an extra sibbling after the usual process
- sub makeAfter($$$$)
+ sub after($$$$)
  {   my ($doc, $node, $path, $values) = @_;
      my $child = $doc->createAttributeNS($myns, earth => 42);
      $node->addChild($child);
@@ -1157,14 +1157,14 @@ Also, when you need things that XML::Compile does not support (yet).
 
  {  my $text;
 
-    sub makeBefore($$$)
+    sub before($$$)
     {   my ($doc, $values, $path) = @_;
         my %copy = %$values;
         $text = delete $copy{text};
         \%copy;
     }
 
-    sub makeAfter($$$)
+    sub after($$$)
     {   my ($doc, $node, $path) = @_;
         $node->addChild($doc->createTextNode($text));
         $node;
@@ -1204,7 +1204,7 @@ C<toXML>method.
 
  package My::Perl::Class;
  ...
- sub makeToXML
+ sub toXML
  {   my ($self, $xmltype, $doc) = @_;
      ...
      { a => { b => 42 }, c => 'aaa' };
@@ -1228,7 +1228,7 @@ an interface.
  $schema->typemap($sometype => $object);
 
  package My::Perl::Class;
- sub makeToXML
+ sub toXML
  {   my ($self, $object, $xmltype, $doc) = @_;
      ...
  }
@@ -1246,7 +1246,7 @@ to the expectation.
 
  $schema->typemap($t1 => \&myhandler);
 
- sub makeMyhandler
+ sub myhandler
  {   my ($backend, $object, $xmltype, $doc) = @_;
      ...
  }

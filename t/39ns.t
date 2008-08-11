@@ -125,9 +125,9 @@ __XML
 my %t4 = (c1_a => 14, a1_a => 15, c4_a => 16, a4_a => 17);
 test_rw($schema, "{$NS2}test4" => <<__XML, \%t4);
 <test4 xmlns="$NS2" xmlns:that="$TestNS"
-       a4_a="17" that:a1_a="15">
-   <that:c1_a>14</that:c1_a>
-   <c4_a>16</c4_a>
+   that:a1_a="15" a4_a="17">
+  <that:c1_a>14</that:c1_a>
+  <c4_a>16</c4_a>
 </test4>
 __XML
 

@@ -4,6 +4,29 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.93: Mon Aug 11 21:13:22 CEST 2008
+
+	Changes:
+
+	- changed order of attributes back to situation of 0.90: the
+	  base-class attributes are probably more important than the
+	  attributes of the extension.
+
+	- groups with maxOccurs > 1 renamed
+	    from   gr_<label of first element>
+	    into   gr_<name of group>
+	  For example, when parsing schemas themselves (with PREFIXED)
+	    was    gr_xs_minExclusive
+	    now    gr_xs_facets
+	  minExclusive is the name of the first element in the group
+	  block. xs:facets is the name of the group as used in the
+	  schema schema and probably more consistent over releases.
+
+	Fixes:
+
+	- documentation on use of typemaps and hooks got mutulated
+	  in 0.90
+
 version 0.92: Wed Aug  6 11:33:27 CEST 2008
 
 	Fixes:
@@ -12,7 +35,7 @@ version 0.92: Wed Aug  6 11:33:27 CEST 2008
 
 	Improvements:
 
-	- WRITER "after" hook also gets the HASH value.
+	- WRITER "after" hook also gets the data, not only the produced XML.
 
 	- extra tests for extension of empty complexType.
 

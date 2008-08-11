@@ -52,7 +52,7 @@ test_rw($schema, test1 => <<__XML, {g1_a => 10, g1_b => 11});
 __XML
 
 my %g2a =
- (gr_g1_a =>
+ (gr_g1 =>
     [ { g1_a => 12, g1_b => 13}
     , { g1_a => 14, g1_b => 15}
     ]

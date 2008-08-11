@@ -114,7 +114,7 @@ __XML
 # ref to choice
 #
 
-my %r3_a = (gr_g3_a => [ {g3_a => 30}, {g3_a => 31}, {g3_b => 32}, {g3_a => 33} ]);
+my %r3_a = (gr_g3 => [ {g3_a => 30}, {g3_a => 31}, {g3_b => 32}, {g3_a => 33} ]);
 test_rw($schema, test3 => <<__XML, \%r3_a);
 <test3>
   <g3_a>30</g3_a>

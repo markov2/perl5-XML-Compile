@@ -1158,6 +1158,8 @@ the white-space rules where applied).
 Particle blocks come in four shapes: C<sequence>, C<choice>, C<all>,
 and C<group> (an indirect block).  This also affects C<substitutionGroups>.
 
+=subsection repetative sequence, choice, all
+
 In situations like this:
 
   <element name="example">
@@ -1213,24 +1215,18 @@ So, our example data is translated into (and vice versa)
     , c     => 5
     }
 
-For B<substitutionGroup>s which are repeating, the I<name of the base
-element> is used (the element which has attribute C<<abstract="true">>.
-We do need this array, because the order of the elements within the group
-may be important; we cannot group the elements based to the extended
-element's name.
+The following label is used, based on the name of the first element (say C<xyz>)
+as defined in the schema (not in the actual message):
+   seq_xyz    sequence with maxOccurs > 1
+   cho_xyz    choice with maxOccurs > 1
+   all_xyz    all with maxOccurs > 1
 
-In an example substitutionGroup, the Perl representation will be
-something like this:
-
-  base-element-name =>
-    [ { extension-name  => $data1 }
-    , { other-extension => $data2 }
-    ]
-
-Each HASH has only one key.
+When you have M<compile(key_rewrite)> option PREFIXED, and you have explicitly
+assigned the prefix C<xs> to the schema namespace (See M<compile(prefixes)>),
+then those names will respectively be C<seq_xs_xyz>, C<cho_xs_xyz>,
+C<all_xs_xyz>.
 
 =example always an array with maxOccurs larger than 1
-
 Even when there is only one element found, it will be returned as
 ARRAY (of one element).  Therefore, you can write
 
@@ -1249,6 +1245,55 @@ In the XML message:
 
 In Perl representation:
  seq_a => [ {a => 15, b => 16}, {a => 17, b => 18} ]
+
+=subsection repetative groups
+
+[behavioral change in 0.93]
+In contrast to the normal partical blocks, as described above, do the
+groups have names.  In this case, we do not need to take the name of
+the first element, but can use the group name.  It will still have C<gr_>
+appended, because groups can have the same name as an element or a type(!)
+
+Blocks within the group definition cannot be repeated.
+
+=example groups with maxOccurs larger than 1
+
+ <element name="top">
+   <complexType>
+     <sequence>
+       <group ref="ns:xyz" maxOccurs="unbounded">
+     </sequence>
+   </complexType>
+ </element>
+
+ <group name="xyz">
+   <sequence>
+     <element name="a" type="int" />
+     <element name="b" type="int" />
+   </sequence>
+ </group>
+
+translates into
+
+  gr_xyz => [ {a => 42, b => 43}, {a => 44, b => 45} ]
+
+=subsection repetative substitutionGroups
+
+For B<substitutionGroup>s which are repeating, the I<name of the base
+element> is used (the element which has attribute C<<abstract="true">>.
+We do need this array, because the order of the elements within the group
+may be important; we cannot group the elements based to the extended
+element's name.
+
+In an example substitutionGroup, the Perl representation will be
+something like this:
+
+  base-element-name =>
+    [ { extension-name  => $data1 }
+    , { other-extension => $data2 }
+    ]
+
+Each HASH has only one key.
 
 =section List type
 
@@ -1482,7 +1527,7 @@ type.  When an C<undef> is given for a type, then the older definition
 will be cancelled.  Examples of the three ways to specify typemaps:
 
   my %map = ($x1 => $p1, $x2 => $p2);
-  my $schema = XML::Compile::Schema->new(...., typemap => %map);
+  my $schema = XML::Compile::Schema->new(...., typemap => \%map);
 
   $schema->addTypemaps($x3 => $p3, $x4 => $p4, $x1 => undef);
 
