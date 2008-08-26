@@ -4,6 +4,18 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+version 0.94: Tue Aug 26 10:09:05 CEST 2008
+
+	Fixes:
+
+	- repair whitespace facets collapse and replace. [Allan Wind]
+
+	- NMTOKEN has no blanks, but token may have them.
+
+	Improvements:
+
+	- show more useful features of Log::Report in ::Schema SYNOPSIS
+
 version 0.93: Mon Aug 11 21:13:22 CEST 2008
 
 	Changes:

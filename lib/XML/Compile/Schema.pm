@@ -83,8 +83,10 @@ XML::Compile::Schema - Compile a schema into CODE
  use XML::Compile::Cache;   # seperate distribution
  my $schema = XML::Compile::Cache->new(...);
 
- # for debug info, start your script with:
- use Log::Report mode => 'DEBUG';
+ # Error handling tricks with Log::Report
+ use Log::Report mode => 'DEBUG';  # enable debugging
+ dispatcher SYSLOG => 'syslog';    # errors to syslog as well
+ try { $reader->($data) };         # catch errors in $@
 
 =chapter DESCRIPTION
 

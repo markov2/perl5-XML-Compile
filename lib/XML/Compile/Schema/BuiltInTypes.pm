@@ -59,9 +59,8 @@ sub identity  { $_[0] }
 sub str2int   { use warnings FATAL => 'all'; $_[0] + 0 }
 sub int2str   { use warnings FATAL => 'all'; sprintf "%ld", $_[0] }
 sub str       { "$_[0]" }
-sub _collapse { $_[0] =~ s/\s+//g; $_[0]}
-sub _preserve { for($_[0]) {s/\s+/ /g; s/^ //; s/ $//}; $_[0]}
-sub _replace  { $_[0] =~ s/[\t\r\n]/ /gs; $_[0]}
+sub _replace  { $_[0] =~ s/[\t\r\n]/ /g; $_[0]}
+sub _collapse { local $_ = $_[0]; s/[\t\r\n]+/ /g; s/^ +//; s/ +$//; $_}
 
 # a real check() produces a nice error message with name of the
 # variable, however checking floats is extremely expensive.  Therefore,
@@ -559,7 +558,7 @@ string are ignored.
 =cut
 
 $builtin_types{normalizedString} =
- { parse   => \&_preserve
+ { parse   => \&_replace
  , example => 'example'
  };
 
@@ -633,17 +632,21 @@ $builtin_types{Name} =
 =function token, NMTOKEN, NMTOKENS
 =cut
 
-# check required!  \c
 $builtin_types{token} =
-$builtin_types{NMTOKEN} =
  { parse   => \&_collapse
  , example => 'token'
+ };
+
+# check required!  \c
+$builtin_types{NMTOKEN} =
+ { parse   => sub { $_[0] =~ s/\s+//g; $_[0] }
+ , example => 'nmtoken'
  };
 
 $builtin_types{NMTOKENS} =
  { parse   => sub { [ split ' ', shift ] }
  , format  => sub { my $v = shift; ref $v eq 'ARRAY' ? join(' ',@$v) : $v }
- , example => 'tokens'
+ , example => 'nmtokens'
  , is_list => 1
  };
 
