@@ -16,7 +16,7 @@ use XML::Compile::Schema::Specs;
 use XML::Compile::Schema::Instance;
 use XML::Compile::Schema::NameSpaces;
 
-use XML::Compile::Translate      ();
+use XML::Compile::Translate  ();
 
 =chapter NAME
 
@@ -470,7 +470,7 @@ Therefore, by default, all qualified elements will have an explicit prefix.
 
 =option  sloppy_integers BOOLEAN
 =default sloppy_integers <false>
-The C<decimal> and C<integer> types must support at least 18 digits,
+The XML C<integer> data-types must support at least 18 digits,
 which is larger than Perl's 32 bit internal integers.  Therefore, the
 implementation will use M<Math::BigInt> objects to handle them.  However,
 often an simple C<int> type whould have sufficed, but the XML designer
@@ -478,7 +478,7 @@ was lazy.  A long is much faster to handle.  Set this flag to use C<int>
 as fast (but inprecise) replacements.
 
 Be aware that C<Math::BigInt> and C<Math::BigFloat> objects are nearly
-but not fully transparent mimicing the behavior of Perl's ints and
+but not fully transparently mimicing the behavior of Perl's ints and
 floats.  See their respective manual-pages.  Especially when you wish
 for some performance, you should optimize access to these objects to
 avoid expensive copying which is exactly the spot where the differences
@@ -487,6 +487,14 @@ are.
 You can also improve the speed of Math::BigInt by installing
 Math::BigInt::GMP.  Add C<< use Math::BigInt try => 'GMP'; >> to the
 top of your main script to get more performance.
+
+=option  sloppy_floats BOOLEAN
+=default sloppy_floats <false>
+The float types of XML are all quite big, and support NaN, INF, and -INF.
+Perl's normal floats do not, and therefore M<Math::BigFloat> is used.  This,
+however, is slow.  When true, you will crash on any value which is not
+understood by Perl's default float... but run much faster.  See also
+C<sloppy_integers>.
 
 =option  any_element CODE|'TAKE_ALL'|'SKIP_ALL'
 =default any_element C<undef>
@@ -582,15 +590,16 @@ sub compile($$@)
       = !defined $iut ? undef : ref $iut eq 'Regexp' ? $iut : qr/^/;
 
     exists $args{include_namespaces} or $args{include_namespaces} = 1;
-    $args{sloppy_integers}   ||= 0;
-    unless($args{sloppy_integers})
-    {   eval "require Math::BigInt";
-        fault "require Math::BigInt or sloppy_integers:\n$@"
-            if $@;
 
-        eval "require Math::BigFloat";
-        fault "require Math::BigFloat or sloppy_integers:\n$@"
+    if($args{sloppy_integers} ||= 0)
+    {   eval "require Math::BigInt";
+        panic "require Math::BigInt or sloppy_integers:\n$@"
             if $@;
+    }
+
+    if($args{sloppy_floats} ||= 0)
+    {   eval "require Math::BigFloat";
+        panic "require Math::BigFloat by sloppy_floats:\n$@" if $@;
     }
 
     my $prefs = $args{prefixes} = $self->_namespaceTable
@@ -640,13 +649,13 @@ sub _namespaceTable($;$$)
     $table = { reverse @$table }
         if ref $table eq 'ARRAY';
 
-    $table->{$_} = { uri => $_, prefix => $table->{$_} }
+    $table->{$_}    = { uri => $_, prefix => $table->{$_} }
         for grep {ref $table->{$_} ne 'HASH'} keys %$table;
 
     do { $_->{used} = 0 for values %$table }
         if $reset_count;
 
-    $table->{''} = {uri => '', prefix => '', used => 0}
+    $table->{''}    = {uri => '', prefix => '', used => 0}
         if $block_default && !grep {$_->{prefix} eq ''} values %$table;
 
     $table;

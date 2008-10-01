@@ -83,27 +83,27 @@ ok(defined $schema);
 ## test 1
 
 my %t1 = (t1_a => 10, t1_b => 9, a1_a => 11, a1_b => 12);
-test_rw($schema, test1 => <<__XML__, \%t1);
+test_rw($schema, test1 => <<__XML, \%t1);
 <test1 a1_a="11" a1_b="12">
   <t1_a>10</t1_a>
   <t1_b>9</t1_b>
 </test1>
-__XML__
+__XML
 
 my %t1_b = (t1_a => 20, t1_b => 21, a1_b => 23);
-test_rw($schema, test1 => <<__XML__, \%t1_b);
+test_rw($schema, test1 => <<__XML, \%t1_b);
 <test1 a1_b="23">
   <t1_a>20</t1_a>
   <t1_b>21</t1_b>
 </test1>
-__XML__
+__XML
 
-my $error = reader_error($schema, test1 => <<__XML__);
+my $error = reader_error($schema, test1 => <<__XML);
 <test1>
   <t1_a>25</t1_a>
   <t1_b>26</t1_b>
 </test1>
-__XML__
+__XML
 is($error, "attribute `a1_b' is required at {http://test-types}test1/\@a1_b");
 
 my %t1_c = (a1_b => 24, t1_a => 25);
@@ -113,23 +113,23 @@ is($error, "required value for element `t1_b' missing at {http://test-types}test
 ## test 2  attributeGroup
 
 my %t2_a = (a2_a => 30, a2_b => 31, a2_c => 29, t2_b => 100);
-test_rw($schema, test2 => <<__XML__, \%t2_a);
+test_rw($schema, test2 => <<__XML, \%t2_a);
 <test2 a2_a="30" a2_c="29" a2_b="31">
   <t2_b>100</t2_b>
 </test2>
-__XML__
+__XML
 
 my %t2_b = (a2_a => 32, a2_b => 33, a2_c => 34, a2_d => 35
   , t2_a => 99, t2_b => 101);
-test_rw($schema, test2 => <<__XML__, \%t2_b);
+test_rw($schema, test2 => <<__XML, \%t2_b);
 <test2 a2_a="32" a2_c="34" a2_d="35" a2_b="33">
   <t2_a>99</t2_a><t2_b>101</t2_b>
 </test2>
-__XML__
+__XML
 
-$error = reader_error($schema, test2 => <<__XML__);
+$error = reader_error($schema, test2 => <<__XML);
 <test2 a2_c="29" a2_e="666"><t2_b>102</t2_b></test2>
-__XML__
+__XML
 
 is($error, "attribute `a2_e' is prohibited at {http://test-types}test2/\@a2_e");
 

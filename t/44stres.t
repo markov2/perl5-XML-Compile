@@ -48,38 +48,38 @@ ok(defined $schema);
 # In range
 #
 
-test_rw($schema, "test1" => <<__XML__, 12);
+test_rw($schema, "test1" => <<__XML, 12);
 <test1>12</test1>
-__XML__
+__XML
 
-test_rw($schema, "test2" => <<__XML__, 13);
+test_rw($schema, "test2" => <<__XML, 13);
 <test2>13</test2>
-__XML__
+__XML
 
-test_rw($schema, "test3" => <<__XML__, 14);
+test_rw($schema, "test3" => <<__XML, 14);
 <test3>14</test3>
-__XML__
+__XML
 
 #
 # too small
 #
 
-test_rw($schema, "test1" => <<__XML__, 5);
+test_rw($schema, "test1" => <<__XML, 5);
 <test1>5</test1>
-__XML__
+__XML
 
-my $error = reader_error($schema, test2 => <<__XML__);
+my $error = reader_error($schema, test2 => <<__XML);
 <test2>6</test2>
-__XML__
+__XML
 is($error, 'too small inclusive 6, min 10 at {http://test-types}test2#facet');
 
 $error = writer_error($schema, test2 => 6);
 is($error, "too small inclusive 6, min 10 at {http://test-types}test2#facet");
 
 # inherited restriction
-$error = reader_error($schema, test3 => <<__XML__);
+$error = reader_error($schema, test3 => <<__XML);
 <test3>6</test3>
-__XML__
+__XML
 is($error, 'too small inclusive 6, min 10 at {http://test-types}test3#facet');
 
 $error = writer_error($schema, test3 => 6);
@@ -89,17 +89,17 @@ is($error, "too small inclusive 6, min 10 at {http://test-types}test3#facet");
 # too large
 #
 
-test_rw($schema, "test1" => <<__XML__, 55);
+test_rw($schema, "test1" => <<__XML, 55);
 <test1>55</test1>
-__XML__
+__XML
 
-test_rw($schema, "test2" => <<__XML__, 56);
+test_rw($schema, "test2" => <<__XML, 56);
 <test2>56</test2>
-__XML__
+__XML
 
-$error = reader_error($schema, test3 => <<__XML__);
+$error = reader_error($schema, test3 => <<__XML);
 <test3>57</test3>
-__XML__
+__XML
 is($error, 'too large inclusive 57, max 20 at {http://test-types}test3#facet');
 
 $error = writer_error($schema, test3 => 57);

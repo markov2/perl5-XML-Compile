@@ -9,7 +9,7 @@ use TestTools;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 172;
+use Test::More tests => 169;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -99,8 +99,7 @@ $error = reader_error($schema, test1 => <<__XML);
 __XML
 is($error, "data for element or block starting with `t1_a' missing at {http://test-types}test1");
 
-$error = writer_error($schema, test1 => undef);
-is($error, "complex `test1' requires data at {http://test-types}test1");
+test_rw($schema, test1 => undef, {});
 
 test_rw($schema, test2 => <<__XML, {t2_a => 11});
 <test2><t2_a>11</t2_a></test2>

@@ -42,7 +42,7 @@ __XML
 
 #### the default = ATTRIBUTES
 
-my $r1 = create_reader($schema, "nameless with attrs" => 'test1');
+my $r1 = reader_create($schema, "nameless with attrs" => 'test1');
 my $r1a = $r1->($mixed1);
 
 isa_ok($r1a, 'HASH', 'got result');
@@ -53,7 +53,7 @@ compare_xml($r1a->{_}->toString, $mixed1);
 
 # test generic writer
 
-my $w1 = create_writer($schema, "nameless with attrs" => 'test1');
+my $w1 = writer_create($schema, "nameless with attrs" => 'test1');
 my $w1node = XML::LibXML::Element->new('test1');
 my $w1a = writer_test($w1, $w1node);
 compare_xml($w1a,  '<test1/>');
@@ -76,7 +76,7 @@ __TEMPL
 
 set_compile_defaults mixed_elements => 'ATTRIBUTES';
 
-my $r2 = create_reader($schema, "attributes" => 'test1');
+my $r2 = reader_create($schema, "attributes" => 'test1');
 my $r2a = $r2->($mixed1);
 
 isa_ok($r2a, 'HASH', 'got result');
@@ -90,7 +90,7 @@ compare_xml($r2a->{_}->toString, $mixed1);
 my @caught;
 set_compile_defaults mixed_elements => sub {@caught = @_; '42' };
 
-my $r3 = create_reader($schema, "code reference" => 'test1');
+my $r3 = reader_create($schema, "code reference" => 'test1');
 my $r3a = $r3->($mixed1);
 is($r3a, 42);
 cmp_ok(scalar @caught, '==', 1);
@@ -100,7 +100,7 @@ isa_ok($caught[0], 'XML::LibXML::Element');
 
 set_compile_defaults mixed_elements => 'XML_NODE';
 
-my $r4 = create_reader($schema, "xml-node" => 'test1');
+my $r4 = reader_create($schema, "xml-node" => 'test1');
 my $r4a = $r4->($mixed1);
 isa_ok($r4a, 'XML::LibXML::Element');
 
@@ -108,7 +108,7 @@ isa_ok($r4a, 'XML::LibXML::Element');
 
 set_compile_defaults mixed_elements => 'TEXTUAL';
 
-my $r5 = create_reader($schema, "textual" => 'test1');
+my $r5 = reader_create($schema, "textual" => 'test1');
 my $r5a = $r5->($mixed1);
 
 isa_ok($r5a, 'HASH', 'got result');
@@ -125,7 +125,7 @@ __TEXT
 
 set_compile_defaults mixed_elements => 'STRUCTURAL';
 
-my $r6 = create_reader($schema, "structural" => 'test1');
+my $r6 = reader_create($schema, "structural" => 'test1');
 my $r6a = $r6->($mixed1);
 is_deeply($r6a, {count => 13, id => 5});
 
@@ -133,7 +133,7 @@ is_deeply($r6a, {count => 13, id => 5});
 
 set_compile_defaults mixed_elements => 'XML_STRING';
 
-my $r7 = create_reader($schema, "xml-string" => 'test1');
+my $r7 = reader_create($schema, "xml-string" => 'test1');
 my $r7a = $r7->($mixed1);
 is(ref $r7a, '', 'returned is string');
 $r7a =~ s/\n?$/\n/;

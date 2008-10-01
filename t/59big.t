@@ -73,27 +73,27 @@ set_compile_defaults sloppy_integers => 0;
 ### Integers
 ##
 
-test_rw($schema, "test1" => <<__XML__, Math::BigInt->new(12));
+test_rw($schema, "test1" => <<__XML, Math::BigInt->new(12));
 <test1>12</test1>
-__XML__
+__XML
 
-test_rw($schema, "test1" => <<__XML__, Math::BigInt->new($some_big1));
+test_rw($schema, "test1" => <<__XML, Math::BigInt->new($some_big1));
 <test1>$some_big1</test1>
-__XML__
+__XML
 
-test_rw($schema, "test2" => <<__XML__, Math::BigInt->new(42));
+test_rw($schema, "test2" => <<__XML, Math::BigInt->new(42));
 <test2>42</test2>
-__XML__
+__XML
 
-test_rw($schema, "test2" => <<__XML__, Math::BigInt->new($some_big1));
+test_rw($schema, "test2" => <<__XML, Math::BigInt->new($some_big1));
 <test2>$some_big1</test2>
-__XML__
+__XML
 
 # limit to huge maxInclusive
 
-my $error = reader_error($schema, test2 => <<__XML__);
+my $error = reader_error($schema, test2 => <<__XML);
 <test2>$some_big2</test2>
-__XML__
+__XML
 
 is($error, 'too large inclusive 243587092790745290879, max 12432156239876121237 at {http://test-types}test2#facet');
 
@@ -105,32 +105,32 @@ is($error, 'too large inclusive 243587092790745290879, max 12432156239876121237 
 #
 
 my %t31 = (t3a => Math::BigInt->new(12), t3b => 13);
-test_rw($schema, "test3" => <<__XML__, \%t31);
+test_rw($schema, "test3" => <<__XML, \%t31);
 <test3><t3a>12</t3a><t3b>13</t3b></test3>
-__XML__
+__XML
 
 my %t32 = (t3a => 14, t3b => Math::BigInt->new(15));
 my %t33 = (t3a => Math::BigInt->new(14), t3b => 15);
-test_rw($schema, test3 => <<__XML__, \%t33, <<__XML__, \%t32);
+test_rw($schema, test3 => <<__XML, \%t33, <<__XML, \%t32);
 <test3><t3a>14</t3a><t3b>15</t3b></test3>
-__XML__
+__XML
 <test3><t3a>14</t3a><t3b>15</t3b></test3>
-__XML__
+__XML
 
 my %t34 = (t3a => Math::BigInt->new(10), t3b => 11);
-test_rw($schema, test3 => <<__XML__, \%t34, <<__XML__, {t3b => 16});
+test_rw($schema, test3 => <<__XML, \%t34, <<__XML, {t3b => 16});
 <test3 />
-__XML__
+__XML
 <test3><t3b>16</t3b></test3>
-__XML__
+__XML
 
 #
 ## Big fixed
 #
 
 my $bi4 = Math::BigInt->new(79);
-test_rw($schema, test4 => <<__XML__, {t4 => $bi4}, <<__XML__, {t4 => $bi4});
+test_rw($schema, test4 => <<__XML, {t4 => $bi4}, <<__XML, {t4 => $bi4});
 <test4><t4>79</t4></test4>
-__XML__
+__XML
 <test4><t4>79</t4></test4>
-__XML__
+__XML

@@ -49,7 +49,7 @@ test_rw($schema, test1 => $xml1, \%f1);
 # try all selectors and hook types
 
 my (@out, @out2);
-my $w2 = create_writer
+my $w2 = writer_create
  ( $schema, "combined test" => 'test1'
  , hook => { type   => 'string'
            , id     => 'my_id'
@@ -79,7 +79,7 @@ my $output;
 open BUF, '>', \$output;
 my $oldout = select BUF;
 
-my $w3 = create_writer
+my $w3 = writer_create
  ( $schema, "multiple after" => 'test1'
  , hook => { id    => 'top'
            , after => [ 'PRINT_PATH' ]
@@ -102,7 +102,7 @@ __EXPECT
 
 # test skip
 
-my $w4 = create_writer
+my $w4 = writer_create
  ( $schema, "test SKIP" => 'test1'
  , hook => { id      => 'my_id'
            , replace => 'SKIP'

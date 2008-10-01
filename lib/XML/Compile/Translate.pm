@@ -12,8 +12,8 @@ use List::Util  'first';
 use XML::Compile::Schema::Specs;
 use XML::Compile::Schema::BuiltInFacets;
 use XML::Compile::Schema::BuiltInTypes qw/%builtin_types/;
-use XML::Compile::Util                 qw/pack_type unpack_type type_of_node/;
-use XML::Compile::Iterator             ();
+use XML::Compile::Util      qw/pack_type unpack_type type_of_node/;
+use XML::Compile::Iterator  ();
 
 my %translators =
  ( READER   => 'XML::Compile::Translate::Reader'
@@ -106,13 +106,11 @@ sub new($@)
     (bless {}, $class)->init( {@_} );
 }
 
-
 sub init($)
 {   my ($self, $args) = @_;
 
-    $self->{nss} = $args->{nss} or panic "no namespace tables";
-    $self->{prefixes} ||= {};
-
+    $self->{nss}      = $args->{nss} or panic "no namespace tables";
+    $self->{prefixes} = $args->{prefixes} || {};
     $self;
 }
 
@@ -253,8 +251,9 @@ sub topLevel($$)
 {   my ($self, $path, $fullname) = @_;
 
     # built-in types have to be handled differently.
-    my $internal = XML::Compile::Schema::Specs->builtInType
-       (undef, $fullname, sloppy_integers => $self->{sloppy_integers});
+    my $internal = XML::Compile::Schema::Specs->builtInType(undef, $fullname
+       , sloppy_integers => $self->{sloppy_integers}
+       , sloppy_floats   => $self->{sloppy_floats});
 
     if($internal)
     {   my $builtin = $self->makeBuiltin($fullname, undef
@@ -332,8 +331,9 @@ sub typeByName($$)
     #
 
     my $node  = $tree->node;
-    my $def   = XML::Compile::Schema::Specs->builtInType
-       ($node, $typename, sloppy_integers => $self->{sloppy_integers});
+    my $def   = XML::Compile::Schema::Specs->builtInType($node, $typename
+       , sloppy_integers => $self->{sloppy_integers}
+       , sloppy_floats   => $self->{sloppy_floats});
 
     if($def)
     {   my $where = $typename;
@@ -510,6 +510,12 @@ sub simpleRestriction($$)
     +{ st => $do };
 }
 
+my @facets_prelex  = qw/whiteSpace/;
+my @facets_lexical = qw/pattern enumeration length minLength maxLength/;
+my @facets_value   = qw/totalDigits maxScale minScale maxInclusive
+  maxExclusive minInclusive minExclusive fractionDigits/;
+# assertions ignored
+
 sub applySimpleFacets($$$)
 {   my ($self, $tree, $st, $in_list) = @_;
 
@@ -554,18 +560,17 @@ sub applySimpleFacets($$$)
         $facets{totalFracDigits} = [$td, $fd];
     }
 
-    # First the strictly ordered facets, before an eventual split
-    # of the list, then the other facets
-    my @early;
-    foreach my $ordered ( qw/whiteSpace/ )
-    {   my $limit = delete $facets{$ordered};
-        push @early, builtin_facet($where, $self, $ordered, $limit)
-           if defined $limit;
+    # Pre-lexicals
+    my (@early, @late);
+    foreach my $facet (@facets_prelex)
+    {   my $limit = $facets{$facet} or next;
+        push @early, builtin_facet($where, $self, $facet, $limit);
     }
 
-    my @late
-      = map { builtin_facet($where, $self, $_, $facets{$_}) }
-            keys %facets;
+    foreach my $facet (@facets_lexical, @facets_value)
+    {   my $limit = $facets{$facet} or next;
+        push @late, builtin_facet($where, $self, $facet, $limit);
+    }
 
       $in_list
     ? $self->makeFacetsList($where, $st, \%facets_info, \@early, \@late)
@@ -584,7 +589,7 @@ sub element($)
 
     my $node     = $tree->node;
     my $name     = $node->getAttribute('name')
-        or error __x"element has no name at {where}"
+        or error __x"element has no name nor ref at {where}"
              , where => $tree->path, _class => 'schema';
     my $ns       = $self->{tns};
 
@@ -621,19 +626,19 @@ sub element($)
 
     # Construct type processor
 
-    my ($componentsname, $components);
+    my ($compname, $comps);
     my $nr_childs = $tree->nrChildren;
-    if(my $isa = $node->getAttribute('type'))
+    if(my $isa    = $node->getAttribute('type'))
     {   $nr_childs==0
             or error __x"no childs expected with attribute `type' at {where}"
-                   , where => $where, _class => 'schema';
+                 , where => $where, _class => 'schema';
 
-        $componentsname = $self->rel2abs($where, $node, $isa);
-        $components     = $self->typeByName($tree, $componentsname);
+        $compname = $self->rel2abs($where, $node, $isa);
+        $comps    = $self->typeByName($tree, $compname);
     }
     elsif($nr_childs==0)
-    {   $componentsname = $self->anyType($node);
-        $components     = $self->typeByName($tree, $componentsname);
+    {   $compname = $self->anyType($node);
+        $comps    = $self->typeByName($tree, $compname);
     }
     elsif($nr_childs!=1)
     {   error __x"expected is only one child at {where}"
@@ -644,7 +649,7 @@ sub element($)
         my $local = $child->localname;
         my $nest  = $tree->descend($child);
 
-        $components
+        $comps
           = $local eq 'simpleType'  ? $self->simpleType($nest, 0)
           : $local eq 'complexType' ? $self->complexType($nest)
           : error __x"illegal element child `{name}' at {where}"
@@ -652,44 +657,66 @@ sub element($)
     }
 
     my ($st, $elems, $attrs, $attrs_any)
-      = @$components{ qw/st elems attrs attrs_any/ };
+      = @$comps{ qw/st elems attrs attrs_any/ };
     $_ ||= [] for $elems, $attrs, $attrs_any;
 
-    # Collect the hooks
-
-    my ($before, $replace, $after)
-      = $self->findHooks($where, $componentsname, $node);
-
     # Construct basic element handler
+
     my $r;
-    if($replace) { ; }             # do not attempt to compile
-    elsif($components->{mixed})    # complexType mixed
-    {   $r = $self->makeMixedElement($where, $tag, $elems, $attrs, $attrs_any);
-    }
-    elsif(! defined $st)           # complexType
-    {   $r = $self->makeComplexElement($where, $tag, $elems, $attrs,$attrs_any);
-    }
-    elsif(@$attrs || @$attrs_any)  # complex simpleContent
-    {   $r = $self->makeTaggedElement($where, $tag, $st, $attrs, $attrs_any);
-    }
-    else                           # simple
-    {   $r = $self->makeSimpleElement($where, $tag, $st);
-    }
+    if($comps->{mixed})           # complexType mixed
+    {   $r = $self->makeMixedElement  ($where,$tag,$elems, $attrs,$attrs_any) }
+    elsif(! defined $st)          # complexType
+    {   $r = $self->makeComplexElement($where,$tag,$elems, $attrs,$attrs_any) }
+    elsif(@$attrs || @$attrs_any) # complex simpleContent
+    {   $r = $self->makeTaggedElement ($where,$tag,$st,    $attrs,$attrs_any) }
+    else                          # simple
+    {   $r = $self->makeSimpleElement ($where,$tag,$st) }
+
+    # Add defaults and stuff
+    my $default  = $node->getAttributeNode('default');
+    my $fixed    = $node->getAttributeNode('fixed');
+    my $nillable = $node->getAttribute('nillable') || 'false';
+    my $abstract = $node->getAttribute('abstract') || 'false';
+
+    $default && $fixed
+        and error __x"element can not have default and fixed at {where}"
+              , where => $tree->path, _class => 'schema';
+
+    my $value
+      = $default ? $default->textContent
+      : $fixed   ? $fixed->textContent
+      :            undef;
+
+    my $generate
+      = $self->isTrue($abstract) ? 'makeElementAbstract'
+      : $self->isTrue($nillable) ? 'makeElementNillable'
+      : $default                 ? 'makeElementDefault'
+      : $fixed                   ? 'makeElementFixed'
+      :                            'makeElement';
+
+    my $nodetype = $self->{elems_qual} ? $fullname : $name;
+    my $do1 = $self->$generate($where, $ns, $nodetype, $r, $value);
+
+    # hrefs are used by SOAP-RPC
+    my $do2 = $self->{permit_href} && $self->actsAs('READER')
+      ? $self->makeElementHref($where, $ns, $nodetype, $do1) : $do1;
 
     # Implement hooks
 
-    my $do = ($before || $replace || $after)
-      ? $self->makeHook($where, $r, $tag, $before, $replace, $after)
-      : $r;
+    my ($before, $replace, $after)
+            = $self->findHooks($where, $compname, $node);
+
+    my $do3 = ($before || $replace || $after)
+       ? $self->makeHook($where, $do2, $tag, $before, $replace, $after) : $do2;
 
     # handle recursion
     # this must look very silly to you... however, this is resolving
     # recursive schemas: this way nested use of the same element
     # definition will catch the code reference of the outer definition.
-    $self->{_nest}{$nodeid}    = $do;
+    $self->{_nest}{$nodeid}    = $do3;
     delete $self->{_nest}{$nodeid};  # clean the outer definition
 
-    $self->{_created}{$nodeid} = $do;
+    $self->{_created}{$nodeid} = $do3;
 }
 
 sub particle($)
@@ -868,60 +895,29 @@ sub particleElement($)
     my $node  = $tree->node;
 
     if(my $ref =  $node->getAttribute('ref'))
-    {   my $refname  = $self->rel2abs($tree, $node, $ref);
-        my $where    = $tree->path . "/$ref";
+    {   my $refname = $self->rel2abs($tree, $node, $ref);
+        my $where   = $tree->path . "/$ref";
  
-        my $def      = $self->namespaces->find(element => $refname)
+        my $def     = $self->namespaces->find(element => $refname)
             or error __x"cannot find ref element '{name}' at {where}"
                    , name => $refname, where => $where, _class => 'schema';
 
-        my $refnode  = $def->{node};
+        my $refnode = $def->{node};
 
         local @$self{ qw/elems_qual attrs_qual tns/ }
-            = $self->nsContext($def);
+          = $self->nsContext($def);
 
         return $self->particleElementRef($tree->descend($refnode));
     }
 
-    my $name     = $node->getAttribute('name')
+    my $name = $node->getAttribute('name')
         or error __x"element needs name or ref at {where}"
              , where => $tree->path, _class => 'schema';
-    my $full     = pack_type $self->{tns}, $name;
 
-    my $where    = $tree->path . '/' . $name;
-    my $default  = $node->getAttributeNode('default');
-    my $fixed    = $node->getAttributeNode('fixed');
-
-    $default && $fixed
-        and error __x"element can not have default and fixed at {where}"
-              , where => $tree->path, _class => 'schema';
-
-    my $nillable = $node->getAttribute('nillable') || 'false';
-    my $abstract = $node->getAttribute('abstract') || 'false';
-
+    my $fullname = pack_type $self->{tns}, $name;
+    my $nodetype = $self->{elems_qual} ? $fullname : $name;
     my $do       = $self->element($tree->descend($node, $name));
-
-    my $value
-       = $default ? $default->textContent
-       : $fixed   ? $fixed->textContent
-       :            undef;
-
-    my $generate
-     = $self->isTrue($abstract) ? 'makeElementAbstract'
-     : $self->isTrue($nillable) ? 'makeElementNillable'
-     : $default   ? 'makeElementDefault'
-     : $fixed     ? 'makeElementFixed'
-     :              'makeElement';
-
-    my $nodetype  = $self->{elems_qual} ? $full : $name;
-    my $ns    = $self->{tns}; #$node->namespaceURI;
-    my $do_el = $self->$generate($where, $ns, $nodetype, $do, $value);
-
-    # hrefs are used by SOAP-RPC
-    $do_el    = $self->makeElementHref($where, $ns, $nodetype, $do_el)
-        if $self->{permit_href} && $self->actsAs('READER');
- 
-    ($nodetype => $do_el);
+    ($nodetype => $do);
 }
 
 sub keyRewrite($)
@@ -948,18 +944,12 @@ sub keyRewrite($)
         }
         elsif($r eq 'PREFIXED')
         {   my $p = $self->{prefixes};
-            keys %$p > 1 || !exists $p->{''}
-                or error __x"no prefix table provided with key_rewrite";
-
             my $prefix = $p->{$ns} ? $p->{$ns}{prefix} : '';
             $key = $prefix . '_' . $key if $prefix ne '';
         }
         elsif($r =~ m/^PREFIXED\(\s*(.*?)\s*\)$/)
         {   my @l = split /\s*\,\s*/, $1;
             my $p = $self->{prefixes};
-            keys %$p > 1 || !exists $p->{''}
-                or error __x"no prefix table provided with key_rewrite";
-
             my $prefix = $p->{$ns} ? $p->{$ns}{prefix} : '';
             $key = $prefix . '_' . $key if grep {$prefix eq $_} @l;
         }
@@ -1399,19 +1389,16 @@ sub complexContent($$)
              , where => $tree->path, _class => 'schema';
 
     my $name  = $tree->currentLocal;
- 
     error __x"complexContent needs extension or restriction, not `{name}' at {where}"
        , name => $name, where => $tree->path, _class => 'schema'
            if $name ne 'extension' && $name ne 'restriction';
 
-# variable rename needed
     $tree     = $tree->descend;
     $node     = $tree->node;
     my $base  = $node->getAttribute('base') || 'anyType';
     my $type  = {};
     my $where = $tree->path . '#cce';
 
-use Data::Dumper;
     if($base ne 'anyType')
     {   my $typename = $self->rel2abs($where, $node, $base);
         my $typedef  = $self->namespaces->find(complexType => $typename)
@@ -1457,7 +1444,7 @@ sub rel2abs($$$)
 
     my ($prefix, $local) = $type =~ m/^(.+?)\:(.*)/ ? ($1, $2) : ('', $type);
     my $uri = $node->lookupNamespaceURI($prefix);
-    $self->_registerNSprefix($self->{prefixes}, $prefix, $uri) if $uri;
+    $self->_registerNSprefix($prefix, $uri, 0) if $uri;
 
     error __x"No namespace for prefix `{prefix}' in `{type}' at {where}"
       , prefix => $prefix, type => $type, where => $where, _class => 'schema'
@@ -1467,10 +1454,13 @@ sub rel2abs($$$)
 }
 
 sub _registerNSprefix($$$)
-{   my ($self, $table, $prefix, $uri) = @_;
+{   my ($self, $prefix, $uri, $used) = @_;
+    my $table = $self->{prefixes};
 
-    return $table->{$uri}{prefix}
-        if $table->{$uri}; # namespace already has a prefix
+    if(my $u = $table->{$uri})    # namespace already has a prefix
+    {   $u->{used} += $used;
+        return $u->{prefix};
+    }
 
     my %prefs = map { ($_->{prefix} => 1) } values %$table;
     my $take;
@@ -1482,7 +1472,7 @@ sub _registerNSprefix($$$)
         $count++ while exists $prefs{"x$count"};
         $take    = 'x'.$count;
     }
-    $self->{prefixes}{$uri} = {prefix => $take, uri => $uri, used => 0};
+    $table->{$uri} = {prefix => $take, uri => $uri, used => $used};
     $take;
 }
 
@@ -1571,6 +1561,16 @@ If you do not want limit the number-space, you can safely add
   use Math::BigInt try => 'GMP'
 to the top of your main program, and install M<Math::BigInt::GMP>.  Then,
 a C library will do the work, much faster than the Perl implementation.
+
+=item sloppy_floats BOOLEAN
+
+The float types of XML are all quite big, and may be NaN, INF, and -INF.
+Perl's normal floats do not, and therefore M<Math::BigFloat> is used.  This,
+however, is slow.
+
+When this option is true, your application will crash on any value which
+is not understood by Perl's internal float implementation... but run much
+faster.
 
 =item check_values BOOLEAN
 

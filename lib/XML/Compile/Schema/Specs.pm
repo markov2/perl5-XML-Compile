@@ -94,6 +94,7 @@ my @builtin_extra_2001  = qw/
  base64Binary
  dateTime
  dayTimeDuration
+ error
  gDay
  gMonth
  gMonthDay
@@ -114,8 +115,7 @@ my %builtin_public_2001 = map { ($_ => $_) }
    @builtin_common, @builtin_extra_2001;
 
 my %sloppy_int_version =
- ( decimal            => 'double'
- , integer            => 'int'
+ ( integer            => 'int'
  , long               => 'int'
  , nonNegativeInteger => 'unsigned_int'
  , nonPositiveInteger => 'non_pos_int'
@@ -124,6 +124,9 @@ my %sloppy_int_version =
  , unsignedLong       => 'unsigned_int'
  , unsignedInt        => 'unsigned_int'
  );
+
+my %sloppy_float_version = map { ($_ => 'sloppy_float') }
+   qw/decimal precissionDecimal float double/;
 
 my %schema_1999 =
  ( uri_xsd => SCHEMA1999
@@ -169,10 +172,17 @@ found.
 
 =option  sloppy_integers BOOLEAN
 =default sloppy_integers <false>
-the <decimal> and <integer> types must accept huge integers, which
-require C<Math::Big*> objects to process.  But often, Perl's normal
-signed 32bit integers suffice... which is good for performance, but not
-standard compliant.
+the <integer> types must accept huge integers, which require
+C<Math::BigInt> objects to process.  But often, Perl's normal signed
+32bit integers suffice... which is good for performance, but not standard
+compliant.
+
+=option  sloppy_floats BOOLEAN
+=default sloppy_floats <false>
+The float types of XML are all quite big, and support NaN, INF, and -INF.
+Perl's normal floats do not, and therefore M<Math::BigFloat> is used.  This,
+however, is slow.  When true, your application will crash on any value which
+is not understood by Perl's default float... but run much faster.
 =cut
 
 sub builtInType($$;$@)
@@ -188,6 +198,9 @@ sub builtInType($$;$@)
 
     return $builtin_types{$sloppy_int_version{$name}}
         if $args{sloppy_integers} && exists $sloppy_int_version{$name};
+
+    return $builtin_types{$sloppy_float_version{$name}}
+        if $args{sloppy_floats} && exists $sloppy_float_version{$name};
 
     # only official names are exported this way
     my $public = $schema->{builtin_public}{$name};

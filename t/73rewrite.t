@@ -99,7 +99,7 @@ set_compile_defaults
   , prefixes => [ mine => $TestNS ]
   , elements_qualified => 'ALL';
 
-my $r4 = create_reader $schema, 'changed prefix', "{$TestNS}test1";
+my $r4 = reader_create $schema, 'changed prefix', "{$TestNS}test1";
 my $x4 = $r4->( <<__XML );
 <test1 xmlns="$TestNS">
   <t1-E1>60</t1-E1>

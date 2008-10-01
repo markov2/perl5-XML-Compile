@@ -9,7 +9,8 @@ no warnings 'once';
 use Log::Report 'xml-compile', syntax => 'SHORT';
 use List::Util    qw/first/;
 use Scalar::Util  qw/blessed/;
-use XML::Compile::Util qw/pack_type unpack_type odd_elements type_of_node/;
+use XML::Compile::Util
+   qw/pack_type unpack_type odd_elements type_of_node SCHEMA2001i/;
 
 =chapter NAME
 
@@ -41,9 +42,7 @@ sub actsAs($) { $_[1] eq 'WRITER' }
 
 sub makeTagQualified
 {   my ($self, $path, $node, $local, $ns) = @_;
-    my $table  = $self->{prefixes};
-    my $prefix = $self->_registerNSprefix($table, '', $ns);
-    $table->{$ns}{used}++;
+    my $prefix = $self->_registerNSprefix('', $ns, 1);
     length($prefix) ? "$prefix:$local" : $local;
 }
 
@@ -423,7 +422,10 @@ sub makeElementFixed
 
 sub makeElementNillable
 {   my ($self, $path, $ns, $childname, $do) = @_;
-    my $inas = $self->{interpret_nillable_as_optional};
+    my $inas    = $self->{interpret_nillable_as_optional};
+
+    $self->_registerNSprefix(xsi => SCHEMA2001i, 0);
+    my $nilattr = $self->makeTagQualified($path, undef, 'nil', SCHEMA2001i);
 
     sub
     {   my ($doc, $value) = @_;
@@ -434,7 +436,8 @@ sub makeElementNillable
             if $inas;
 
         my $node = $doc->createElement($childname);
-        $node->setAttribute(nil => 'true');
+
+        $node->setAttribute($nilattr => 'true');
         $node;
     };
 }
@@ -708,27 +711,24 @@ sub makeList
 
 sub makeFacetsList
 {   my ($self, $path, $st, $info, $early, $late) = @_;
+
+    # pre-lexical whiteSpace facet in $early can be ignored
     sub { defined $_[1] or return undef;
           my @el = ref $_[1] eq 'ARRAY' ? (grep {defined} @{$_[1]}) : $_[1];
-
-          my @r = grep {defined} map {$st->($_[0], $_)} @el;
+          my @r  = grep {defined} map {$st->($_[0], $_)} @el;
 
       EL: for(@r)
-          {   for my $l (@$late)
-              { defined $_ or next EL; $_ = $l->($_) }
+          {   for my $l (@$late) {defined $_ or next EL; $_ = $l->($_)}
           }
 
           @r or return undef;
-          my $r = join ' ', grep {defined} @r;
-
-          my $v = $r;  # do not test with original
-          for(@$early) { defined $v or return (); $v = $_->($v) }
-          defined $v ? $r : ();
+          join ' ', grep {defined} @r;
         };
 }
 
 sub makeFacets
 {   my ($self, $path, $st, $info, @do) = @_;
+    @do or return $st;
     sub { defined $_[1] or return undef;
           my $v = $st->(@_);
           for(reverse @do)

@@ -42,7 +42,7 @@ ok(defined $schema);
 ### ComplexType writer
 ###
 
-my $w1   = create_writer $schema, "complexType writer", 'test1';
+my $w1   = writer_create $schema, "complexType writer", 'test1';
 
 my $xml1 = writer_test $w1, {t1e1 => 12, t1e2 => 13};
 
@@ -57,7 +57,7 @@ __EXPECT
 ### SimpleType writer
 ###
 
-my $w2   = create_writer $schema, "simpleType writer", 'test2';
+my $w2   = writer_create $schema, "simpleType writer", 'test2';
 
 my $xml2 = writer_test $w2, 14;
 

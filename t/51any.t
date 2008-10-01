@@ -86,9 +86,9 @@ my $error;
 set_compile_defaults include_namespaces => 1;
 
 my %t2a = (tns_e => 10, tns_a => 11);
-test_rw($schema, test2 => <<__XML__, \%t2a);
+test_rw($schema, test2 => <<__XML, \%t2a);
 <test2 xmlns="$TestNS" tns_a="11"><tns_e>10</tns_e></test2>
-__XML__
+__XML
 
 #
 # Take it, in target namespace
@@ -98,13 +98,13 @@ set_compile_defaults include_namespaces => 1
                    , any_element   => 'TAKE_ALL'
                    , any_attribute => 'TAKE_ALL';
 
-my $r2b = create_reader($schema, test2 => 'test2');
-my $h2b = $r2b->( <<__XML__);
+my $r2b = reader_create($schema, test2 => 'test2');
+my $h2b = $r2b->( <<__XML);
 <test2 xmlns="$TestNS" xmlns:b="http://x" tns_a="11" b:tns_b="12">
   <tns_e>9</tns_e>
   <tns_e>10</tns_e>
 </test2>
-__XML__
+__XML
 
 is(delete $h2b->{tns_e},  9);
 is(delete $h2b->{tns_a}, 11);
@@ -156,13 +156,13 @@ is($error, "unused tags {http://x}for_at {http://x}for_el at {http://test-types}
 # Take only other namespace
 #
 
-my $r3b = create_reader($schema, test3 => 'test3');
-my $h3b = $r3b->( <<__XML__);
+my $r3b = reader_create($schema, test3 => 'test3');
+my $h3b = $r3b->( <<__XML);
 <test3 xmlns="$TestNS" xmlns:b="http://x" other_a="11" b:other_b="12">
   <other_e>10</other_e>
   <for_el xmlns="http://x">26</for_el>
 </test3>
-__XML__
+__XML
 
 is(delete $h3b->{other_e}, 10);
 is(delete $h3b->{other_a}, 11);
@@ -196,12 +196,12 @@ is($error, "unused tags {http://test-types}nat_at {http://test-types}nat_el at {
 # Take any namespace
 #
 
-my $r4b = create_reader($schema, test4 => 'test4');
-my $h4b = $r4b->( <<__XML__);
+my $r4b = reader_create($schema, test4 => 'test4');
+my $h4b = $r4b->( <<__XML);
 <test4 xmlns="$TestNS" xmlns:b="http://x" any_a="11" b:any_b="12">
   <any_e>10</any_e>
 </test4>
-__XML__
+__XML
 
 is(delete $h4b->{any_e}, 10);
 is(delete $h4b->{any_a}, 11);
@@ -223,7 +223,7 @@ ok(!keys %$h4b);
 my %h4c = (any_a => 10, any_e => 11
   , $nat_at_type => $nat_at, $for_at_type => $for_at);
 
-my $w4c = create_writer($schema, test4 => 'test4');
+my $w4c = writer_create($schema, test4 => 'test4');
 my $h4c = writer_test($w4c, \%h4c);
 compare_xml($h4c, <<__XML);
 <test4 xmlns="http://test-types" any_a="10" nat_at="24" b:for_at="23">
@@ -249,12 +249,12 @@ set_compile_defaults include_namespaces => 1
                    , any_element   => 'TAKE_ALL'
                    , any_attribute => \&filter_any;
 
-my $r5b = create_reader($schema, test4 => 'test4');
-my $h5b = $r5b->( <<__XML__);
+my $r5b = reader_create($schema, test4 => 'test4');
+my $h5b = $r5b->( <<__XML);
 <test4 xmlns="$TestNS" xmlns:b="http://x" any_a="11" b:any_b="12">
   <any_e>10</any_e>
 </test4>
-__XML__
+__XML
 
 is(delete $h5b->{any_e}, 10);
 is(delete $h5b->{any_a}, 11);

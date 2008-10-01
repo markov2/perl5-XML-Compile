@@ -67,50 +67,50 @@ ok(defined $schema);
 # simple element type
 #
 
-test_rw($schema, test1 => <<__XML__, 42);
+test_rw($schema, test1 => <<__XML, 42);
 <test1>42</test1>
-__XML__
+__XML
 
-test_rw($schema, test1 => <<__XML__, -1);
+test_rw($schema, test1 => <<__XML, -1);
 <test1>-1</test1>
-__XML__
+__XML
 
-test_rw($schema, test1 => <<__XML__, 121);
+test_rw($schema, test1 => <<__XML, 121);
 <test1>
 
     121
   </test1>
-__XML__
+__XML
 
 #
 # the simpleType, less simple type
 #
 
-test_rw($schema, test3 => <<__XML__, 78);
+test_rw($schema, test3 => <<__XML, 78);
 <test3>78</test3>
-__XML__
+__XML
 
-test_rw($schema, test6 => <<__XML__, 79);
+test_rw($schema, test6 => <<__XML, 79);
 <test6>79</test6>
-__XML__
+__XML
 
 #
 # The not so complex complexType
 #
 
-test_rw($schema, test4 => <<__XML__, {ct_1 => 14, ct_2 => 43}); 
+test_rw($schema, test4 => <<__XML, {ct_1 => 14, ct_2 => 43}); 
 <test4>
   <ct_1>14</ct_1>
   <ct_2>43</ct_2>
 </test4>
-__XML__
+__XML
 
-test_rw($schema, test5 => <<__XML__, {ct_1 => 15, ct_2 => 44}); 
+test_rw($schema, test5 => <<__XML, {ct_1 => 15, ct_2 => 44}); 
 <test5>
   <ct_1>15</ct_1>
   <ct_2>44</ct_2>
 </test5>
-__XML__
+__XML
 
 # for test6 see above
 
@@ -118,8 +118,8 @@ __XML__
 # Test default: should not be set automatically
 #
 
-test_rw($schema, test7 => <<__XML__, {ct_1 => 41, ct_2 => 42}, <<__XML__, {ct_1 => 41});
+test_rw($schema, test7 => <<__XML, {ct_1 => 41, ct_2 => 42}, <<__XML, {ct_1 => 41});
 <test7><ct_1>41</ct_1></test7>
-__XML__
+__XML
 <test7><ct_1>41</ct_1></test7>
-__XML__
+__XML

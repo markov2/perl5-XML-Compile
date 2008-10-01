@@ -8,7 +8,7 @@ no warnings 'once';
 use Log::Report 'xml-compile', syntax => 'SHORT';
 use List::Util qw/first/;
 
-use XML::Compile::Util qw/pack_type odd_elements type_of_node/;
+use XML::Compile::Util qw/pack_type odd_elements type_of_node SCHEMA2001i/;
 use XML::Compile::Iterator ();
 
 =chapter NAME
@@ -579,12 +579,10 @@ sub makeElementNillable
     sub { my $tree = shift;
           my $value;
           if(defined $tree && $tree->nodeType eq $childname)
-          {   my $nil  = $tree->node->getAttribute('nil') || 'false';
-              return ($childname => 'NIL')
-                  if $nil eq 'true' || $nil eq '1';
-              $value = $do->($tree);
+          {   my $nil = $tree->node->getAttributeNS(SCHEMA2001i, 'nil') || '';
+              $value = ($nil eq 'true' || $nil eq '1') ? 'NIL' : $do->($tree);
           }
-          elsif($inas) { return ($childname => undef) }
+          elsif($inas) { return ($childname => undef) }  # explicit undef
           else { $value = $do->(undef) }
 
           defined $value ? ($childname => $value) : ();
@@ -607,7 +605,6 @@ sub makeElementAbstract
 
 sub makeComplexElement
 {   my ($self, $path, $tag, $elems, $attrs, $attrs_any) = @_;
-my @e = @$elems;
     my @elems = odd_elements @$elems;
     my @attrs = (odd_elements(@$attrs), @$attrs_any);
 
@@ -745,18 +742,48 @@ sub makeList
 
 sub makeFacetsList
 {   my ($self, $path, $st, $info, $early, $late) = @_;
+    @$early <= 1
+        or panic "only whiteSpace is early";
+
+    @$early or return sub
+      { defined $_[0] or return undef;
+        my $v = $st->(@_);
+        my @r;
+    EL: for my $e (ref $v eq 'ARRAY' ? @$v : $v)
+        {   for(@$late) { defined $e or next EL; $e = $_->($e) }
+            push @r, $e;
+        }
+        @r ? \@r : ();
+      };
+
+    my $prelex = $early->[0];
+
+    @$late or return sub
+      { defined $_[0] or return undef;
+        my $v = $st->(@_);
+        defined $v        or return ();
+        ref $v ne 'ARRAY' or return @$v ? $v : ();
+        my $r = $prelex->($v);
+        my @r = defined $r ? split(" ", $r) : ();
+        @r ? \@r : ();
+      };
+
     sub { defined $_[0] or return undef;
           my $v = $st->(@_);
+          defined $v or return ();
           my @v;
-          if(ref $v eq 'ARRAY') { @v = @$v } # no early limits for extension
+          if(ref $v eq 'ARRAY')
+          {   # no early limits for repeated simpleTypes   #???
+              @v = @$v;
+          }
           else
-          {   for(@$early) { defined $v or return (); $v = $_->($v) }
-              @v = defined $v ? split(" ",$v) : ();
+          {   $v = $prelex->($v);
+              @v = defined $v ? split(" ", $v) : ();
           }
           my @r;
       EL: for my $e (@v)
           {   for(@$late) { defined $e or next EL; $e = $_->($e) }
-              push @r, $e if defined $e;
+              push @r, $e;
           }
           @r ? \@r : ();
         };
@@ -764,10 +791,19 @@ sub makeFacetsList
 
 sub makeFacets
 {   my ($self, $path, $st, $info, @do) = @_;
+    @do or return $st;
+
+    @do==1 or return sub
+      { defined $_[0] or return undef;
+        my $v = $st->(@_);
+        for(@do) { defined $v or return (); $v = $_->($v) }
+        $v;
+      };
+
+    my $do = shift @do;
     sub { defined $_[0] or return undef;
           my $v = $st->(@_);
-          for(@do) { defined $v or return (); $v = $_->($v) }
-          $v;
+          defined $v ? $do->($v) : ();
         };
 }
 
@@ -1019,8 +1055,8 @@ sub makeHook($$$$$$)
        {   $h = $after->($xml, $h, $path);
            defined $h or return ();
        }
-       $h;
-     }
+       ($tag => $h);
+     };
 }
 
 sub _decodeBefore($$)

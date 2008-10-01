@@ -65,9 +65,9 @@ my $read_t1   = $schema->compile
 ok(defined $read_t1, "reader element test1");
 cmp_ok(ref($read_t1), 'eq', 'CODE');
 
-my $t1 = $read_t1->( <<__XML__ );
+my $t1 = $read_t1->( <<__XML );
 <test1>42</test1>
-__XML__
+__XML
 
 cmp_ok($t1, '==', 42);
 
@@ -83,9 +83,9 @@ my $read_t2   = $schema->compile
 ok(defined $read_t2, "reader simpleType test2");
 cmp_ok(ref($read_t2), 'eq', 'CODE');
 
-my $hash = $read_t2->( <<__XML__ );
+my $hash = $read_t2->( <<__XML );
 <test2>42</test2>
-__XML__
+__XML
 
 #
 # The not so complex complexType
@@ -99,9 +99,9 @@ my $read_t3   = $schema->compile
 ok(defined $read_t3, "reader complexType test3");
 cmp_ok(ref($read_t3), 'eq', 'CODE');
 
-my $hash2 = $read_t3->( <<__XML__ );
+my $hash2 = $read_t3->( <<__XML );
 <test3>
   <test3_1>13</test3_1>
   <test3_2>42</test3_2>
 </test3>
-__XML__
+__XML

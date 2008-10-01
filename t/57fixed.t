@@ -42,16 +42,16 @@ ok(defined $schema);
 ### Fixed Integers
 ##  Big-ints are checked in 49big.t
 
-test_rw($schema, test1 => <<__XML__, {t1a => 'not-changeable', t1c => 42});
+test_rw($schema, test1 => <<__XML, {t1a => 'not-changeable', t1c => 42});
 <test1 t1c="42"><t1a>not-changeable</t1a></test1>
-__XML__
+__XML
 
-my $r1 = create_reader $schema, 'missing fixed reader', 'test1';
+my $r1 = reader_create $schema, 'missing fixed reader', 'test1';
 isa_ok($r1, 'CODE');
 my $h1 = $r1->('<test1><t1b>12</t1b></test1>');
 is_deeply($h1, {t1b => 12, t1a => 'not-changeable', t1c => 42});
 
-my $w1 = create_writer $schema, 'missing fixed writer', 'test1';
+my $w1 = writer_create $schema, 'missing fixed writer', 'test1';
 isa_ok($w1, 'CODE');
 my $x1 = writer_test $w1, {t1b => 13};
 compare_xml $x1, '<test1><t1b>13</t1b></test1>';
@@ -65,13 +65,13 @@ is($error, "element `t1a' has value fixed to `not-changeable', got `wrong' at {h
 #
 
 my %t2a = (t2a => 14, t2b => 13);
-test_rw($schema, test2 => <<__XML__, \%t2a);
+test_rw($schema, test2 => <<__XML, \%t2a);
 <test2 t2a="14" t2b="13"/>
-__XML__
+__XML
 
-$error = reader_error($schema, test2 => <<__XML__);
+$error = reader_error($schema, test2 => <<__XML);
 <test2 t2a="15" t2b="12"/>
-__XML__
+__XML
 is($error, "value of attribute `t2b' is fixed to `13', not `12' at {http://test-types}test2/\@t2b");
 
 my %t2b     = (t2a => 15, t2b => 12);
@@ -79,6 +79,6 @@ $error = writer_error($schema, test2 => \%t2b);
 is($error, "value of attribute `t2b' is fixed to `13', not `12' at {http://test-types}test2/\@t2b");
 
 my %t2c     = (t2a => 17, t2b => 13);
-test_rw($schema, test2 => <<__XML__, \%t2c);
+test_rw($schema, test2 => <<__XML, \%t2c);
 <test2 t2a="17" t2b="13"/>
-__XML__
+__XML

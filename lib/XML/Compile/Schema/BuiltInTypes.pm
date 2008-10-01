@@ -62,42 +62,6 @@ sub str       { "$_[0]" }
 sub _replace  { $_[0] =~ s/[\t\r\n]/ /g; $_[0]}
 sub _collapse { local $_ = $_[0]; s/[\t\r\n]+/ /g; s/^ +//; s/ +$//; $_}
 
-# a real check() produces a nice error message with name of the
-# variable, however checking floats is extremely expensive.  Therefore,
-# we use the result of the conversion which does not show the variable
-# name.
-
-sub str2num
-{   my $v = eval {use warnings FATAL => 'all'; $_[0] + 0.0};
-    error __x"Value `{val}' is not a float", val => $_[0] if $@;
-    $v;
-}
-
-sub num2str
-{   my $f = shift;
-    if(ref $f && ($f->isa('Math::BigInt') || $f->isa('Math::BigFloat')))
-    {   error __"float is NaN" if $f->is_nan;
-        return $f->bstr;
-    }
-    my $v = eval {use warnings FATAL => 'all'; $f + 0.0};
-    $@ && error __x"Value `{val}' is not a float", val => $f;
-    $f;
-}
-
-sub bigint
-{   $_[0] =~ s/\s+//g;
-    my $v = Math::BigInt->new($_[0]);
-    error __x"Value `{val}' is not a (big) integer", val => $v if $v->is_nan;
-    $v;
-}
-
-sub bigfloat
-{   $_[0] =~ s/\s+//g;
-    my $v = Math::BigFloat->new($_[0]);
-    error __x"Value `{val}' is not a (big) float", val => $v if $v->is_nan;
-    $v;
-}
-
 =function anySimpleType
 =function anyType
 Both any*Type built-ins can contain any kind of data.  Perl decides how
@@ -105,9 +69,11 @@ to represent the passed values.
 =cut
 
 $builtin_types{anySimpleType} =
-$builtin_types{anyType}       =
- { example => 'anything'
- };
+$builtin_types{anyType}       = {example => 'anything'};
+
+=function error
+=cut
+$builtin_types{error}         = {example => '[some error structure]'};
 
 =section Ungrouped types
 
@@ -149,6 +115,13 @@ An integer with an undertermined (but possibly large) number of
 digits.
 =cut
 
+sub bigint
+{   $_[0] =~ s/\s+//g;
+    my $v = Math::BigInt->new($_[0]);
+    error __x"Value `{val}' is not a (big) integer", val => $v if $v->is_nan;
+    $v;
+}
+
 $builtin_types{integer} =
  { parse   => \&bigint
  , check   => sub { $_[0] =~ m/^\s*[-+]?\s*\d[\s\d]*$/ }
@@ -178,7 +151,7 @@ $builtin_types{nonNegativeInteger} =
 
 $builtin_types{positiveInteger} =
  { parse   => \&bigint
- , check   => sub { $_[0] =~ m/^\s*(?:\+\s*)?\d[\s\d]*$/ && m/[1-9]/ }
+ , check   => sub { $_[0] =~ m/^\s*(?:\+\s*)?\d[\s\d]*$/ && $_[0] =~ m/[1-9]/ }
  , example => '+3'
  };
 
@@ -308,19 +281,11 @@ Unsigned 8-bits value.
 $builtin_types{unsignedByte} =
  { parse   => \&str2int
  , format  => \&int2str
- , check   => sub {$_[0] =~ m/^\s*[+-]?\d+\s*$/ && $_[0] >= 0 && $_[0] <=255}
+ , check   => sub {$_[0] =~ m/^\s*[+-]?\d+\s*$/ && $_[0] >= 0 && $_[0] <= 255}
  , example => '2'
  };
 
-=function precissionDecimal
-PARTIAL IMPLEMENTATION.  Special values INF and NaN not handled.
-=cut
-
-$builtin_types{precissionDecimal} = $builtin_types{int};
-
 =section Floating-point
-PARTIAL IMPLEMENTATION: INF, NaN not handled.  The C<float> is not limited
-in size, but mapped on double.
 
 =function decimal
 Decimals are painful: they can be very large, much larger than Perl's
@@ -330,24 +295,70 @@ object here.
 =cut
 
 $builtin_types{decimal} =
- { parse   => \&bigfloat
- # checked when reading
+ { parse   => sub {$_[0] =~ s/\s+//g; Math::BigFloat->new($_[0]) }
+ , check   => sub {$_[0] =~ m#^(\+|\-)?([0-9]+(\.[0-9]*)?|\.[0-9]+)$#}
  , example => '3.1415'
  };
 
+=function precissionDecimal
+Floating point value that closely corresponds to the floating-point
+decimal datatypes described by IEEE/ANSI754.
+
 =function float
-A small floating-point value.
+A small floating-point value "m x 2**e" where m is an integer whose absolute
+value is less than 224, and e is an integer between −149 and 104, inclusive.
+
+The implementation does not limited the float in size, but maps it onto an
+precissionDecimal (M<Math::BigFloat>) unless C<sloppy_float> is set.
 
 =function double
-A floating-point value.
+A floating-point value "m x 2**e", where m is an integer whose absolute
+value is less than 253, and e is an integer between −1074 and 971, inclusive.
+
+The implementation does not limited the double in size, but maps it onto an
+precissionDecimal (M<Math::BigFloat>) unless C<sloppy_float> is set.
 
 =cut
 
-$builtin_types{float} =
+sub str2num
+{   my $s = shift;
+    $s =~ s/\s//g;
+
+      $s =~ m/[^0-9]/ ? Math::BigFloat->new($s eq 'NaN' ? $s : lc $s) # INF->inf
+    : length $s < 9   ? $s+0
+    :                   Math::BigInt->new($s);
+}
+
+sub num2str
+{   my $f = shift;
+      !ref $f         ? $f
+    : !(UNIVERSAL::isa($f,'Math::BigInt') || UNIVERSAL::isa($f,'Math::BigFloat'))
+    ? eval {use warnings FATAL => 'all'; $f + 0.0}
+    : $f->is_nan      ? 'NaN'
+    :                   uc $f->bstr;  # [+-]inf -> [+-]INF,  e->E doesn't matter
+}
+
+sub numcheck($)
+{   $_[0] =~
+      m# [+-]? (?: [0-9]+(?:\.[0-9]*)?|\.[0-9]+) (?:[Ee][+-]?[0-9]+)?
+       | [+-]? INF
+       | NaN #x
+}
+
+$builtin_types{precissionDecimal} =
+$builtin_types{float}  =
 $builtin_types{double} =
  { parse   => \&str2num
  , format  => \&num2str
- # check by str2num
+ , check   => \&numcheck
+ , example => '3.1415'
+ };
+
+$builtin_types{sloppy_float} =
+ { check => sub {
+      my $v = eval {use warnings FATAL => 'all'; $_[0] + 0.0};
+      $@ ? undef : 1;
+    }
  , example => '3.1415'
  };
 

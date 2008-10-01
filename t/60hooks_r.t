@@ -56,7 +56,7 @@ test_rw($schema, test1 => $xml1, \%f1);
 # try all selectors and hook types
 
 my (@out, @out2);
-my $r2 = create_reader
+my $r2 = reader_create
  ( $schema, "combined hook" => 'test1'
  , hook => { type   => 'string'
            , id     => 'my_id'
@@ -79,7 +79,7 @@ my $output;
 open BUF, '>', \$output;
 my $oldout = select BUF;
 
-my $r3 = create_reader
+my $r3 = reader_create
  ( $schema, "after PATH and NODE" => 'test1'
  , hook => { id    => 'my_id'
            , after => [ qw/PRINT_PATH XML_NODE/ ]
@@ -91,6 +91,8 @@ ok(defined $h3, 'multiple after predefined');
 select $oldout;
 close BUF;
 
+#use Data::Dumper;
+#warn Dumper $h3;
 like($output, qr[\}test1/byId\n$], 'PRINT_PATH');
 is(ref($h3->{byId}), 'HASH', 'simpleType expanded');
 ok(exists $h3->{byId}{_});
@@ -103,7 +105,7 @@ compare_xml($node, '<byId>2</byId>');
 
 # test skip
 
-my $r4 = create_reader
+my $r4 = reader_create
  ( $schema, "replace SKIP" => 'test1'
  , hook => { id      => 'my_id'
            , replace => 'SKIP'
@@ -123,7 +125,7 @@ my $xml2 = <<__XML;
 <test2 attr1="5" attr2="6" />
 __XML
 
-my $r5 = create_reader
+my $r5 = reader_create
  ( $schema, "read ORDER" => 'test2'
  , hook => { id    => 'top2'
            , after => [ qw/ELEMENT_ORDER ATTRIBUTE_ORDER/ ]
@@ -144,7 +146,7 @@ cmp_deeply($order, [ qw/attr1 attr2/ ]);
 
 # test element order
 
-my $r6 = create_reader
+my $r6 = reader_create
  ( $schema, "element order" => 'test1'
  , hook => { id    => 'top'
            , after => [ qw/ELEMENT_ORDER ATTRIBUTE_ORDER/ ]

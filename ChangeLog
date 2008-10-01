@@ -4,6 +4,57 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
+To be resolved soon:
+   facets on list base-types: length, maxLength, minLength, enumeration,
+      , pattern, whiteSpace fixed to collapsed
+   length facet on base64/hex encoding about binary length (tests needed)
+
+version 0.95: Wed Oct  1 17:38:07 CEST 2008
+
+	Fixes:
+
+	- top-level elements could not be have as nillable, default, and
+	  fixed.  rt.cpan.org#39215 [Tom Hukins]
+
+	- do pattern match on unmodified float values.
+	  rt.cpan.org#39224 [MIROD]
+
+	- automatically defined xsi when any element is nillable.  You will
+	  still need to specify "include_namespaces => 1" to have the
+	  compiler add the name-space definition to the root namespace.
+	  For the moment only supports SCHEMA2001
+
+	- the applications of facets is explicitly ordered, to avoid
+	  colissions between checks in lexical space and conversions
+	  made in value-space.
+
+	- accept but ignore minScale and maxScale facets (cannot be
+	  represented in Perl objects yet)
+
+	- removed facet totalFracDigits, which does not exist.  How did it
+	  get in?
+
+	- precissionDecimal was handled as int, should be float.
+
+	- positiveInteger value check broken. [Sander Hulst]
+
+	- accept the 'error' base-type.
+
+	Improvements:
+
+	- small (<1e9) float/decimal values will not become Math::Big*
+
+	- facet lists and non-lists various optimizations in reader.
+
+	- pre-lexical facet whiteSpace on list does not need to be checked
+	  in writer.
+
+	- handling of (+|-|)INF and NaN for precissionDecimals, floats and
+	  doubles.
+
+	- adapt names of test helpers to new X::C::Tester standard.  v0.03
+	  of that module is now required.
+
 version 0.94: Tue Aug 26 10:09:05 CEST 2008
 
 	Fixes:
@@ -11,6 +62,7 @@ version 0.94: Tue Aug 26 10:09:05 CEST 2008
 	- repair whitespace facets collapse and replace. [Allan Wind]
 
 	- NMTOKEN has no blanks, but token may have them.
+	  rt.cpan.org#38675 [Allan Wind]
 
 	Improvements:
 
