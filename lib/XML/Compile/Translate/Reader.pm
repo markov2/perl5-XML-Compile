@@ -411,7 +411,7 @@ sub makeBlockHandler
 
 sub makeElementHandler
 {   my ($self, $path, $label, $min, $max, $required, $optional) = @_;
-    $max eq "0" and return sub {};
+    $max eq "0" and return sub {};  # max can be "unbounded"
 
     if($max ne 'unbounded' && $max==1)
     {   return $min==1
@@ -504,7 +504,6 @@ sub makeElementHref
 
 sub makeElement
 {   my ($self, $path, $ns, $childname, $do) = @_;
-
     sub { my $tree  = shift;
           my $value = defined $tree && $tree->nodeType eq $childname
              ? $do->($tree) : $do->(undef);

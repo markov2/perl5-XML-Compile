@@ -975,6 +975,7 @@ sub makeHook($$$$$$)
 
     sub
     {  my ($doc, $val) = @_;
+       defined $val or return;
        foreach (@before)
        {   $val = $_->($doc, $val, $path);
            defined $val or return ();

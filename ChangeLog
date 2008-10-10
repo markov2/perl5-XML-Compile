@@ -9,6 +9,17 @@ To be resolved soon:
       , pattern, whiteSpace fixed to collapsed
    length facet on base64/hex encoding about binary length (tests needed)
 
+version 0.96: Fri Oct 10 16:02:09 CEST 2008
+
+	Fixes:
+
+	- warning condition on old lixml2 version was broken: warned too
+	  often.  rt.cpan.org#39807 [Joerg Plate]
+
+	- overruling qualified on top-level elements did not work anymore.
+
+	- writer hook replace crashed on missing (optional) data.
+
 version 0.95: Wed Oct  1 17:38:07 CEST 2008
 
 	Fixes:

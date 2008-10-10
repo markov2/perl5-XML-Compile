@@ -694,7 +694,7 @@ sub element($)
       : $fixed                   ? 'makeElementFixed'
       :                            'makeElement';
 
-    my $nodetype = $self->{elems_qual} ? $fullname : $name;
+    my $nodetype = $qual ? $fullname : $name;
     my $do1 = $self->$generate($where, $ns, $nodetype, $r, $value);
 
     # hrefs are used by SOAP-RPC
@@ -704,7 +704,7 @@ sub element($)
     # Implement hooks
 
     my ($before, $replace, $after)
-            = $self->findHooks($where, $compname, $node);
+       = $self->findHooks($where, $compname, $node);
 
     my $do3 = ($before || $replace || $after)
        ? $self->makeHook($where, $do2, $tag, $before, $replace, $after) : $do2;

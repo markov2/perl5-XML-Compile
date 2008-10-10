@@ -36,8 +36,10 @@ foreach my $package (@show_versions)
 my $xml2_version = XML::LibXML::LIBXML_DOTTED_VERSION();
 warn "libxml2 $xml2_version\n";
 
-my @xv = split /\./, $xml2_version;
-if($xv[0] < 2 || $xv[1] < 6 || $xv[2] < 23)
+my ($major,$minor,$rev) = split /\./, $xml2_version;
+if(  $major < 2
+ || ($major==2 && $minor < 6)
+ || ($major==2 && $minor==6 && $rev < 23))
 {   warn <<__WARN;
 
 *
