@@ -4,21 +4,41 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
-To be resolved soon:
+To be resolved (soon):
    facets on list base-types: length, maxLength, minLength, enumeration,
       , pattern, whiteSpace fixed to collapsed
    length facet on base64/hex encoding about binary length (tests needed)
+   patterns supported by latest XML::LibXML
+   handle XML::LibXML::Error objects
+
+version 0.97: Mon Nov 24 15:51:54 CET 2008
+
+	Fixes:
+
+	- dataToXML() with document node will return document element.
+
+	- dateTime reversed minutes/seconds.  Fixed by [Allan Wind]
+
+	- dateTime timezone part is optional.  Fixed in docs by [Allan Wind]
+
+	- count error with array of elements writer, when maxOccurs is
+	  an integer value larger than 1.  An error will be produced when
+	  too many elements are provided.
+
+	Improvements:
+
+	- bigfloat support for xml2yaml [Slaven Rezic]
 
 version 0.96: Fri Oct 10 16:02:09 CEST 2008
 
 	Fixes:
 
-	- warning condition on old lixml2 version was broken: warned too
+	- warning condition on old libxml2 version was broken: warned too
 	  often.  rt.cpan.org#39807 [Joerg Plate]
 
-	- overruling qualified on top-level elements did not work anymore.
+	- overruling "qualified" on top-level elements did not work anymore.
 
-	- writer hook replace crashed on missing (optional) data.
+	- writer hook "replace" crashed on missing (optional) data.
 
 version 0.95: Wed Oct  1 17:38:07 CEST 2008
 

@@ -291,13 +291,19 @@ sub makeElementHandler
     return $required
         if $min==1 && $max==1;
 
-    my $opt = $max - $min;
     sub { my ($doc, $values) = @_;
           my @values = ref $values eq 'ARRAY' ? @$values
                      : defined $values ? $values : ();
 
-          my @d = ( (map { $required->($doc, shift @values) } 1..$min)
-                  , (map { $optional->($doc, shift @values) } 1..$opt) );
+          @values <= $max
+              or error "too many elements for `{tag}', max {max} found {nr} at {path}"
+                   , tag => $label, max => $max, nr => (scalar @values)
+                   , path => $path;
+
+          my @d = map { $required->($doc, shift @values) } 1..$min;
+          push @d, $optional->($doc, shift @values)
+              while @values && @d < $max;
+
           @d ? @d : (undef);
         };
 }
@@ -376,6 +382,7 @@ sub makeBlockHandler
 
           map { $process->($doc, $_) } @values;
         };
+
     ($multi, bless($code, 'BLOCK'));
 }
 

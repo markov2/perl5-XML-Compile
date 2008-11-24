@@ -41,7 +41,7 @@ sub test_rw($$$$;$$)
 
     my $h = $r->($xml);
 
-#warn Dumper $h;
+#warn "READ OUTPUT: ",Dumper $h;
     unless(defined $h)   # avoid crash of is_deeply
     {   if(defined $expect && length($expect))
         {   ok(0, "failure: nothing read from XML");
@@ -52,7 +52,7 @@ sub test_rw($$$$;$$)
         return;
     }
 
-#warn Dumper $h, $hash;
+#warn "COMPARE READ: ", Dumper($h, $hash);
     cmp_deeply($h, $hash, "from xml");
 
     # Writer

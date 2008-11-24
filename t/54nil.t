@@ -9,7 +9,7 @@ use TestTools;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 56;
+use Test::More tests => 70;
 use XML::Compile::Util  qw/SCHEMA2001i/;
 my $xsi    = SCHEMA2001i;
 
@@ -45,6 +45,31 @@ my $schema = XML::Compile::Schema->new( <<__SCHEMA__ );
   </complexType>
 </element>
 
+<element name="test3">
+  <complexType>
+    <sequence>
+       <element name="e3" type="int" minOccurs="0" maxOccurs="12"
+           nillable="true" />
+    </sequence>
+  </complexType>
+</element>
+
+<complexType name="t4">
+  <sequence>
+    <element name="e4a" type="int"/>
+    <element name="e4b" type="int"/>
+  </sequence>
+</complexType>
+
+<element name="test4">
+  <complexType>
+    <sequence>
+      <element name="e4" type="me:t4" minOccurs="0" maxOccurs="12"
+         nillable="true" />
+    </sequence>
+  </complexType>
+</element>
+
 </schema>
 __SCHEMA__
 
@@ -57,24 +82,24 @@ set_compile_defaults
 # simple element type
 #
 
-test_rw($schema, test1 => <<__XML, {e1 => 42, e2 => 43, e3 => 44} );
+test_rw($schema, test1 => <<_XML, {e1 => 42, e2 => 43, e3 => 44} );
 <test1 xmlns:xsi="$xsi"><e1>42</e1><e2>43</e2><e3>44</e3></test1>
-__XML
+_XML
 
-test_rw($schema, test1 => <<__XML, {e1 => 42, e2 => 'NIL', e3 => 44} );
+test_rw($schema, test1 => <<_XML, {e1 => 42, e2 => 'NIL', e3 => 44} );
 <test1 xmlns:xsi="$xsi"><e1>42</e1><e2 xsi:nil="true"/><e3>44</e3></test1>
-__XML
+_XML
 
 my %t1c = (e1 => 42, e2 => 'NIL', e3 => 44);
-test_rw($schema, test1 => <<__XML, \%t1c, <<__XMLWriter);
+test_rw($schema, test1 => <<_XML, \%t1c, <<_XMLWriter);
 <test1 xmlns:xsi="$xsi"><e1>42</e1><e2 xsi:nil="1" /><e3>44</e3></test1>
-__XML
+_XML
 <test1 xmlns:xsi="$xsi"><e1>42</e1><e2 xsi:nil="true"/><e3>44</e3></test1>
-__XMLWriter
+_XMLWriter
 
-{   my $error = reader_error($schema, test1 => <<__XML);
+{   my $error = reader_error($schema, test1 => <<_XML);
 <test1 xmlns:xsi="$xsi"><e1></e1><e2 xsi:nil="true"/><e3>45</e3></test1>
-__XML
+_XML
    is($error,"illegal value `' for type {http://www.w3.org/2001/XMLSchema}int");
 }
 
@@ -84,9 +109,9 @@ __XML
     is($error, "required value for element `e1' missing at {http://test-types}test1");
 }
 
-{   my $error = reader_error($schema, test1 => <<__XML);
+{   my $error = reader_error($schema, test1 => <<_XML);
 <test1><e1>87</e1><e3>88</e3></test1>
-__XML
+_XML
     is($error, "data for element or block starting with `e2' missing at {http://test-types}test1");
 }
 
@@ -99,11 +124,11 @@ set_compile_defaults
 
 my %t1d = (e1 => 89, e2 => undef, e3 => 90);
 my %t1e = (e1 => 91, e2 => 'NIL', e3 => 92);
-test_rw($schema, test1 => <<__XML, \%t1d, <<__XML, \%t1e);
+test_rw($schema, test1 => <<_XML, \%t1d, <<_XML, \%t1e);
 <test1><e1>89</e1><e3>90</e3></test1>
-__XML
+_XML
 <test1><e1>91</e1><e3>92</e3></test1>
-__XML
+_XML
 
 #
 # rt.cpan.org #39215
@@ -112,12 +137,53 @@ __XML
 set_compile_defaults
    include_namespaces => 1;  # reset
 
-test_rw($schema, test2 => <<__XML, {roleId => 'NIL'});
+test_rw($schema, test2 => <<_XML, {roleId => 'NIL'});
 <test2 xmlns:xsi="$xsi">
   <roleId xsi:nil="true"/>
 </test2>
-__XML
+_XML
 
-test_rw($schema, roleId => <<__XML, 'NIL');
+test_rw($schema, roleId => <<_XML, 'NIL');
 <roleId xmlns:xsi="$xsi" xsi:nil="true"/>
-__XML
+_XML
+
+#
+# test3 & test4 based on question by Zbigniew Lukasiak, 24 Nov 2008
+#
+
+test_rw($schema, test3 => <<_XML, { e3 => [ 'NIL', 42, 'NIL', 43, 'NIL' ]});
+<test3 xmlns:xsi="$xsi">
+  <e3 xsi:nil="true"/>
+  <e3>42</e3>
+  <e3 xsi:nil="true"/>
+  <e3>43</e3>
+  <e3 xsi:nil="true"/>
+</test3>
+_XML
+
+my %t4 = ( e4 => [ 'NIL',
+                  { 'e4b' => 51, 'e4a' => 50 },
+                  'NIL',
+                  { 'e4b' => 53, 'e4a' => 52 },
+                  { 'e4b' => 55, 'e4a' => 54 },
+                  'NIL' ] );
+
+test_rw($schema, test4 => <<_XML, \%t4);
+<test4 xmlns:xsi="$xsi">
+  <e4 xsi:nil="true"/>
+  <e4>
+    <e4a>50</e4a>
+    <e4b>51</e4b>
+  </e4>
+  <e4 xsi:nil="true"/>
+  <e4>
+    <e4a>52</e4a>
+    <e4b>53</e4b>
+  </e4>
+  <e4>
+    <e4a>54</e4a>
+    <e4b>55</e4b>
+  </e4>
+  <e4 xsi:nil="true"/>
+</test4>
+_XML

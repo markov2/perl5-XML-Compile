@@ -276,9 +276,11 @@ sub dataToXML($)
 
 sub _parsedNode($)
 {   my ($thing, $node) = @_;
+    my $top = $node;
 
     if($node->isa('XML::LibXML::Document'))
-    {   my $eltype = type_of_node($node->documentElement) || '(none)';
+    {   $top       = $node->documentElement;
+        my $eltype = type_of_node($top || '(none)');
         trace "using preparsed XML document with element <$eltype>";
     }
     elsif($node->isa('XML::LibXML::Element'))
@@ -293,9 +295,7 @@ sub _parsedNode($)
           , got => $text;
     }
 
-    ( $node
-    , source => ref $node
-    );
+    ($top, source => ref $node);
 }
 
 sub _parseScalar($)

@@ -436,9 +436,10 @@ $builtin_types{time} =
  };
 
 =function dateTime
-A moment, represented in localtime as "date T time tz", where date is
-C<YYYY-MM-DD>, time is C<HH:MM:SS> and optional, and time-zone tz
-is either C<-HH:mm>, C<+HH:mm>, or C<Z> for UTC.
+A moment, represented as "date T time tz", where date is C<YYYY-MM-DD>,
+time is C<HH:MM:SS>, and time-zone tz is either C<-HH:mm>, C<+HH:mm>,
+or C<Z> for UTC.  The time-zone is optional, but can better be used
+because the default is not defined in the standard.
 
 When a decimal value is passed, it is interpreted as C<time> value in UTC,
 and will be formatted as required.  When reading, the date string will
@@ -451,9 +452,9 @@ my $dateTime = qr/^ $yearFrag \- $monthFrag \- $dayFrag
 $builtin_types{dateTime} =
  { parse   => \&_collapse
  , format  => sub { $_[0] =~ /\D/ ? $_[0]
-     : strftime("%Y-%m-%dT%H:%S:%MZ", gmtime($_[0])) }
+     : strftime("%Y-%m-%dT%H:%M:%SZ", gmtime($_[0])) }
  , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $dateTime }
- , example => '2006-10-06T00:23:02'
+ , example => '2006-10-06T00:23:02Z'
  };
 
 =function gDay
