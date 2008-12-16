@@ -449,14 +449,15 @@ prefix, uri PAIRS is simpler.
 
 =option  output_namespaces HASH|ARRAY-of-PAIRS
 =default output_namespaces undef
-Pre release 0.87 name for the C<prefixes> option.
+Pre release 0.87 name for the C<prefixes> option.  Deprecated.
 
 =option  include_namespaces BOOLEAN
 =default include_namespaces <true>
 Indicates whether the WRITER should include the prefix to namespace
 translation on the top-level element of the returned tree.  If not,
 you may continue with the same name-space table to combine various
-XML components into one, and add the namespaces later.
+XML components into one, and add the namespaces later.  No namespace
+definition can be added the production rule produces an attribute.
 
 =option  namespace_reset BOOLEAN
 =default namespace_reset <false>
@@ -1754,7 +1755,7 @@ surrounding blanks.
 
 =section Default Values
 
-[0.91]
+[added in v0.91]
 With M<compile(default_values)> you can control how much information about
 default values defined by the schema will be passed into your program.
 

@@ -1698,6 +1698,9 @@ If you like to combine XML output from separate translated parts
 the inclusion of name-spaces until a higher level of the XML
 hierarchy which is produced later.
 
+When the compilation produces an attribute, then this option cannot
+be used.
+
 =item namespace_reset BOOLEAN
 You can pass the same HASH to a next call to a reader or writer to get
 consistent name-space usage.  However, when C<include_namespaces> is

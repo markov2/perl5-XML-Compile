@@ -8,8 +8,26 @@ To be resolved (soon):
    facets on list base-types: length, maxLength, minLength, enumeration,
       , pattern, whiteSpace fixed to collapsed
    length facet on base64/hex encoding about binary length (tests needed)
-   patterns supported by latest XML::LibXML
    handle XML::LibXML::Error objects
+
+version 0.98: Tue Dec 16 08:32:04 CET 2008
+
+	Fixes:
+
+	- writer failed for choice with an element containing a false
+	  value, like "0" or ''.  Reported by [Sander Hulst]
+
+	- do not attempt to add namespace declarations to produced
+	  attributes in the writer.
+
+	- elements with minOccurs=0/maxOccurs=unbounded failed sometimes
+	  rt.cpan.org#41725 [Osfameron]
+
+	Improvements:
+
+	- easier to understand errror messages in block writer.
+
+	- started XML::Compile::FAQ
 
 version 0.97: Mon Nov 24 15:51:54 CET 2008
 
@@ -111,6 +129,9 @@ version 0.93: Mon Aug 11 21:13:22 CEST 2008
 	    from   gr_<label of first element>
 	    into   gr_<name of group>
 	  For example, when parsing schemas themselves (with PREFIXED)
+	    was    gr_xs_minExclusive
+	    now    gr_xs_facets
+	  minExclusive is the name of the first element in the group
 	    was    gr_xs_minExclusive
 	    now    gr_xs_facets
 	  minExclusive is the name of the first element in the group
@@ -1370,6 +1391,3 @@ version 0.02: Mon Aug 14 13:42:02 CEST 2006
 
 	- and many more...
 
-version 0.01: Wed Jul 26 12:19:10 CEST 2006
-
-	- initial version

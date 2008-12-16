@@ -1,0 +1,68 @@
+=head1 NAME
+
+XML::Compile::FAQ - frequently asked questions
+
+=head1 DESCRIPTION
+
+On this page, a wild collection of questions are answered.  If you have
+contributions either in question or as answer, then please contribute
+via the mailinglist.
+
+=head1 QUESTIONS
+
+=head2 The data structure
+
+=head3 what do the cho_, seq_ and all_ start of labels mean?
+
+X::C tries to give you a simple data-structure in Perl, however XML
+does not always map directly only that.  One such situation is where
+you have blocks within a list of elements.  In such case, the block gets
+a name which is composed by the type of block and the first element in
+the block.  You will encounter these names in some error messages and
+when these block have a maxOccurs larger than 1.
+
+Example. The name C<cho_tic> is used to represent the following nameless
+choice block:
+
+  <choice>
+    <element name="tic" />
+    <element name="tac" />
+    <element name="toe" />
+  </choice>
+
+=head3 localName collission
+
+In the default behavior, only the "local" names of the XML elements are
+used in the Perl structure.  However, it is very well possible that the
+same name appears in more than on XML name-space, used within the same
+data structure.  So see this often with substitutionGroups.
+
+When collissions happen, you have to switch to use
+C<< key_rewrite => 'PREFIXED' >> in the compile rules.  All keys will
+now get rewritten: the name-space prefix will be prepended.  The prefixes
+are defined by the mapping table provided with the C<< prefixes >> option
+or by default from the XML schemas.
+
+See L<XML::Compile::Schema/"Key rewrite"> for the full list of options.
+
+=head2 Processing
+
+=head3 my data is not recognized
+
+You do specify the data in your structure, but it seems not to
+be recognized.  See L</"Wrong error message">
+
+=head3 wrong error message
+
+You may get an error message about a "missing data item" on a higher
+structural level than where the problem actually is.  This especially
+happens with unions and substitutionGroups.  The problem
+is cause by the fact that on a certain structural level, multiple
+alternatives may appear which only differ many levels deep in structure.
+X::C needs to scan all the alternatives, and when all fail it does not
+know which of the alternatives was "the best" alternative.
+
+Try turning on debugging with:
+
+  use Log::Report  mode => "DEBUG";
+

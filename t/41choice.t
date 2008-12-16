@@ -240,7 +240,7 @@ $error = reader_error($schema, test6 => '<test6 />');
 is($error, "no element left to pick choice at {http://test-types}test6");
 
 $error = writer_error($schema, test6 => {});
-is($error, "found 0 blocks for `t6_a', must be between 1 and 3 inclusive at {http://test-types}test6");
+is($error, "found 0 blocks for `cho_t6_a', must be between 1 and 3 inclusive at {http://test-types}test6");
 
 $error = reader_error($schema, test6 => <<__XML);
 <test6><t6_a>30</t6_a><t6_a>31</t6_a><t6_c>32</t6_c><t6_a>33</t6_a></test6>
@@ -256,7 +256,7 @@ my %t6_b =
  );
 
 $error = writer_error($schema, test6 => \%t6_b);
-is($error, "found 4 blocks for `t6_a', must be between 1 and 3 inclusive at {http://test-types}test6");
+is($error, "found 4 blocks for `cho_t6_a', must be between 1 and 3 inclusive at {http://test-types}test6");
 
 # test 7
 

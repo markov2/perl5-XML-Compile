@@ -22,6 +22,7 @@ html/other/manuals/list.html
 html/other/methods/index.html
 html/other/xml.css
 lib/XML/Compile.pm
+lib/XML/Compile/FAQ.pod
 lib/XML/Compile/Iterator.pm
 lib/XML/Compile/Schema.pm
 lib/XML/Compile/Schema/BuiltInFacets.pm
