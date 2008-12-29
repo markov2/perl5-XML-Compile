@@ -322,10 +322,10 @@ sub makeBlockHandler
     # not be an additional nesting in the output tree.
     if($max ne 'unbounded' && $max==1)
     {
-       return ($label => $process) if $min==1;
+        return ($label => $process) if $min==1;
 
         my $code =
-        sub { my $tree = shift or return ();
+        sub { my $tree    = shift or return ();
               my $starter = $tree->currentChild or return ();
               my @pairs   = try { $process->($tree) };
               if($@->wasFatal(class => 'misfit'))
@@ -607,8 +607,9 @@ sub makeComplexElement
     my @elems = odd_elements @$elems;
     my @attrs = (odd_elements(@$attrs), @$attrs_any);
 
-    sub { my $tree    = shift or return ();
-          my $node    = $tree->node;
+    @elems > 1 || @attrs and return
+    sub { my $tree = shift or return ();
+          my $node = $tree->node;
           my %complex
            = ( (map {$_->($tree)} @elems)
              , (map {$_->($node)} @attrs)
@@ -621,6 +622,26 @@ sub makeComplexElement
 
           ($tag => \%complex);
         };
+
+    @elems || return
+    sub { my $tree = shift or return ();
+          defined $tree->currentChild
+              and error __x"element `{name}' not processed at {path}"
+                      , name => $tree->currentType, path => $path
+                      , _class => 'misfit';
+          ($tag => {});
+        };
+
+    my $el = shift @elems;
+    sub { my $tree    = shift or return ();
+          my %complex = $el->($tree);
+          defined $tree->currentChild
+              and error __x"element `{name}' not processed at {path}"
+                      , name => $tree->currentType, path => $path
+                      , _class => 'misfit';
+          ($tag => \%complex);
+        };
+    
 }
 
 #
@@ -1077,15 +1098,16 @@ sub _decodeAfter($$)
 {   my ($self, $path, $call) = @_;
     return $call if ref $call eq 'CODE';
 
-      $call eq 'PRINT_PATH' ? sub {print "$_[2]\n"; $_[1] }
-    : $call eq 'XML_NODE'  ?
-      sub { my $h = $_[1];
+      $call eq 'PRINT_PATH'
+    ? sub {print "$_[2]\n"; $_[1] }
+    : $call eq 'XML_NODE'
+    ? sub { my $h = $_[1];
             $h = { _ => $h } if ref $h ne 'HASH';
             $h->{_XML_NODE} = $_[0];
             $h;
           }
-    : $call eq 'ELEMENT_ORDER' ?
-      sub { my ($xml, $h) = @_;
+    : $call eq 'ELEMENT_ORDER'
+    ? sub { my ($xml, $h) = @_;
             $h = { _ => $h } if ref $h ne 'HASH';
             my @order = map {type_of_node $_}
                 grep { $_->isa('XML::LibXML::Element') }
@@ -1093,11 +1115,17 @@ sub _decodeAfter($$)
             $h->{_ELEMENT_ORDER} = \@order;
             $h;
           }
-    : $call eq 'ATTRIBUTE_ORDER' ?
-      sub { my ($xml, $h) = @_;
+    : $call eq 'ATTRIBUTE_ORDER'
+    ? sub { my ($xml, $h) = @_;
             $h = { _ => $h } if ref $h ne 'HASH';
             my @order = map {$_->nodeName} $xml->attributes;
             $h->{_ATTRIBUTE_ORDER} = \@order;
+            $h;
+          }
+    : $call eq 'NODE_TYPE'
+    ? sub { my ($xml, $h) = @_;
+            $h = { _ => $h } if ref $h ne 'HASH';
+            $h->{_NODE_TYPE} = type_of_node $xml;
             $h;
           }
     : error __x"labeled after hook `{call}' undefined for READER", call=> $call;
@@ -1291,9 +1319,9 @@ This hook offers a predefined C<PRINT_PATH>.
 
 =subsection hooks executed as replacement
 
-Your C<replace> hook should return a list of key-value pairs. To
-produce it, it will get the M<XML::LibXML::Element>, the translator settings
-as HASH, the path, and the localname.
+Your C<replace> hook should return a list of key-value pairs. To produce
+it, it will get the M<XML::LibXML::Element>, the translator settings as
+HASH, the path, and the localname.
 
 This hook has a predefined C<SKIP>, which will not process the
 found element, but simply return the string "SKIPPED" as value.
@@ -1321,11 +1349,12 @@ The third argument is the path.  Be careful that the collected data
 might be a SCALAR (for simpleType).  Return a HASH or a SCALAR.  C<undef>
 may work, unless it is the value of a required element you throw awy.
 
-This hook also offers a predefined C<PRINT_PATH>.  Besides, it
-has C<XML_NODE>, C<ELEMENT_ORDER>, and C<ATTRIBUTE_ORDER>, which will
-result in additional fields in the HASH, respectively containing the
-CODE which was processed, the element names, and the attribute names.
-The keys start with an underscore C<_>.
+This hook also offers a predefined C<PRINT_PATH>.  Besides, it has
+C<XML_NODE>, C<NODE_TYPE>, C<ELEMENT_ORDER>, and C<ATTRIBUTE_ORDER>, which
+will result in additional fields in the HASH, respectively containing the
+NODE which was processed (an XML::LibXML::Element), the type_of_node,
+the element names, and the attribute names.  The keys start with an
+underscore C<_>.
 
 =section Typemaps
 

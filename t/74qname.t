@@ -57,12 +57,14 @@ __SCHEMA__
 
 ok(defined $schema);
 
+my %prefixes =
+  ( $TestNS => { prefix => '', uri => $TestNS }
+  , $NS2    => { prefix => 'two', uri => $NS2, used => 1 }
+  );
+
 set_compile_defaults
     include_namespaces => 1
-  , prefixes =>
-      { $TestNS => { prefix => '', uri => $TestNS }
-      , $NS2    => { prefix => 'two', uri => $NS2, used => 1 }
-      };
+  , prefixes => \%prefixes;
 
 ### QName direct
 
@@ -72,6 +74,7 @@ __TRY1
 
 ### QName in LIST
 
+$prefixes{$NS2}{used} = 1;
 test_rw($schema, test2 => <<__TRY2, [ "{$NS2}aaa", "{$NS2}bbb" ]); 
 <test2 xmlns="$TestNS" xmlns:two="$NS2">
   two:aaa
@@ -81,12 +84,14 @@ __TRY2
 
 ### QName extended
 
+$prefixes{$NS2}{used} = 1;
 test_rw($schema, test3 => <<__TRY3, "{$NS2}aaa"); 
 <test3 xmlns="$TestNS" xmlns:two="$NS2">two:aaa</test3>
 __TRY3
 
 ### QName union
 
+$prefixes{$NS2}{used} = 1;
 test_rw($schema, test4 => <<__TRY4, "{$NS2}aaa"); 
 <test4 xmlns="$TestNS" xmlns:two="$NS2">two:aaa</test4>
 __TRY4

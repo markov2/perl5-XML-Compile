@@ -43,6 +43,15 @@ An indication where this information came from.
 =option  filename FILENAME
 =default filename C<undef>
 When the source is some file, this is its name.
+
+=option  elementFormDefault 'qualified'|'unqualified'
+=default elementFormDefault <undef>
+Overrule the default as found in the schema.  Many old schemas (like
+WSDL11 and SOAP11) do not specify the default in the schema but only
+in the text.
+
+=option  attributeFormDefault 'qualified'|'unqualified'
+=default attributeFormDefault <undef>
 =cut
 
 sub new($@)
@@ -62,7 +71,7 @@ sub init($)
     $self->{$_}       = {} for @defkinds, 'sgs', 'import';
     $self->{include}  = [];
 
-    $self->_collectTypes($top);
+    $self->_collectTypes($top, $args);
     $self;
 }
 
@@ -165,13 +174,13 @@ sub mergeSubstGroupsInto($)
 
 my %skip_toplevel = map { ($_ => 1) } qw/annotation notation redefine/;
 
-sub _collectTypes($)
-{   my ($self, $schema) = @_;
+sub _collectTypes($$)
+{   my ($self, $schema, $args) = @_;
 
     $schema->localName eq 'schema'
         or panic "requires schema element";
 
-    my $xsd = $self->{xsd} = $schema->namespaceURI || '';
+    my $xsd = $self->{xsd} = $schema->namespaceURI || '<none>';
     if(length $xsd)
     {   my $def = $self->{def}
           = XML::Compile::Schema::Specs->predefinedSchema($xsd)
@@ -183,10 +192,14 @@ sub _collectTypes($)
     my $tns = $self->{tns} = $schema->getAttribute('targetNamespace') || '';
 
     my $efd = $self->{efd}
-      = $schema->getAttribute('elementFormDefault')   || 'unqualified';
+       = $args->{elementFormDefault}
+      || $schema->getAttribute('elementFormDefault')
+      || 'unqualified';
 
     my $afd = $self->{afd}
-      = $schema->getAttribute('attributeFormDefault') || 'unqualified';
+       = $args->{attributeFormDefault}
+      || $schema->getAttribute('attributeFormDefault')
+      || 'unqualified';
 
     $self->{types} = {};
     $self->{ids}   = {};
@@ -195,6 +208,10 @@ sub _collectTypes($)
     foreach my $node ($schema->childNodes)
     {   next unless $node->isa('XML::LibXML::Element');
         my $local = $node->localName;
+        my $myns  = $node->namespaceURI || '';
+        $myns eq $xsd
+            or error __x"schema element `{name}' not in schema namespace {ns} but {other}"
+                 , name => $local, ns => $xsd, other => ($myns || '<none>');
 
         next if $skip_toplevel{$local};
 
@@ -253,6 +270,14 @@ sub _collectTypes($)
         my $abstract = $node->getAttribute('abstract') || 'false';
         my $final    = $node->getAttribute('final')    || 'false';
 
+        my ($af, $ef) = ($afd, $efd);
+        if($local eq 'element')
+        {   if(my $f = $node->getAttribute('form')) { $ef = $f }
+        }
+        elsif($local eq 'attribute')
+        {   if(my $f = $node->getAttribute('form')) { $af = $f }
+        }
+
         unless($defkinds{$local})
         {   mistake __x"ignoring unknown definition-type {local}", type => $local;
             next;
@@ -262,7 +287,7 @@ sub _collectTypes($)
           { type => $local, id => $id, node => $node
           , full => pack_type($ns, $name), ref => $ref, sg => $sg
           , ns => $ns,  name => $name, prefix => $prefix
-          , afd => $afd, efd => $efd, schema => $self
+          , afd => $af, efd => $ef, schema => $self
           , abstract => ($abstract eq 'true' || $abstract eq '1')
           , final => ($final eq 'true' || $final eq '1')
           };

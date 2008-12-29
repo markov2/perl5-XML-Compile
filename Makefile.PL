@@ -4,7 +4,7 @@ use 5.008;
 
 WriteMakefile
  ( NAME	 	=> 'XML::Compile'
- , VERSION	=> '0.98'
+ , VERSION	=> '0.99'
  , PREREQ_PM    =>
    { XML::LibXML               => 1.65
    , XML::Compile::Tester      => 0.03
@@ -41,7 +41,7 @@ LICENSE         = artistic
 SKIP_LINKS	= XML::LibXML
 
 # for POD
-EXTENDS		= ../XMLSOAP:../XMLDaemon:../XMLDumper:../XMLCache:../XMLSimple:../XMLTester:../XMLRewrite
+EXTENDS		= ../XMLSOAP:../XMLSOAP12:../XMLDaemon:../XMLDumper:../XMLCache:../XMLSimple:../XMLTester:../XMLRewrite
 FIRST_YEAR      = 2006
 EMAIL           = perl@overmeer.net
 WEBSITE         = http://perl.overmeer.net/xml-compile/

@@ -113,7 +113,6 @@ sub childs()
         $ln = $self->{childs}
             = [ grep {$filter->($_)} $self->node->childNodes ];
     }
-
     wantarray ? @$ln : $ln;
 }
 

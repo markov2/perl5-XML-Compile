@@ -4,11 +4,51 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
-To be resolved (soon):
+To be resolved (hopefully soon):
    facets on list base-types: length, maxLength, minLength, enumeration,
       , pattern, whiteSpace fixed to collapsed
    length facet on base64/hex encoding about binary length (tests needed)
    handle XML::LibXML::Error objects
+
+version 0.99: Mon Dec 29 10:16:28 CET 2008
+
+	Changes:
+
+	- reset "used count" when include_namespaces
+
+	- Qname will not complain about "unused namespace", because
+	  that is often not true.  If true, than you have to provide
+	  a the compile(prefixes) as HASH with used flag set.
+
+	Fixes:
+
+	- elements and attributes with non-default "form" attribute
+	  were not recognized.
+
+	- type-based replace hook selected too often.
+
+	Improvements:
+
+	- compile(include_namespaces) can have a code reference to
+	  filter included namespace declarations to be included.
+
+	- addSchemas/importDefinitions now have options
+	  {element,attribute}FormDefault to overrule the (missing) info
+	  in many (old) schemas (even those of soap and wsdl).
+
+	- dataToXML() also finds filenames in the SCHEMADIR, not only
+	  known namespaces.  That was always intended to happen.
+
+	- optimize reading of complex with zero or one component.
+
+	- new reader hook after => 'NODE_TYPE'
+
+	- error when schema definition contains components of other
+	  namespaces.
+
+	- you now can compile types only, where the schema does not
+	  contain the definition of the element which will be produced.
+	  But I will not tell you how until the interface has settled ;-)
 
 version 0.98: Tue Dec 16 08:32:04 CET 2008
 
@@ -20,12 +60,12 @@ version 0.98: Tue Dec 16 08:32:04 CET 2008
 	- do not attempt to add namespace declarations to produced
 	  attributes in the writer.
 
-	- elements with minOccurs=0/maxOccurs=unbounded failed sometimes
-	  rt.cpan.org#41725 [Osfameron]
+	- elements with minOccurs=0/maxOccurs=unbounded and optional
+	  content failed.  rt.cpan.org#41725 [Osfameron]
 
 	Improvements:
 
-	- easier to understand errror messages in block writer.
+	- easier to understand error messages in block writer.
 
 	- started XML::Compile::FAQ
 

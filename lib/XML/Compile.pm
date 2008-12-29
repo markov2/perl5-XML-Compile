@@ -261,6 +261,10 @@ sub dataToXML($)
         ($xml, %details) = $self->_parseFile($fn);
         $details{source} = "known namespace $thing";
     }
+    elsif(my $fn = $self->findSchemaFile($thing))
+    {   ($xml, %details) = $self->_parseFile($fn);
+        $details{source} = "filename in schema-dir $thing";
+    }
     elsif(-f $thing)
     {   ($xml, %details) = $self->_parseFile($thing);
     }

@@ -177,9 +177,10 @@ sub compile($@)
     my $produce = $self->topLevel($path, $item);
     delete $self->{_created};
 
-      $self->{include_namespaces}
-    ? $self->makeWrapperNs($path, $produce, $self->{prefixes})
-    : $produce;
+    my $in = $self->{include_namespaces}
+        or return $produce;
+
+    $self->makeWrapperNs($path, $produce, $self->{prefixes}, $in);
 }
 
 sub assertType($$$$)
@@ -1510,7 +1511,7 @@ sub findHooks($$$)
 
         if(!$match && defined $type && $hook->{type})
         {   my $t  = $hook->{type};
-            my ($ns, $local) = unpack_type $t;
+            my ($ns, $local) = unpack_type $type;
             $match++
                 if first {ref $_ eq 'Regexp'     ? $type  =~ $_
                          : substr($_,0,1) eq '{' ? $type  eq $_
@@ -1685,7 +1686,7 @@ for C<include_namespaces>: detected namespaces are added to an
 internal HASH now, which is not returned; that information is lost.
 You will need to know each used namespace beforehand.
 
-=item include_namespaces BOOLEAN
+=item include_namespaces BOOLEAN|CODE
 When true and WRITER, the top level returned XML element will contain
 the prefix definitions.  Only name-spaces which are actually used
 will be included (a count is kept by the translator).  It may
@@ -1697,6 +1698,10 @@ If you like to combine XML output from separate translated parts
 (for instance in case of generating SOAP), you may want to delay
 the inclusion of name-spaces until a higher level of the XML
 hierarchy which is produced later.
+
+When a CODE reference is passed, it will be called for each used
+namespace, with the uri and prefix as parameters.  Only when the CODE
+returns true, the namespace declaration will be included.
 
 When the compilation produces an attribute, then this option cannot
 be used.

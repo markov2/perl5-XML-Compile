@@ -126,12 +126,16 @@ sub makeElementWrapper
 *makeAttributeWrapper = \&makeElementWrapper;
 
 sub makeWrapperNs
-{   my ($self, $path, $processor, $index) = @_;
+{   my ($self, $path, $processor, $index, $filter) = @_;
     my @entries;
+    $filter = sub {1} if ref $filter ne 'CODE';
+
     foreach my $entry (sort {$a->{prefix} cmp $b->{prefix}} values %$index)
     { # ANY components are frustrating this
         $entry->{used} or next;
+        $filter->($entry->{uri}, $entry->{prefix}) or next;
         push @entries, [ $entry->{uri}, $entry->{prefix} ];
+        $entry->{used} = 0;
     }
 
     @entries or return $processor;
