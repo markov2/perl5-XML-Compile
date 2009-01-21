@@ -42,5 +42,6 @@ is($error, "abstract element `test1' used at {http://test-types}test2/test1");
 
 # abstract elements are skipped from the docs
 is($schema->template(PERL => "{$TestNS}test2"), <<__TEMPL);
-{ # empty sequence, }
+{ # empty sequence
+}
 __TEMPL

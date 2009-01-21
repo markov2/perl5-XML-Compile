@@ -9,8 +9,8 @@ no warnings 'once';
 use Log::Report 'xml-compile', syntax => 'SHORT';
 use List::Util    qw/first/;
 use Scalar::Util  qw/blessed/;
-use XML::Compile::Util
-   qw/pack_type unpack_type odd_elements type_of_node SCHEMA2001i/;
+use XML::Compile::Util qw/pack_type unpack_type type_of_node SCHEMA2001i
+  odd_elements even_elements/;
 
 =chapter NAME
 
@@ -151,30 +151,33 @@ sub makeWrapperNs
 sub makeSequence($@)
 {   my ($self, $path, @pairs) = @_;
 
-    if(@pairs==2 && !ref $pairs[1])
+    if(@pairs==2)
     {   my ($take, $do) = @pairs;
-        return bless
-        sub { my ($doc, $values) = @_;
-              defined $values or return;
-              $do->($doc, delete $values->{$take});
-            }, 'BLOCK';
+        return $do
+            if ref $do eq 'BLOCK' || ref $do eq 'ANY';
+
+        return bless sub
+          { my ($doc, $values) = @_;
+            defined $values or return;
+            $do->($doc, delete $values->{$take});
+          }, 'BLOCK';
     }
  
-    return bless
-    sub { my ($doc, $values) = @_;
-          defined $values or return;
+    bless sub
+     {  my ($doc, $values) = @_;
+        defined $values or return;
 
-          my @res;
-          my @do = @pairs;
-          while(@do)
-          {   my ($take, $do) = (shift @do, shift @do);
-              push @res
-                 , ref $do eq 'BLOCK' ? $do->($doc, $values)
-                 : ref $do eq 'ANY'   ? $do->($doc, $values)
-                 : $do->($doc, delete $values->{$take});
-          }
-          @res;
-        }, 'BLOCK';
+        my @res;
+        my @do = @pairs;
+        while(@do)
+        {   my ($take, $do) = (shift @do, shift @do);
+            push @res
+               , ref $do eq 'BLOCK' ? $do->($doc, $values)
+               : ref $do eq 'ANY'   ? $do->($doc, $values)
+               : $do->($doc, delete $values->{$take});
+        }
+        @res;
+      }, 'BLOCK';
 }
 
 sub makeChoice($@)
@@ -435,7 +438,7 @@ sub makeElementFixed
 }
 
 sub makeElementNillable
-{   my ($self, $path, $ns, $childname, $do) = @_;
+{   my ($self, $path, $ns, $childname, $do, $value, $tag) = @_;
     my $inas    = $self->{interpret_nillable_as_optional};
 
     $self->_registerNSprefix(xsi => SCHEMA2001i, 0);
@@ -449,7 +452,7 @@ sub makeElementNillable
         return $doc->createTextNode('')
             if $inas;
 
-        my $node = $doc->createElement($childname);
+        my $node = $doc->createElement($tag);
 
         $node->setAttribute($nilattr => 'true');
         $node;
@@ -487,6 +490,7 @@ sub makeElementAbstract
 sub makeComplexElement
 {   my ($self, $path, $tag, $elems, $attrs, $any_attr) = @_;
     my @elems = odd_elements @$elems;
+    my $tags  = join ', ', even_elements @$elems;
     my @attrs = @$attrs;
     my @anya  = @$any_attr;
     my $iut   = $self->{ignore_unused_tags};
@@ -519,10 +523,12 @@ sub makeComplexElement
         {   my @not_used
               = defined $iut ? grep({$_ !~ $iut} keys %$copy) : keys %$copy;
 
-            mistake __xn "tag `{tags}' not used at {path}"
-              , "unused tags {tags} at {path}"
-              , scalar @not_used, tags => [sort @not_used], path => $path
-                 if @not_used;
+            if(@not_used)
+            {   trace "available tags are: $tags";
+                mistake __xn "tag `{tags}' not used at {path}"
+                  , "unused tags {tags} at {path}"
+                  , scalar @not_used, tags => [sort @not_used], path => $path;
+            }
         }
 
         my $node  = $doc->createElement($tag);
@@ -560,7 +566,7 @@ sub makeTaggedElement
 
           UNIVERSAL::isa($data, 'HASH')
              or error __x"tagged `{tag}' requires a HASH of input data, not `{found}' at {path}"
-                   , tag => $tag, found => $data, path => $path;
+                  , tag => $tag, found => $data, path => $path;
 
           my $copy    = { %$data };
           my $content = delete $copy->{_};
@@ -570,7 +576,7 @@ sub makeTaggedElement
           {   $node = $doc->importNode($content);
           }
           elsif(defined $content)
-          {   push @childs, $content;
+          {   push @childs, $st->($doc, $content);
           }
 
           for(my $i=0; $i<@attrs; $i+=2)
@@ -672,7 +678,9 @@ sub makeSimpleElement
     sub { my ($doc, $data) = @_;
           return $doc->importNode($data)
               if UNIVERSAL::isa($data, 'XML::LibXML::Element');
-          
+          $data = $data->{_}
+              if ref $data eq 'HASH';
+
           my $value = $st->($doc, $data);
           my $node  = $doc->createElement($tag);
           error __x"expected single value for {tag}, but got {type}"
@@ -716,9 +724,10 @@ sub makeBuiltin
 
 sub makeList
 {   my ($self, $path, $st) = @_;
-    sub { defined $_[1] or return undef;
-          my @el = ref $_[1] eq 'ARRAY' ? @{$_[1]} : $_[1];
-          my @r = grep {defined} map {$st->($_[0], $_)} @el;
+    sub { my ($doc, $v) = @_;
+          defined $v or return undef;
+          my @el = ref $v eq 'ARRAY' ? @$v : $v;
+          my @r  = grep {defined} map {$st->($doc, $_)} @el;
           join ' ', @r;
         };
 }
@@ -771,6 +780,7 @@ sub makeSubstgroup
 
     bless
     sub { my ($doc, $values) = @_;
+#warn "SUBST($type) AVAILABLE ARE ", join ', ', keys %do;
           foreach my $take (keys %do)
           {   my $subst = delete $values->{$take}
                   or next;

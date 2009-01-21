@@ -8,7 +8,7 @@ package TestTools;
 use base 'Exporter';
 
 use XML::LibXML;
-use XML::Compile::Util qw/SCHEMA2001/;
+use XML::Compile::Util ':constants';
 use XML::Compile::Tester;
 
 use Test::More;
@@ -19,15 +19,17 @@ use Data::Dumper qw/Dumper/;
 our @EXPORT = qw/
  $TestNS
  $SchemaNS
+ $SchemaNSi
  $dump_pkg
  test_rw
  /;
 
-our $TestNS   = 'http://test-types';
+our $TestNS    = 'http://test-types';
 set_default_namespace $TestNS;
 
-our $SchemaNS = SCHEMA2001;
-our $dump_pkg = 't::dump';
+our $SchemaNS  = SCHEMA2001;
+our $SchemaNSi = SCHEMA2001i;
+our $dump_pkg  = 't::dump';
 
 sub test_rw($$$$;$$)
 {   my ($schema, $test, $xml, $hash, $expect, $h2) = @_;

@@ -9,7 +9,7 @@ use TestTools;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 70;
+use Test::More tests => 84;
 use XML::Compile::Util  qw/SCHEMA2001i/;
 my $xsi    = SCHEMA2001i;
 
@@ -186,4 +186,28 @@ test_rw($schema, test4 => <<_XML, \%t4);
   </e4>
   <e4 xsi:nil="true"/>
 </test4>
+_XML
+
+#
+# Bug discovered by Mark Blackman, 20090107
+#
+
+set_compile_defaults
+    include_namespaces => 1
+  , elements_qualified => 1;
+
+test_rw($schema, test1 => <<_XML, {e1 => 42, e2 => 43, e3 => 44} );
+<test1 xmlns="$TestNS" xmlns:xsi="$xsi">
+  <e1>42</e1>
+  <e2>43</e2>
+  <e3>44</e3>
+</test1>
+_XML
+
+test_rw($schema, test1 => <<_XML, {e1 => 42, e2 => 'NIL', e3 => 44} );
+<test1 xmlns="$TestNS" xmlns:xsi="$xsi">
+   <e1>42</e1>
+   <e2 xsi:nil="true"/>
+   <e3>44</e3>
+</test1>
 _XML

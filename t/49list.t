@@ -10,7 +10,7 @@ use TestTools;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 57;
+use Test::More tests => 62;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA );
 <schema targetNamespace="$TestNS"
@@ -82,12 +82,12 @@ test_rw($schema, test2 => <<__XML, [4, 5, 6]);
   5\t  6 </test2>
 __XML
 
-#### restriction on simple-list base
+
+# restriction on simple-list base
 
 test_rw($schema, test3 => <<__XML, [1, 2, 1, 1]);
 <test3>1 2 1 1</test3>
 __XML
-
 
 # predefined
 
@@ -95,3 +95,11 @@ test_rw($schema, test4 => <<__XML, [3, 4, 4, 3]);
 <test4>3 4 4 3</test4>
 __XML
 
+# element has attributes as well
+
+my $w1 = writer_create($schema, "HASH param" => 'test1');
+my $x1 = writer_test($w1, {_ => [7,8]});
+
+compare_xml($x1->toString, <<'_XML');
+<test1>7 8</test1>
+_XML

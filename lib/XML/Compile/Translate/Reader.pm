@@ -678,19 +678,23 @@ sub makeMixedElement
             my @v = $mixed->($node);
             @v ? ($tag => $v[0]) : ();
           }
+
     : $mixed eq 'XML_NODE'
     ? sub { $_[0] ? ($tag => $_[0]->node) : () }
+
     : $mixed eq 'ATTRIBUTES'
     ? sub { my $tree   = shift or return;
             my $node   = $tree->node;
             my @pairs  = map {$_->($node)} @attrs;
-            ($tag => {_ => $node, @pairs});
+            ($tag => { _ => $node, @pairs
+                     , _MIXED_ELEMENT_MODE => 'ATTRIBUTES'});
           } 
     : $mixed eq 'TEXTUAL'
     ? sub { my $tree   = shift or return;
             my $node   = $tree->node;
             my @pairs  = map {$_->($node)} @attrs;
-            ($tag => {_ => $node->textContent, @pairs});
+            ($tag => { _ => $node->textContent, @pairs
+                     , _MIXED_ELEMENT_MODE => 'TEXTUAL'});
           } 
     : $mixed eq 'XML_STRING'
     ? sub { my $tree   = shift or return;
@@ -698,7 +702,10 @@ sub makeMixedElement
             ($tag => $node->toString);
           }
     : $mixed eq 'STRUCTURAL'
+
+      # this cannot be reached, because handled somewhere else
     ? panic "mixed structural handled as normal element"
+
     : error __x"unknown mixed_elements value `{value}'", value => $mixed;
 }
 
@@ -1261,6 +1268,11 @@ Often the "mixed" option is bending one of both ways: either the element
 is needed as text, or the element should be parsed and the text ignored.
 The reader has various options to avoid the need of processing raw
 XML::LibXML nodes.
+
+[1.00]
+When the return is a HASH, that HASH will also contain the
+C<_MIXED_ELEMENT_MODE> key, to help people understand what
+happens.  This is not possible for all modes, only for some.
 
 With M<XML::Compile::Schema::compile(mixed_elements)> set to
 =over 4

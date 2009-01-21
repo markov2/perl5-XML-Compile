@@ -221,7 +221,7 @@ sub init($)
     {   $self->addHook(ref $h1 eq 'ARRAY' ? @$h1 : $h1);
     }
     if(my $h2 = $args->{hooks})
-    {   $self->addHooks(ref $h2 eq 'ARRAY' ? @$h2 : $h2);
+    {   $self->addHook($_) for ref $h2 eq 'ARRAY' ? @$h2 : $h2;
     }
  
     $self->{key_rewrite} = [];
@@ -247,7 +247,7 @@ L</Schema hooks> below.
 
 sub addHook(@)
 {   my $self = shift;
-    push @{$self->{hooks}}, @_>=1 ? {@_} : defined $_[0] ? shift : ();
+    push @{$self->{hooks}}, @_>1 ? {@_} : defined $_[0] ? shift : ();
     $self;
 }
 
@@ -258,7 +258,7 @@ and M<addHook()>. C<undef> values are ignored.
 
 sub addHooks(@)
 {   my $self = shift;
-    push @{$self->{hooks}}, grep {defined} @_;
+    $self->addHook($_) for @_;
     $self;
 }
 
@@ -299,14 +299,14 @@ in LIST context, you get such an indication.
 =default filename C<undef>
 Explicitly state from which file the data is coming.
 
-=option  elementFormDefault 'qualified'|'unqualified'
-=default elementFormDefault <undef>
+=option  element_form_default 'qualified'|'unqualified'
+=default element_form_default <undef>
 Overrule the default as found in the schema.  Many old schemas (like
 WSDL11 and SOAP11) do not specify the default in the schema but only
 in the text.
 
-=option  attributeFormDefault 'qualified'|'unqualified'
-=default attributeFormDefault <undef>
+=option  attribute_form_default 'qualified'|'unqualified'
+=default attribute_form_default <undef>
 =cut
 
 sub addSchemas($@)
@@ -314,7 +314,8 @@ sub addSchemas($@)
     defined $node or return ();
 
     my @nsopts;
-    foreach my $o (qw/source filename elementFormDefault attributeFormDefault/)
+    foreach my $o (qw/source filename
+        element_form_default attribute_form_default/)
     {   push @nsopts, $o => delete $opts{$o} if exists $opts{$o};
     }
 
@@ -1522,6 +1523,10 @@ However, you may also specify only the C<type> (in any name-space).
 Any REGEX will be matched to the full type name. Be careful with the
 pattern archors.
 
+If you use M<XML::Compile::Cache> [release 0.90], then you can use
+C<prefix:type> as type specification as well.  You have to explicitly
+define prefix to namespace beforehand.
+
 =examples use of the type selector
 
  type => 'int'
@@ -1532,6 +1537,14 @@ pattern archors.
  use XML::Compile::Util qw/pack_type SCHEMA2000/;
  type => pack_type(SCHEMA2000, 'int')
 
+=examples type hook with XML::Compile::Cache
+
+ use XML::Compile::Util qw/SCHEMA2001/;
+ my $schemas = XML::Compile::Cache->new(...);
+ $schemas->prefixes(xsd => SCHEMA2001, mine => 'http://somens');
+ $schemas->addHook(type => 'xsd:int', ...);
+ $schemas->addHook(type => 'mine:sometype', ...);
+ 
 =subsection hooks on matching ids
 
 Matching based on IDs can reach more schema elements: some types are
@@ -1644,7 +1657,7 @@ which often is not named in the schema.
 
 =section Key rewrite
 
-[Added in release 0.87]
+[release 0.87]
 The standard practice is to use the localName of the XML elements
 as key in the Perl HASH; the key rewrite mechanism is used to
 change that, sometimes to seperate elements which have the same

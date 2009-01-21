@@ -44,14 +44,14 @@ An indication where this information came from.
 =default filename C<undef>
 When the source is some file, this is its name.
 
-=option  elementFormDefault 'qualified'|'unqualified'
-=default elementFormDefault <undef>
+=option  element_form_default 'qualified'|'unqualified'
+=default element_form_default <undef>
 Overrule the default as found in the schema.  Many old schemas (like
 WSDL11 and SOAP11) do not specify the default in the schema but only
 in the text.
 
-=option  attributeFormDefault 'qualified'|'unqualified'
-=default attributeFormDefault <undef>
+=option  attribute_form_default 'qualified'|'unqualified'
+=default attribute_form_default <undef>
 =cut
 
 sub new($@)
@@ -192,12 +192,12 @@ sub _collectTypes($$)
     my $tns = $self->{tns} = $schema->getAttribute('targetNamespace') || '';
 
     my $efd = $self->{efd}
-       = $args->{elementFormDefault}
+       = $args->{element_form_default}
       || $schema->getAttribute('elementFormDefault')
       || 'unqualified';
 
     my $afd = $self->{afd}
-       = $args->{attributeFormDefault}
+       = $args->{attribute_form_default}
       || $schema->getAttribute('attributeFormDefault')
       || 'unqualified';
 
@@ -249,7 +249,7 @@ sub _collectTypes($$)
         my $id    = $schema->getAttribute('id');
 
         my ($prefix, $name)
-         = index($tag, ':') >= 0 ? split(/\:/,$tag,2) : ('', $tag);
+                  = index($tag, ':') >= 0 ? split(/\:/,$tag,2) : ('', $tag);
 
         # prefix existence enforced by xml parser
         my $ns    = length $prefix ? $node->lookupNamespaceURI($prefix) : $tns;

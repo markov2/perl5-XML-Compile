@@ -7,7 +7,7 @@ package XML::Compile::Translate;
 #                         or 'schema': syntax error in schema
 
 use Log::Report 'xml-compile', syntax => 'SHORT';
-use List::Util  'first';
+use List::Util  qw/first max/;
 
 use XML::Compile::Schema::Specs;
 use XML::Compile::Schema::BuiltInFacets;
@@ -75,7 +75,7 @@ documentation: C<notation, annotation>.  Compile the schema schema itself
 to interpret the message if you need them.
 
 A few nuts are still to crack:
- any* processContents always interpreted as lax
+ xsi:type
  openContent
  attribute limitiations (facets) on dates
  full understanding of patterns (now limited)
@@ -696,14 +696,13 @@ sub element($)
       :                            'makeElement';
 
     my $nodetype = $qual ? $fullname : $name;
-    my $do1 = $self->$generate($where, $ns, $nodetype, $r, $value);
+    my $do1 = $self->$generate($where, $ns, $nodetype, $r, $value, $tag);
 
     # hrefs are used by SOAP-RPC
     my $do2 = $self->{permit_href} && $self->actsAs('READER')
       ? $self->makeElementHref($where, $ns, $nodetype, $do1) : $do1;
 
     # Implement hooks
-
     my ($before, $replace, $after)
        = $self->findHooks($where, $compname, $node);
 
@@ -768,9 +767,9 @@ sub particle($)
     }
 
     my $required;
-    $required = $self->makeRequired($where, $label, $process) if $min!=0;
-
     my $key   = $local eq 'element' ? $self->keyRewrite($label) : $label;
+    $required = $self->makeRequired($where, $key, $process) if $min!=0;
+
     my $do    =
         $self->makeElementHandler($where, $key, $min, $max, $required,$process);
 
@@ -865,17 +864,20 @@ sub particleElementRef($)
 {   my ($self, $tree) = @_;
 
     my $node  = $tree->node;
-    my $where = $tree->path . '#subst';
-
     my $name  = $node->getAttribute('name'); # toplevel always has a name
     my $type  = pack_type $self->{tns}, $name;
-
     my @sgs   = $self->findSgMembers($type);
-    @sgs or return $self->particleElement($tree); # simple
+    @sgs or return $self->particleElement($tree); # simple element
 
-#warn "SUBST $type\n";
-#warn "  $_->{full}\n" for @sgs;
     my ($label, $do) = $self->particleElement($tree);
+    if(Log::Report->needs('TRACE')) # dump table of substgroup alternatives
+    {   my $labelrw = $self->keyRewrite($label);
+        my @full    = sort map { $_->{full} } @sgs;
+        my $longest = max map length, @full;
+        my @c = map {sprintf "%-${longest}s %s",$_,$self->keyRewrite($_)} @full;
+        local $"    = "\n  ";
+        trace "substitutionGroup $type$\"SG=$label ($labelrw)$\"@c";
+    }
     my @elems = ($label => [$self->keyRewrite($label), $do]);
 
     foreach my $subst (@sgs)
@@ -887,7 +889,8 @@ sub particleElementRef($)
          push @elems, $l => [$self->keyRewrite($l), $d];
     } 
 
-    ($name => $self->makeSubstgroup($where, $type, @elems));
+    my $where = $tree->path . '#subst';
+    ($type => $self->makeSubstgroup($where, $type, @elems));
 }
 
 sub particleElement($)
@@ -1383,7 +1386,8 @@ sub complexContent($$)
     # content: annotation?, (restriction | extension)
 
     my $node = $tree->node;
-    $mixed ||= $self->isTrue($node->getAttribute('mixed') || 'false');
+    defined $mixed || $self->{mixed_elements} eq 'STRUCTURAL'
+        or $mixed = $self->isTrue($node->getAttribute('mixed') || 'false');
   
     $tree->nrChildren == 1
         or error __x"only one complexContent child expected at {where}"

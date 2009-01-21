@@ -7,7 +7,7 @@ use base 'Exporter';
 my @constants  = qw/XMLNS SCHEMA1999 SCHEMA2000 SCHEMA2001 SCHEMA2001i/;
 our @EXPORT    = qw/pack_type unpack_type/;
 our @EXPORT_OK =
-  ( qw/pack_id unpack_id odd_elements type_of_node/
+  ( qw/pack_id unpack_id odd_elements even_elements type_of_node escape/
   , @constants
   );
 our %EXPORT_TAGS = (constants => \@constants);
@@ -96,13 +96,14 @@ sub unpack_id($) { split /\#/, $_[0], 2 }
 =section Other
 
 =function odd_elements LIST
-Returns the odd-numbered elements in the list.
+Returns the odd-numbered elements from the LIST.
+
+=function even_elements LIST
+Returns the even-numbered elements from the LIST.
 =cut
 
-sub odd_elements(@)
-{   my $i = 0;
-    map {$i++ % 2 ? $_ : ()} @_;
-}
+sub odd_elements(@)  { my $i = 0; map {$i++ % 2 ? $_ : ()} @_ }
+sub even_elements(@) { my $i = 0; map {$i++ % 2 ? () : $_} @_ }
 
 =function type_of_node NODE
 Translate an XML::LibXML::Node into a packed type.

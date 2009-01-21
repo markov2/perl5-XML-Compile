@@ -52,6 +52,7 @@ sub makeWrapperNs
 
 sub typemapToHooks($$)
 {   my ($self, $hooks, $typemap) = @_;
+
     while(my($type, $action) = each %$typemap)
     {   defined $action or next;
 
@@ -415,7 +416,7 @@ sub makeHook($$$$$$)
     sub
     {  for(@before) { $_->($tag, $path) or return }
 
-       my $d = @replace ? $replace[0]->($tag, $path) : $r->();
+       my $d = @replace ? $replace[0]->($tag, $path, $r) : $r->();
        defined $d or return ();
 
        for(@after) { $d = $_->($d, $tag, $path) or return }
@@ -432,6 +433,17 @@ sub _decodeBefore($$)
 sub _decodeReplace($$)
 {   my ($self, $path, $call) = @_;
     return $call if ref $call eq 'CODE';
+
+    if($call eq 'COLLAPSE')
+    {   return sub 
+         {  my ($tag, $path, $do) = @_;
+            my $h = $do->();
+            $h->{elems} = [ { struct => [ 'content collapsed' ]
+                            , kind   => 'collapsed' } ];
+            delete $h->{attrs};
+            $h;
+         };
+    }
 
     # SKIP already handled
     error __x"labeled replace hook `{name}' undefined", name => $call;
@@ -497,7 +509,7 @@ sub _perlAny($$)
         @sub or next;
 
         # last line is code and gets comma
-        $sub[-1] =~ s/\,?\s*$/,/;
+        $sub[-1] =~ s/\,?\s*$/,/ if $sub[-1] !~ m/\#\s/;
 
         if(ref $ast ne 'BLOCK')
         {   s/^(.)/$args->{indent}$1/ for @sub;
@@ -513,7 +525,8 @@ sub _perlAny($$)
     {  # repeated block
        @subs or @subs = '';
        $subs[0]  =~ s/^  /{ /;
-       $subs[-1] =~ s/$/ },/;
+       if($subs[-1] =~ m/\#\s/) { push @subs, "}," }
+       else { $subs[-1] =~ s/$/ },/ }
     }
 
     # XML does not permit difficult tags, but we still check.
@@ -538,18 +551,21 @@ sub _perlAny($$)
         if($ast->{is_array})
         {   s/^(.)/  $1/ for @subs;
             $subs[0]  =~ s/^[ ]{0,3}/[ {/;
-            $subs[-1] =~ s/$/ }, ], /;
+            if($subs[-1] =~ m/\#\s/) { push @subs, "}, ], " }
+            else {$subs[-1] =~ s/$/ }, ], / }
             push @lines, "$tag =>", @subs;
         }
         else
         {   $subs[0]  =~ s/^  /{ /;
-            $subs[-1] =~ s/$/ },/;
+            if($subs[-1] =~ m/\#\s/) { push @subs, "}, " }
+            else {$subs[-1] =~ s/$/ },/ }
             push @lines, "$tag =>", @subs;
         }
     }
     elsif($kind eq 'complex' || $kind eq 'mixed')  # empty complex-type
     {   push @lines, "$tag => {}";
     }
+    elsif($kind eq 'collapsed') {;}
     elsif($kind eq 'union')    # union type
     {   foreach my $union ( @{$ast->{choice}} )
         {  # remove examples
@@ -665,6 +681,16 @@ Hooks are implemented since version 0.82.  They can be used to
 improve the template output.
 
 =subsection hooks executed before the template is generated
+None defined yet.
+
+=subsection hooks executed as replacement
+
+The predefined hook C<COLLAPSE> can be used to remove the extensive
+listing of some elements.  Usually used with a type of which you
+know the structure or which is repeated often.
+
+=subsection hooks for post-processing, after the data is collected
+None defined yet.
 
 =section Typemaps
 Typemaps are currently only available to improve the PERL output.

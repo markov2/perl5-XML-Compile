@@ -9,6 +9,60 @@ To be resolved (hopefully soon):
       , pattern, whiteSpace fixed to collapsed
    length facet on base64/hex encoding about binary length (tests needed)
    handle XML::LibXML::Error objects
+   handle xsi:type
+
+version 1.00:
+
+	Changes:
+
+	- oops, rename elementFormDefault parameters into
+	  element_form_default.  Breaks only XML::Compile::SOAP 2.00_01
+
+	- substitutionGroup keys did not get prefixed, when key_rewrite
+	  was enabled.
+
+	Fixes:
+
+	- writer: name-space qualified for NIL [Mark Blackman]
+
+	- template: be more careful not to put trailing '}' on a line
+	  with comment.
+
+	- writer: contents of tagged elements were not processed, so
+	  not checked or whitespace corrected.
+
+	- report rewritten key when required value is missing, not the
+	  full key.
+
+	- compile(mixed_elements=STRUCTURAL) was ignored when the mixed
+	  option was found with the complexContent.
+
+	Improvements:
+
+	- template: hook "COLLAPSE" to reduce output size for well-known
+	  types.
+
+	- writer: accept {_ => $value} as alternative for $value.
+
+	- writer: optimize seq block with one block element.
+
+	- added XML::Compile::Util::even_elements()
+
+	- writer: show available tags in complex block with unused tags
+	  when in debug mode.
+
+	- show substitutionGroup members in debug mode.
+	  Requires Log::Report v0.21
+
+	- make addHooks() use addHook(), easier to override.
+
+	- reader: elements with mixed="true" by default only unpacks the
+	  ATTRIBUTES.  It is hard to figure-out why the node is not
+	  translated into Perl.  Therefore, the resulting HASH now
+	  contains a _MIXED_ELEMENT_MODE key as explanation.
+
+	- with "Log::Report mode => 'DEBUG'", you may get extra help
+	  on some errors.
 
 version 0.99: Mon Dec 29 10:16:28 CET 2008
 
