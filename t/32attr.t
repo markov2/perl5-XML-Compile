@@ -11,6 +11,9 @@ use XML::Compile::Tester;
 
 use Test::More tests => 86;
 
+set_compile_defaults
+    elements_qualified => 'NONE';
+
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
         xmlns="$SchemaNS"
@@ -98,7 +101,7 @@ test_rw($schema, test1 => <<__XML, \%t1_b);
 </test1>
 __XML
 
-my $error = reader_error($schema, test1 => <<__XML);
+my $error = error_r($schema, test1 => <<__XML);
 <test1>
   <t1_a>25</t1_a>
   <t1_b>26</t1_b>
@@ -107,7 +110,7 @@ __XML
 is($error, "attribute `a1_b' is required at {http://test-types}test1/\@a1_b");
 
 my %t1_c = (a1_b => 24, t1_a => 25);
-$error = writer_error($schema, test1 => \%t1_c);
+$error = error_w($schema, test1 => \%t1_c);
 is($error, "required value for element `t1_b' missing at {http://test-types}test1");
 
 ## test 2  attributeGroup
@@ -127,13 +130,13 @@ test_rw($schema, test2 => <<__XML, \%t2_b);
 </test2>
 __XML
 
-$error = reader_error($schema, test2 => <<__XML);
+$error = error_r($schema, test2 => <<__XML);
 <test2 a2_c="29" a2_e="666"><t2_b>102</t2_b></test2>
 __XML
 
 is($error, "attribute `a2_e' is prohibited at {http://test-types}test2/\@a2_e");
 
-$error = writer_error($schema, test2
+$error = error_w($schema, test2
   => {a2_c => 29, a2_e => 666, t2_b => 77} );
 is($error, "attribute `a2_e' is prohibited at {http://test-types}test2/\@a2_e");
 
@@ -151,7 +154,7 @@ test_rw($schema, a4 => XML::LibXML::Attr->new('a4', 43), 43, ' a4="43"');
 
 test_rw($schema, test5 => '<test5 a5="only-one"/>', { a5 => 'only-one' });
 
-$error = reader_error($schema, test5 => '<test5 a5="not-two"/>');
+$error = error_r($schema, test5 => '<test5 a5="not-two"/>');
 is($error, "invalid enumerate `not-two' at {http://test-types}test5#facet");
 
 test_rw($schema, a5 => XML::LibXML::Attr->new(a5 => 'only-one')

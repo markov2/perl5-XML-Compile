@@ -12,6 +12,9 @@ use XML::Compile::Tester;
 
 use Test::More tests => 51;
 
+set_compile_defaults
+    elements_qualified => 'NONE';
+
 my $TestNS2 = "http://second-ns";
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA );
@@ -103,7 +106,7 @@ test_rw($schema, test1 => <<__XML, \%t2);
 __XML
 
 # abstract within substitutionGroup
-$error = reader_error($schema, test1 => <<__XML);
+$error = error_r($schema, test1 => <<__XML);
 <test1><t1>10</t1><head>11</head><t3>12</t3></test1>
 __XML
 is($error, "abstract element `head' used at {$TestNS}test1/head");

@@ -13,6 +13,9 @@ use XML::Compile::Tester;
 
 use Test::More tests => 30;
 
+set_compile_defaults
+    elements_qualified => 'NONE';
+
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
         xmlns="$SchemaNS"
@@ -50,7 +53,7 @@ test_rw($schema, test1 => $xml1, \%f1);
 
 my (@out, @out2);
 my $w2 = writer_create
- ( $schema, "combined test" => 'test1'
+ ( $schema, "combined test" => "{$TestNS}test1"
  , hook => { type   => 'string'
            , id     => 'my_id'
            , path   => qr/byPath/
@@ -80,7 +83,7 @@ open BUF, '>', \$output;
 my $oldout = select BUF;
 
 my $w3 = writer_create
- ( $schema, "multiple after" => 'test1'
+ ( $schema, "multiple after" => "{$TestNS}test1"
  , hook => { id    => 'top'
            , after => [ 'PRINT_PATH' ]
            }
@@ -103,7 +106,7 @@ __EXPECT
 # test skip
 
 my $w4 = writer_create
- ( $schema, "test SKIP" => 'test1'
+ ( $schema, "test SKIP" => "{$TestNS}test1"
  , hook => { id      => 'my_id'
            , replace => 'SKIP'
            }

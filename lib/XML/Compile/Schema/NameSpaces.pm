@@ -42,6 +42,7 @@ sub init($)
 {   my ($self, $args) = @_;
     $self->{tns} = {};
     $self->{sgs} = {};
+    $self->{use} = [];
     $self;
 }
 
@@ -77,6 +78,22 @@ sub add(@)
     @_;
 }
 
+=method use OBJECT
+Use any other M<XML::Compile::Schema> extension as fallback, if the
+M<find()> does not succeed for the current object.  Searches for
+definitions do not recurse into the used object.
+
+Returns the list of all used OBJECTS.
+This method implements M<XML::Compile::Schema::useSchema()>.
+
+=cut
+
+sub use($)
+{   my ($self, $schema) = @_;
+    push @{$self->{use}}, @_;
+    @{$self->{use}};
+}
+
 =method schemas URI
 We need the name-space; when it is lacking then import must help, but that
 must be called explictly.
@@ -93,21 +110,33 @@ sub allSchemas()
     map {$self->schemas($_)} $self->list;
 }
 
-=method find KIND, ADDRESS|(URI,NAME)
+=method find KIND, ADDRESS|(URI,NAME), OPTIONS
 Lookup the definition for the specified KIND of definition: the name
 of a global element, global attribute, attributeGroup or model group.
 The ADDRESS is constructed as C< {uri}name > or as seperate URI and NAME.
+
+=option  include_used BOOLEAN
+=default include_used <true>
 =cut
 
 sub find($$;$)
 {   my ($self, $kind) = (shift, shift);
-    my ($ns, $name) = @_==1 ? (unpack_type $_[0]) : @_;
-    my $label = pack_type $ns, $name; # re-pack unpacked for consistency
+    my ($ns, $name) = (@_%2==1) ? (unpack_type shift) : (shift, shift);
+    my %opts = @_;
 
     defined $ns or return undef;
+    my $label = pack_type $ns, $name; # re-pack unpacked for consistency
 
     foreach my $schema ($self->schemas($ns))
     {   my $def = $schema->find($kind, $label);
+        return $def if defined $def;
+    }
+
+    my $used = exists $opts{include_used} ? $opts{include_used} : 1;
+    $used or return undef;
+
+    foreach my $use ( @{$self->{use}} )
+    {   my $def = $use->namespaces->find($kind, $label, include_used => 0);
         return $def if defined $def;
     }
 
@@ -154,6 +183,11 @@ M<XML::Compile::Schema::Instance::printIndex()>.
 =default namespace <ALL>
 Show only information about the indicate namespaces.
 
+=option  include_used BOOLEAN
+=default include_used <true>
+Show also the index from all the schema objects which are defined
+to be usable as well; which were included via M<use()>.
+
 =examples
  my $nss = $schema->namespaces;
  $nss->printIndex(\*MYFILE);
@@ -173,6 +207,13 @@ sub printIndex(@)
     foreach my $nsuri (ref $nss eq 'ARRAY' ? @$nss : $nss)
     {   $_->printIndex($fh, %opts) for $self->namespace($nsuri);
     }
+
+    my $show_used = exists $opts{include_used} ? $opts{include_used} : 1;
+    foreach my $use ($self->use)
+    {   $use->namespaces->printIndex(%opts, include_used => 0);
+    }
+
+    $self;
 }
 
 1;

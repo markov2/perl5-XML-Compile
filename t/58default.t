@@ -66,7 +66,8 @@ __SCHEMA__
 ok(defined $schema);
 
 set_compile_defaults
-   sloppy_integers => 1;
+   elements_qualified => 'NONE'
+ , sloppy_integers    => 1;
 
 ##
 ### Integers
@@ -115,14 +116,15 @@ __XML
 ### various DEFAULT_VALUES modes [0.91]
 
 set_compile_defaults
-   sloppy_integers => 1
- , default_values  => 'EXTEND';
+   sloppy_integers    => 1
+ , elements_qualified => 'NONE'
+ , default_values     => 'EXTEND';
 
 test_rw($schema, test4 => <<__XML, {e4a => 9, e4b => 10, a4c => 11, a4d => 12});
 <test4 a4c="11" a4d="12"><e4a>9</e4a><e4b>10</e4b></test4>
 __XML
 
-my $r4a = reader_create $schema, 'reader extend', 'test4';
+my $r4a = reader_create $schema, 'reader extend', "{$TestNS}test4";
 my $h4a = $r4a->( <<__XML );
 <test4><e4a>20</e4a><e4e>21</e4e></test4>
 __XML
@@ -133,7 +135,7 @@ $h4a = $r4a->( <<__XML );
 __XML
 is_deeply($h4a, {e4a => 23, e4b => 72, a4c => 22, a4d => 73, e4e => 24});
 
-my $w4a = writer_create $schema, 'writer extend', 'test4';
+my $w4a = writer_create $schema, 'writer extend', "{$TestNS}test4";
 my $x4a = writer_test $w4a, {e4a => 25};
 compare_xml($x4a, <<__XML);
 <test4 a4d="73">
@@ -145,14 +147,15 @@ __XML
 # IGNORE
 
 set_compile_defaults
-   sloppy_integers => 1
- , default_values  => 'IGNORE';
+   sloppy_integers    => 1
+ , elements_qualified => 'NONE'
+ , default_values     => 'IGNORE';
 
 test_rw($schema, test4 => <<__XML, {e4a => 9, e4b => 10, a4c => 11, a4d => 12});
 <test4 a4c="11" a4d="12"><e4a>9</e4a><e4b>10</e4b></test4>
 __XML
 
-my $r4b = reader_create $schema, 'reader ignore', 'test4';
+my $r4b = reader_create $schema, 'reader ignore', "{$TestNS}test4";
 my $h4b = $r4b->( <<__XML );
 <test4><e4a>30</e4a><e4e>31</e4e></test4>
 __XML
@@ -163,21 +166,22 @@ $h4b = $r4b->( <<__XML );
 __XML
 is_deeply($h4b, {e4a => 33, e4b => 72, a4c => 32, a4d => 73, e4e => 34});
 
-my $w4b = writer_create $schema, 'writer ignore', 'test4';
+my $w4b = writer_create $schema, 'writer ignore', "{$TestNS}test4";
 my $x4b = writer_test $w4b, {e4a => 35};
 compare_xml($x4b, '<test4><e4a>35</e4a></test4>');
 
 # MINIMAL
 
 set_compile_defaults
-   sloppy_integers => 1
- , default_values  => 'MINIMAL';
+   sloppy_integers    => 1
+ , elements_qualified => 'NONE'
+ , default_values     => 'MINIMAL';
 
 test_rw($schema, test4 => <<__XML, {e4a => 9, e4b => 10, a4c => 11, a4d => 12});
 <test4 a4c="11" a4d="12"><e4a>9</e4a><e4b>10</e4b></test4>
 __XML
 
-my $r4c = reader_create $schema, 'reader minimal', 'test4';
+my $r4c = reader_create $schema, 'reader minimal', "{$TestNS}test4";
 my $h4c = $r4c->( <<__XML );
 <test4><e4a>40</e4a><e4e>41</e4e></test4>
 __XML
@@ -188,7 +192,7 @@ $h4c = $r4c->( <<__XML );
 __XML
 is_deeply($h4c, {e4a => 43, a4c => 42, e4b => undef, e4e => 44});
 
-my $w4c = writer_create $schema, 'writer minimal', 'test4';
+my $w4c = writer_create $schema, 'writer minimal', "{$TestNS}test4";
 my $x4c = writer_test $w4c, {a4c => 45, a4d => 73, e4a => 46, e4b => 72, e4e => 47};
 compare_xml($x4c, <<__XML);
 <test4 a4c="45">

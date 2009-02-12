@@ -11,6 +11,9 @@ use XML::Compile::Tester;
 
 use Test::More tests => 169;
 
+set_compile_defaults
+    elements_qualified => 'NONE';
+
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
         xmlns="$SchemaNS"
@@ -88,13 +91,13 @@ test_rw($schema, test1 => <<__XML, {t1_a => 10});
 <test1><t1_a>10</t1_a></test1>
 __XML
 
-$error = reader_error($schema, test1 => <<__XML);
+$error = error_r($schema, test1 => <<__XML);
 <test1><t1_a>8</t1_a><extra>9</extra></test1>
 __XML
 is($error, "element `extra' not processed at {http://test-types}test1");
 
 # all itself is not a all, unless minOccurs=0
-$error = reader_error($schema, test1 => <<__XML);
+$error = error_r($schema, test1 => <<__XML);
 <test1 />
 __XML
 is($error, "data for element or block starting with `t1_a' missing at {http://test-types}test1");
@@ -132,7 +135,7 @@ __XML
 </test3>
 __XMLWriter
 
-    $error = reader_error($schema, test3 => <<__XML);
+    $error = error_r($schema, test3 => <<__XML);
 <test3>
    <$f->[0]>13</$f->[0]>
    <$f->[1]>14</$f->[1]>
@@ -141,7 +144,7 @@ __XML
 
     is($error, "data for element or block starting with `$f->[2]' missing at {http://test-types}test3");
 
-    $error = reader_error($schema, test3 => <<__XML);
+    $error = error_r($schema, test3 => <<__XML);
 <test3>
    <$f->[0]>13</$f->[0]>
 </test3>
@@ -163,7 +166,7 @@ __XML
 <test4><t4_a>20</t4_a><t4_b>22</t4_b><t4_c>23</t4_c><t4_d>21</t4_d></test4>
 __XML2
 
-$error = reader_error($schema, test4 => <<__XML);
+$error = error_r($schema, test4 => <<__XML);
 <test4><t4_a>24</t4_a><t4_d>25</t4_d><t4_c>26</t4_c><t4_b>27</t4_b></test4>
 __XML
 is($error, "data for element or block starting with `t4_b' missing at {http://test-types}test4");
@@ -208,8 +211,8 @@ test_rw($schema, test5 => '<test5/>', {});
 
 # test 6
 
-$error = reader_error($schema, test6 => '<test6 />');
+$error = error_r($schema, test6 => '<test6 />');
 like($error, qr[data for element or block starting with `t6_[abc]' missing at \{http://test-types\}test6]);
 
-$error = writer_error($schema, test6 => {});
+$error = error_w($schema, test6 => {});
 is($error, "found 0 blocks for `all_t6_a', must be between 1 and 3 inclusive at {http://test-types}test6");

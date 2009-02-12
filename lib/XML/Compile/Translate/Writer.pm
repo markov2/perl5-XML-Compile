@@ -214,7 +214,7 @@ sub makeChoice($@)
                   $@->reportAll if $starter != keys %$values;
                   next;
               }
-              elsif($@) {$@->reportAll}
+              elsif(defined $@) {$@->reportAll}
 
               return @d;
           }
@@ -230,7 +230,7 @@ sub makeChoice($@)
               {   $@->reportAll if $starter != keys %$values;
                   next;
               }
-              elsif($@) {$@->reportAll}
+              elsif(defined $@) {$@->reportAll}
               return @d;
           }
 

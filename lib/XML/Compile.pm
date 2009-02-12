@@ -197,10 +197,10 @@ sub addSchemaDirs(@)
 
 =section Compilers
 
-=method dataToXML NODE|REF-XML-STRING|XML-STRING|FILENAME|FILEHANDLE|KNOWN
+=c_method dataToXML NODE|REF-XML-STRING|XML-STRING|FILENAME|FILEHANDLE|KNOWN
 Collect XML data, from a wide variety of sources.  In SCALAR context,
-an XML::LibXML::Element or XML::LibXML::Document is returned.  In LIST
-context, pairs of additional information follow the scalar result.
+an M<XML::LibXML::Element> or M<XML::LibXML::Document> is returned.
+In LIST context, pairs of additional information follow the scalar result.
 
 When a ready M<XML::LibXML::Node> (::Element or ::Document) NODE is
 provided, it is returned immediately and unchanged.  A SCALAR reference is
@@ -229,6 +229,8 @@ distribution package.
 =example
   my $xml = $schema->dataToXML('/etc/config.xml');
   my ($xml, %details) = $schema->dataToXML($something);
+
+  my $xml = XML::Compile->dataToXML('/etc/config.xml');
 =cut
 
 my $parser = XML::LibXML->new;
@@ -236,40 +238,40 @@ $parser->line_numbers(1);
 $parser->no_network(1);
 
 sub dataToXML($)
-{   my ($self, $thing) = @_;
-    defined $thing
+{   my ($thing, $raw) = @_;
+    defined $raw
         or return;
 
     my ($xml, %details);
-    if(ref $thing && UNIVERSAL::isa($thing, 'XML::LibXML::Node'))
-    {   ($xml, %details) = $self->_parsedNode($thing);
+    if(ref $raw && UNIVERSAL::isa($raw, 'XML::LibXML::Node'))
+    {   ($xml, %details) = $thing->_parsedNode($raw);
     }
-    elsif(ref $thing eq 'SCALAR')   # XML string as ref
-    {   ($xml, %details) = $self->_parseScalar($thing);
+    elsif(ref $raw eq 'SCALAR')   # XML string as ref
+    {   ($xml, %details) = $thing->_parseScalar($raw);
     }
-    elsif(ref $thing eq 'GLOB')     # from file-handle
-    {   ($xml, %details) = $self->_parseFileHandle($thing);
+    elsif(ref $raw eq 'GLOB')     # from file-handle
+    {   ($xml, %details) = $thing->_parseFileHandle($raw);
     }
-    elsif($thing =~ m/^\s*\</)      # XML starts with '<', rare for files
-    {   ($xml, %details) = $self->_parseScalar(\$thing);
+    elsif($raw =~ m/^\s*\</)      # XML starts with '<', rare for files
+    {   ($xml, %details) = $thing->_parseScalar(\$raw);
     }
-    elsif(my $known = $self->knownNamespace($thing))
-    {   my $fn  = $self->findSchemaFile($known)
+    elsif(my $known = $thing->knownNamespace($raw))
+    {   my $fn  = $thing->findSchemaFile($known)
             or error __x"cannot find pre-installed name-space file named {path} for {name}"
-                 , path => $known, name => $thing;
+                 , path => $known, name => $raw;
 
-        ($xml, %details) = $self->_parseFile($fn);
-        $details{source} = "known namespace $thing";
+        ($xml, %details) = $thing->_parseFile($fn);
+        $details{source} = "known namespace $raw";
     }
-    elsif(my $fn = $self->findSchemaFile($thing))
-    {   ($xml, %details) = $self->_parseFile($fn);
-        $details{source} = "filename in schema-dir $thing";
+    elsif(my $fn = $thing->findSchemaFile($raw))
+    {   ($xml, %details) = $thing->_parseFile($fn);
+        $details{source} = "filename in schema-dir $raw";
     }
-    elsif(-f $thing)
-    {   ($xml, %details) = $self->_parseFile($thing);
+    elsif(-f $raw)
+    {   ($xml, %details) = $thing->_parseFile($raw);
     }
     else
-    {   my $data = "$thing";
+    {   my $data = "$raw";
         $data = substr($data, 0, 39) . '...' if length($data) > 40;
         error __x"don't known how to interpret XML data\n   {data}"
            , data => $data;
@@ -376,7 +378,7 @@ sub knownNamespace($;@)
     undef;
 }
 
-=method findSchemaFile FILENAME
+=ci_method findSchemaFile FILENAME
 Runs through all defined schema directories (see M<addSchemaDirs()>)
 in search of the specified FILENAME.  When the FILENAME is absolute,
 that will be used, and no search is needed.  An C<undef> is returned when
@@ -387,7 +389,7 @@ Although the file may be found, it still could be unreadible.
 =cut
 
 sub findSchemaFile($)
-{   my ($self, $fn) = @_;
+{   my ($thing, $fn) = @_;
 
     return (-f $fn ? $fn : undef)
         if File::Spec->file_name_is_absolute($fn);

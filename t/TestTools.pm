@@ -1,9 +1,6 @@
 use warnings;
 use strict;
 
-use lib '../XMLCompile/lib'  # test environment at home
-      , '../XMLTester/lib';
-
 package TestTools;
 use base 'Exporter';
 
@@ -22,11 +19,11 @@ our @EXPORT = qw/
  $SchemaNSi
  $dump_pkg
  test_rw
+ error_r
+ error_w
  /;
 
 our $TestNS    = 'http://test-types';
-set_default_namespace $TestNS;
-
 our $SchemaNS  = SCHEMA2001;
 our $SchemaNSi = SCHEMA2001i;
 our $dump_pkg  = 't::dump';
@@ -66,6 +63,18 @@ sub test_rw($$$$;$$)
     my $tree = writer_test $writer, $msg;
 
     compare_xml($tree, $expect || $xml);
+}
+
+sub error_r($$$)
+{   my ($schema, $test, $xml) = @_;
+    my $type = $test =~ m/\{/ ? $test : "{$TestNS}$test";
+    reader_error($schema, $type, $xml);
+}
+
+sub error_w($$$)
+{   my ($schema, $test, $data) = @_;
+    my $type = $test =~ m/\{/ ? $test : "{$TestNS}$test";
+    writer_error($schema, $type, $data);
 }
 
 1;

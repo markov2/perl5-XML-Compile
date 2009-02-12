@@ -52,7 +52,8 @@ sub rewrite_dash { $_[1] =~ s/\-/_/g; $_[1] };
 sub rewrite_lowercase { lc $_[1] }
 
 set_compile_defaults
-  key_rewrite => [ \%rewrite_table, \&rewrite_dash, \&rewrite_lowercase ];
+    elements_qualified => 'NONE'
+  , key_rewrite => [ \%rewrite_table, \&rewrite_dash, \&rewrite_lowercase ];
 
 test_rw($schema, test1 => <<__XML, {t1_e1 => 42, t1e2 => 43, tn3 => 44});
 <test1>
@@ -65,7 +66,8 @@ __XML
 ### pre-defined simplify
 
 set_compile_defaults
-  key_rewrite => 'SIMPLIFIED';
+    elements_qualified => 'NONE'
+  , key_rewrite        => 'SIMPLIFIED';
 
 test_rw($schema, test1 => <<__XML, {t1_e1 => 45, t1e2 => 46, t1_e3 => 47});
 <test1>
@@ -78,8 +80,9 @@ __XML
 ### pre-defined prefixed
 
 set_compile_defaults
-    key_rewrite => 'PREFIXED'
-  , prefixes => [ me => $TestNS ]
+    elements_qualified => 'NONE'
+  , key_rewrite        => 'PREFIXED'
+  , prefixes           => [ me => $TestNS ]
   , elements_qualified => 1
   , include_namespaces => 1;
 

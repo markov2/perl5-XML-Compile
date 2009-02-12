@@ -11,6 +11,9 @@ use XML::Compile::Tester;
 
 use Test::More tests => 195;
 
+set_compile_defaults
+    elements_qualified => 'NONE';
+
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
         xmlns="$SchemaNS"
@@ -148,13 +151,13 @@ test_rw($schema, test1 => <<__XML, {t1_a => 10});
 <test1><t1_a>10</t1_a></test1>
 __XML
 
-my $error = reader_error($schema, test1 => <<__XML);
+my $error = error_r($schema, test1 => <<__XML);
 <test1><t1_a>8</t1_a><extra>9</extra></test1>
 __XML
 is($error, "element `extra' not processed at {http://test-types}test1");
 
 # choice itself is not a choice, unless minOccurs=0
-$error = reader_error($schema, test1 => <<__XML);
+$error = error_r($schema, test1 => <<__XML);
 <test1 />
 __XML
 is($error, "element `t1_a' expected for choice at {http://test-types}test1");
@@ -236,13 +239,13 @@ test_rw($schema, test6 => <<__XML, {cho_t6_a => [ {t6_b => 10} ]} );
 <test6><t6_b>10</t6_b></test6>
 __XML
 
-$error = reader_error($schema, test6 => '<test6 />');
+$error = error_r($schema, test6 => '<test6 />');
 is($error, "no element left to pick choice at {http://test-types}test6");
 
-$error = writer_error($schema, test6 => {});
+$error = error_w($schema, test6 => {});
 is($error, "found 0 blocks for `cho_t6_a', must be between 1 and 3 inclusive at {http://test-types}test6");
 
-$error = reader_error($schema, test6 => <<__XML);
+$error = error_r($schema, test6 => <<__XML);
 <test6><t6_a>30</t6_a><t6_a>31</t6_a><t6_c>32</t6_c><t6_a>33</t6_a></test6>
 __XML
 is($error, "element `t6_a' not processed at {http://test-types}test6");
@@ -255,7 +258,7 @@ my %t6_b =
                ]
  );
 
-$error = writer_error($schema, test6 => \%t6_b);
+$error = error_w($schema, test6 => \%t6_b);
 is($error, "found 4 blocks for `cho_t6_a', must be between 1 and 3 inclusive at {http://test-types}test6");
 
 # test 7

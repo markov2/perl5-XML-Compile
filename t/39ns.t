@@ -133,7 +133,9 @@ __XML
 
 # now with name-spaces off
 
-set_compile_defaults ignore_namespaces => 1;
+set_compile_defaults
+    ignore_namespaces  => 1
+  , elements_qualified => 'NONE';
 
 test_rw($schema, "{$NS2}test3" => <<__XML, {c1_a => 18});
 <test3>

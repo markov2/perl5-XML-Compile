@@ -13,6 +13,9 @@ use XML::Compile::Tester;
 
 use Test::More tests => 8;
 
+set_compile_defaults
+    elements_qualified => 'NONE';
+
 my $oldns  = 'http://www.w3.org/2000/10/XMLSchema';
 
 my $schema = XML::Compile::Schema->new( <<__SCHEMA );

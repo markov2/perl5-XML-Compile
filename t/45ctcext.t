@@ -12,6 +12,9 @@ use XML::Compile::Tester;
 
 use Test::More tests => 43;
 
+set_compile_defaults
+    elements_qualified => 'NONE';
+
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
         xmlns="$SchemaNS"

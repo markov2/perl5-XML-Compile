@@ -12,8 +12,11 @@ use XML::Compile::Tester;
 use XML::Compile::Util qw/pack_type/;
 use Data::Dumper;
 
-use Test::More tests => 57;
+use Test::More tests => 65;
 use Test::Deep   qw/cmp_deeply/;
+
+set_compile_defaults
+    elements_qualified => 'NONE';
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -43,12 +46,12 @@ ok(defined $doc, 'created document');
 #
 
 my @out;
-my $t1 = pack_type $TestNS, 'test1';
+my $t1 = "{$TestNS}test1";
 $schema->addHook(type => $t1, after => sub {@out = @_; $_[1]});
 
 # reader
 
-my $r1 = $schema->compile(READER => $t1);
+my $r1 = create_reader $schema, 'after hook' => $t1;
 isa_ok($r1, 'CODE', 'after read');
 my $h1 = $r1->('<test1>one</test1>');
 is($h1, 'one', 'reader works');
@@ -60,7 +63,7 @@ is($out[1], 'one', 'parsed data');
 # writer
 
 @out = ();
-my $w1 = $schema->compile(WRITER => $t1);
+my $w1 = create_writer $schema, 'after hook' => $t1;
 isa_ok($w1, 'CODE', 'after read');
 my $w1h = $w1->($doc, 'two');
 isa_ok($w1h, 'XML::LibXML::Element', 'writer works');
@@ -82,10 +85,9 @@ is($out[3], 'two', 'data');
 my $type2 = pack_type $TestNS, 'test2';
 
 @out = ();
-my $r2 = $schema->compile
-  ( READER  => $type2
-  , typemap => {$type2 => sub {@out = @_; $_[1]}}
-  );
+my $r2 = create_reader $schema, "typemap code" => $type2
+  , typemap => {$type2 => sub {@out = @_; $_[1]}};
+
 ok(defined $r2, 'typemap reader from code');
 my $h2 = $r2->('<test2><e2>bbb</e2></test2>');
 cmp_ok(scalar(@out), '==', 3, 'reader with CODE');
@@ -119,10 +121,8 @@ sub
    bless $data, 'My::Class';
 };
 
-my $r3 = $schema->compile
-  ( READER  => $type2
-  , typemap => {$type2 => 'My::Class'}
-  );
+my $r3 = create_reader $schema, "typemap class" => $type2
+  , typemap => {$type2 => 'My::Class'};
 
 ok(defined $r3, 'typemap reader from class');
 my $h3 = $r3->('<test2><e2>aaa</e2></test2>');
@@ -142,10 +142,9 @@ sub
    {e3 => 'donkey'};
 };
 
-my $r4 = $schema->compile
-  ( READER  => $type2
-  , typemap => {$type2 => $interface}
-  );
+my $r4 = create_reader $schema, "typemap object" => $type2
+  , typemap => {$type2 => $interface};
+
 ok(defined $r4, 'typemap reader from object');
 my $h4 = $r4->('<test2><e2>ccc</e2></test2>');
 cmp_deeply($h4, {e3 => 'donkey'});
@@ -156,10 +155,9 @@ cmp_deeply($h4, {e3 => 'donkey'});
 
 @out = ();
 my $someobj = bless {e2 => 'bbb'}, 'My::Class';
-my $w2 = $schema->compile
-  ( WRITER  => $type2
-  , typemap => {$type2 => sub {@out = @_; $_[1]}}
-  );
+my $w2 = create_writer $schema, "toXML CODE" => $type2
+  , typemap => {$type2 => sub {@out = @_; $_[1]}};
+
 ok(defined $w2, 'typemap writer from code');
 my $x2 = $w2->($doc, $someobj);
 
@@ -192,10 +190,8 @@ sub
    $self;
 };
 
-my $w3 = $schema->compile
-  ( WRITER  => $type2
-  , typemap => {$type2 => 'My::Class'}
-  );
+my $w3 = create_writer $schema, "toXML Class" => $type2
+  , typemap => {$type2 => 'My::Class'};
 
 ok(defined $w3, 'typemap writer from class');
 my $x3 = $w3->($doc, $someobj);
@@ -225,10 +221,9 @@ sub
    $obj;
 };
 
-my $w4 = $schema->compile
-  ( WRITER  => $type2
-  , typemap => {$type2 => $interface}
-  );
+my $w4 = create_writer $schema, "toXML object" => $type2
+  , typemap => {$type2 => $interface};
+
 ok(defined $w4, 'typemap writer from object');
 my $x4 = $w4->($doc, $someobj);
 compare_xml($x4, '<test2><e2>bbb</e2></test2>');

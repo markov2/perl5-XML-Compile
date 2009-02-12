@@ -77,10 +77,11 @@ t/61hooks_w.t
 t/62recurse.t
 t/63mixed.t
 t/70templ.t
-t/71nons.t
 t/72typemap.t
 t/73rewrite.t
 t/74qname.t
 t/81-2000.t
+t/90nons.t
+t/91noqual.t
+t/99pod.t
 t/TestTools.pm
-t/pod.t

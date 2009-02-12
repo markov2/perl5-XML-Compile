@@ -224,7 +224,7 @@ sub init($)
     {   $self->addHook($_) for ref $h2 eq 'ARRAY' ? @$h2 : $h2;
     }
  
-    $self->{key_rewrite} = [];
+    $self->{key_rewrite}          = [];
     if(my $kr = $args->{key_rewrite})
     {   $self->addKeyRewrite(ref $kr eq 'ARRAY' ? @$kr : $kr);
     }
@@ -302,8 +302,8 @@ Explicitly state from which file the data is coming.
 =option  element_form_default 'qualified'|'unqualified'
 =default element_form_default <undef>
 Overrule the default as found in the schema.  Many old schemas (like
-WSDL11 and SOAP11) do not specify the default in the schema but only
-in the text.
+WSDL11 and SOAP11) do not specify the correct default element form in
+the schema but only in the text.
 
 =option  attribute_form_default 'qualified'|'unqualified'
 =default attribute_form_default <undef>
@@ -319,7 +319,12 @@ sub addSchemas($@)
     {   push @nsopts, $o => delete $opts{$o} if exists $opts{$o};
     }
 
-    ref $node && $node->isa('XML::LibXML::Node')
+
+    UNIVERSAL::isa($node, __PACKAGE__)
+        and error __x"use useSchema(), not addSchemas() for a {got} object"
+             , got => ref $node;
+
+    UNIVERSAL::isa($node, 'XML::LibXML::Node')
         or error __x"required is a XML::LibXML::Node";
 
     $node = $node->documentElement
@@ -345,18 +350,64 @@ sub addSchemas($@)
     @schemas;
 }
 
-=method addKeyRewrite CODE|HASH, CODE|HASH, ...
+=method useSchema SCHEMA, [SCHEMA]
+Pass a M<XML::Compile::Schema> object, or extensions like
+M<XML::Compile::Cache>, to be used as definitions as well.  First,
+elements are looked-up in the current schema definition object.  If not
+found the other provided SCHEMA objects are checked in the order as
+they were added.
+
+Searches for definitions do not recurse into schemas which are used
+by the used schema.
+
+=example use other Schema
+  my $wsdl = XML::Compile::WSDL->new($wsdl);
+  my $geo  = Geo::GML->new(version => '3.2.1');
+  # both $wsdl and $geo extend XML::Compile::Schema
+
+  $wsdl->useSchema($geo);
+=cut
+
+sub useSchema(@)
+{   my $self = shift;
+    foreach my $schema (@_)
+    {   error __x"useSchema() accepts only {pkg} extensions, not {got}"
+          , pkg => __PACKAGE__, got => (ref $schema || $schema);
+        $self->namespaces->use($schema);
+    }
+    $self;
+}
+
+=method addKeyRewrite PREDEF|CODE|HASH, ...
 Add new rewrite rules to the existing list (initially provided with
 M<new(key_rewrite)>).  The whole list of rewrite rules is returned.
 
-The last added set of rewrite rules will be applied first.  See
-L</Key rewrite>.
+C<PREFIXED> rules will be applied first.  Special care is taken that the
+prefix will not be called twice.  The last added set of rewrite rules
+will be applied first.  See L</Key rewrite>.
+
 =cut
 
 sub addKeyRewrite(@)
 {   my $self = shift;
     unshift @{$self->{key_rewrite}}, @_;
-    @{$self->{key_rewrite}};
+    defined wantarray ? $self->_key_rewrite(undef) : ();
+}
+
+sub _key_rewrite($)
+{   my $self = shift;
+    my @more = map { ref $_ eq 'ARRAY' ? @$_ : defined $_ ? $_ : () } @_;
+
+    my ($pref_all, %pref, @other);
+    foreach my $rule (@more, @{$self->{key_rewrite}})
+    {   if($rule eq 'PREFIXED') { $pref_all++ }
+        elsif($rule =~ m/^PREFIXED\((.*)\)/) { $pref{$_}++ for split /\,/, $1 }
+        else { push @other, $rule }
+    }
+
+    ( ( $pref_all  ? 'PREFIXED'
+      : keys %pref ? 'PREFIXED('.join(',', sort keys %pref).')'
+      : ()), @other );
 }
 
 #--------------------------------------
@@ -426,7 +477,7 @@ error in the XML-Scheme tree.
 
 =option  elements_qualified C<TOP>|C<ALL>|C<NONE>|BOOLEAN
 =default elements_qualified <undef>
-When defined, this will overrule the C<elementFormDefault> flags in
+When defined, this will overrule the namespace use on elements in
 all schemas.  When C<TOP> is specified, at least the top-element will
 be name-space qualified.  When C<ALL> or a true value is given, then all
 elements will be used qualified.  When C<NONE> or a false value is given,
@@ -435,6 +486,9 @@ the XML will not produce or process prefixes on the elements.
 The C<form> attributes will be respected, except on the top element when
 C<TOP> is specified.  Use hooks when you need to fix name-space use in
 more subtile ways.
+
+With M<importDefinitions(element_form_default)>, you can correct whole
+schema's about their name-space behavior.
 
 =option  attributes_qualified BOOLEAN
 =default attributes_qualified <undef>
@@ -632,9 +686,7 @@ sub compile($$@)
     my %map = ( %{$self->{typemap}}, %{$args{typemap} || {}} );
     trace "schema compile $action for $type";
 
-    my @rewrite = @{$self->{key_rewrite}};
-    my $kw = delete $args{key_rewrite} || [];
-    unshift @rewrite, ref $kw eq 'ARRAY' ? @$kw : $kw;
+    my @rewrite = $self->_key_rewrite(delete $args{key_rewrite});
 
     $args{mixed_elements} ||= 'ATTRIBUTES';
     $args{default_values} ||= $action eq 'READER' ? 'EXTEND' : 'IGNORE';
@@ -1657,7 +1709,7 @@ which often is not named in the schema.
 
 =section Key rewrite
 
-[release 0.87]
+[release 0.87, improved 1.01]
 The standard practice is to use the localName of the XML elements
 as key in the Perl HASH; the key rewrite mechanism is used to
 change that, sometimes to seperate elements which have the same
@@ -1669,15 +1721,19 @@ B<do not slow-down> the XML construction or deconstruction.  The rules
 work the same for readers and writers, because they are applied to
 name found in the schema.
 
-Key rewrite rules can be set during schema object initiation,
-with M<new(key_rewrite)>, or to an existing schema object with
-M<addKeyRewrite()>.  The last defined rewrite rules will be applied
-first.  These rules will be used in all calls to M<compile()>.
+Key rewrite rules can be set during schema object initiation
+with M<new(key_rewrite)> and to an existing schema object with
+M<addKeyRewrite()>.  These rules will be used in all calls to
+M<compile()>.
 
-Besides, you can use M<compile(key_rewrite)> to add rules which
+Next, you can use M<compile(key_rewrite)> to add rules which
 are only used for a single compilation.  These are applied before
 the global rules.  All rules will always be attempted, and the
-changes will me made to the key after the previous change.
+rulle will me applied to the result of the previous change.
+
+The last defined rewrite rules will be applied first, with one major
+exception: the C<PREFIXED> rules will be executed before any other
+rule.
 
 =subsection rewrite via table
 
@@ -1796,6 +1852,14 @@ The prefixes are not checked against the prefix list, and may have
 surrounding blanks.
 
   key_rewrite => 'PREFIXED(opt,sar)'
+
+Above is equivalent to:
+
+  key_rewrite => [ 'PREFIXED(opt)', 'PREFIXED(sar)' ]
+
+Special care is taken that the prefix will not be added twice.  For instance,
+if the same prefix appears twice, or a C<PREFIXED> rule is provided as well,
+then still only one prefix is added.
 
 =back
 

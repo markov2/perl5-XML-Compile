@@ -13,19 +13,21 @@ use Math::BigFloat;
 use Test::More tests => 106;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
-<schema targetNamespace="$TestNS"
-        xmlns="$SchemaNS"
-        xmlns:me="$TestNS">
+<schema xmlns="$SchemaNS"
+   targetNamespace="$TestNS">
 
 <element name="test1" type="int" />
 <element name="test2" type="boolean" />
 <element name="test3" type="float" />
 <element name="test4" type="NMTOKENS" />
 <element name="test5" type="positiveInteger" />
+
 </schema>
 __SCHEMA__
 
 ok(defined $schema);
+set_compile_defaults
+    elements_qualified => 'NONE';
 
 ###
 ### int
@@ -56,13 +58,13 @@ test_rw($schema, test3 => '<test3>INF</test3>',  Math::BigFloat->binf);
 test_rw($schema, test3 => '<test3>-INF</test3>', Math::BigFloat->binf('-')); 
 test_rw($schema, test3 => '<test3>NaN</test3>',  Math::BigFloat->bnan); 
 
-my $error = reader_error($schema, test3 => '<test3></test3>');
+my $error = error_r($schema, test3 => '<test3></test3>');
 is($error, "illegal value `' for type {http://www.w3.org/2001/XMLSchema}float");
 
-$error = writer_error($schema, test3 => 'aap');
+$error = error_w($schema, test3 => 'aap');
 is($error, "illegal value `aap' for type {http://www.w3.org/2001/XMLSchema}float");
 
-$error = writer_error($schema, test3 => '');
+$error = error_w($schema, test3 => '');
 is($error, "illegal value `' for type {http://www.w3.org/2001/XMLSchema}float");
 
 ###

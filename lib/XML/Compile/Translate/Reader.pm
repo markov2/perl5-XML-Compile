@@ -104,7 +104,11 @@ sub makeElementWrapper
                   sub { $_[0]->isa('XML::LibXML::Element') } );
           }
 
-          ($processor->($tree))[-1];
+          my $data = ($processor->($tree))[-1];
+          defined $data
+              or error __x"data not recognized, found a `{type}'"
+                  , type => type_of_node $tree->node;
+          $data;
         };
 }
 
@@ -627,8 +631,8 @@ sub makeComplexElement
     sub { my $tree = shift or return ();
           defined $tree->currentChild
               and error __x"element `{name}' not processed at {path}"
-                      , name => $tree->currentType, path => $path
-                      , _class => 'misfit';
+                    , name => $tree->currentType, path => $path
+                    , _class => 'misfit';
           ($tag => {});
         };
 

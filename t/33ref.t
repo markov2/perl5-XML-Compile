@@ -13,6 +13,9 @@ use Test::More tests => 22;
 
 my $TestNS2 = "http://second-ns";
 
+set_compile_defaults
+    elements_qualified => 'NONE';
+
 my $schema  = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schemas>
 

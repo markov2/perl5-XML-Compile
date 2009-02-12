@@ -12,6 +12,9 @@ use XML::Compile::Tester;
 
 use Test::More tests => 62;
 
+set_compile_defaults
+    elements_qualified => 'NONE';
+
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA );
 <schema targetNamespace="$TestNS"
         xmlns="$SchemaNS"
@@ -56,15 +59,15 @@ __SCHEMA
 
 ok(defined $schema);
 
-test_rw($schema, "test1" => <<__XML, [1]);
+test_rw($schema, test1 => <<__XML, [1]);
 <test1>1</test1>
 __XML
 
-test_rw($schema, "test1" => <<__XML, [2, 3]);
+test_rw($schema, test1 => <<__XML, [2, 3]);
 <test1>2 3</test1>
 __XML
 
-test_rw($schema, "test1" => <<__XML, [4, 5, 6]);
+test_rw($schema, test1 => <<__XML, [4, 5, 6]);
 <test1> 4
   5\t  6 </test1>
 __XML
@@ -97,7 +100,7 @@ __XML
 
 # element has attributes as well
 
-my $w1 = writer_create($schema, "HASH param" => 'test1');
+my $w1 = writer_create($schema, "HASH param" => "{$TestNS}test1");
 my $x1 = writer_test($w1, {_ => [7,8]});
 
 compare_xml($x1->toString, <<'_XML');

@@ -18,10 +18,7 @@ use XML::Compile::Tester;
 use Test::More tests => 11;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA );
-<schema targetNamespace="$TestNS"
-        xmlns="$SchemaNS"
-        xmlns:me="$TestNS">
-
+<schema xmlns="$SchemaNS">
 <element name="test1">
   <complexType>
     <sequence>

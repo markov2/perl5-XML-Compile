@@ -11,6 +11,9 @@ use XML::Compile::Tester;
 
 use Test::More tests => 167;
 
+set_compile_defaults
+    elements_qualified => 'NONE';
+
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
         xmlns="$SchemaNS"
@@ -229,17 +232,21 @@ test_rw($schema, test6 => <<__XML, {t6_a => 48, t6_b => 49});
 <test6><t6_a>48</t6_a><t6_b>49</t6_b></test6>
 __XML
 
-{   set_compile_defaults check_occurs => 1;
-    my $error = reader_error($schema, test6 => <<__XML);
+{   set_compile_defaults
+        check_occurs => 1
+      , elements_qualified => 'NONE';
+
+    my $error = error_r($schema, test6 => <<__XML);
 <test6><t6_b>50</t6_b></test6>
 __XML
 
     is($error, "data for element or block starting with `t6_a' missing at {http://test-types}test6");
-    set_compile_defaults ();
 }
 
 # The next is not correct, but when we do not check occurrences it is...
-{  set_compile_defaults check_occurs => 0;
+{  set_compile_defaults
+        check_occurs => 0
+      , elements_qualified => 'NONE';
 
    test_rw($schema, test7 => <<__XML, {t7_b => [16], t7_c => [17]});
 <test7>
@@ -247,11 +254,12 @@ __XML
   <t7_c>17</t7_c>
 </test7>
 __XML
-
-   set_compile_defaults ();
 }
 
-{   my $error = reader_error($schema, test7 => <<__XML);
+set_compile_defaults
+    elements_qualified => 'NONE';
+
+{   my $error = error_r($schema, test7 => <<__XML);
 <test7>
   <t7_b>16</t7_b>
   <t7_c>17</t7_c>
@@ -433,12 +441,12 @@ __XML
 
 ### test 14
 
-eval { reader_error($schema, test14 => '') };
+eval { error_r($schema, test14 => '') };
 is($@, "error: complexType contains particles, simpleContent or complexContent, not `element' at {http://test-types}test14\n");
 
 ### test 15
 
-eval { reader_error($schema, test15 => '') };
+eval { error_r($schema, test15 => '') };
 is($@, "error: complexContent needs extension or restriction, not `element' at {http://test-types}test15\n");
 
 ### test 16

@@ -13,6 +13,9 @@ use XML::Compile::Tester;
 
 use Test::More tests => 44;
 
+set_compile_defaults
+    elements_qualified => 'NONE';
+
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
         xmlns="$SchemaNS"
@@ -57,7 +60,7 @@ test_rw($schema, test1 => $xml1, \%f1);
 
 my (@out, @out2);
 my $r2 = reader_create
- ( $schema, "combined hook" => 'test1'
+ ( $schema, "combined hook" => "{$TestNS}test1"
  , hook => { type   => 'string'
            , id     => 'my_id'
            , path   => qr/byPath/
@@ -80,7 +83,7 @@ open BUF, '>', \$output;
 my $oldout = select BUF;
 
 my $r3 = reader_create
- ( $schema, "after PATH and NODE" => 'test1'
+ ( $schema, "after PATH and NODE" => "{$TestNS}test1"
  , hook => { id    => 'my_id'
            , after => [ qw/PRINT_PATH XML_NODE/ ]
            }
@@ -106,7 +109,7 @@ compare_xml($node, '<byId>2</byId>');
 # test skip
 
 my $r4 = reader_create
- ( $schema, "replace SKIP" => 'test1'
+ ( $schema, "replace SKIP" => "{$TestNS}test1"
  , hook => { id      => 'my_id'
            , replace => 'SKIP'
            }
@@ -126,7 +129,7 @@ my $xml2 = <<__XML;
 __XML
 
 my $r5 = reader_create
- ( $schema, "read ORDER" => 'test2'
+ ( $schema, "read ORDER" => "{$TestNS}test2"
  , hook => { id    => 'top2'
            , after => [ qw/ELEMENT_ORDER ATTRIBUTE_ORDER/ ]
            }
@@ -147,7 +150,7 @@ cmp_deeply($order, [ qw/attr1 attr2/ ]);
 # test element order
 
 my $r6 = reader_create
- ( $schema, "element order" => 'test1'
+ ( $schema, "element order" => "{$TestNS}test1"
  , hook => { id    => 'top'
            , after => [ qw/ELEMENT_ORDER ATTRIBUTE_ORDER/ ]
            }

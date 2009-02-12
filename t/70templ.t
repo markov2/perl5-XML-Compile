@@ -11,6 +11,9 @@ use XML::Compile::Tester;
 
 use Test::More tests => 5;
 
+set_compile_defaults
+    elements_qualified => 'NONE';
+
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
         xmlns="$SchemaNS"
@@ -71,7 +74,7 @@ __SCHEMA__
 
 ok(defined $schema);
 
-my $out = templ_perl($schema, 'test1', show => 'ALL');
+my $out = templ_perl($schema, "{$TestNS}test1", show => 'ALL');
 is($out, <<__TEST1__);
 { # sequence of t1_a, t1_b, t1_c, t1_d, cho_t1_g
 
@@ -141,7 +144,7 @@ is($out, <<__TEST1__);
   ], }
 __TEST1__
 
-$out = templ_perl($schema, 'test1', show => 'NONE', indent => '    ');
+$out = templ_perl($schema, "{$TestNS}test1", show => 'NONE', indent => '    ');
 is($out, <<__TEST1b__);
 {   t1_a => 42,
     t1_b => 42,
@@ -165,7 +168,7 @@ is($out, <<__TEST1b__);
     ], }
 __TEST1b__
 
-$out = templ_xml($schema, 'test1', show => 'ALL');
+$out = templ_xml($schema, "{$TestNS}test1", show => 'ALL');
 is($out, <<__TEST1c__);
 <test1>
   <!-- sequence of t1_a, t1_b, t1_c, t1_d, cho_t1_g -->
@@ -215,7 +218,7 @@ is($out, <<__TEST1c__);
 </test1>
 __TEST1c__
 
-$out = templ_xml($schema, 'test1', show => 'NONE');
+$out = templ_xml($schema, "{$TestNS}test1", show => 'NONE');
 is($out, <<__TEST1d__);
 <test1>
   <t1_a>42</t1_a>

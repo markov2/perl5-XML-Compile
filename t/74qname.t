@@ -13,6 +13,9 @@ use XML::Compile::Tester;
 
 use Test::More tests => 29;
 
+set_compile_defaults
+    elements_qualified => 'NONE';
+
 my $NS2 = "http://test2/ns";
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );

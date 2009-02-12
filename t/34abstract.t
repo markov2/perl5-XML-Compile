@@ -12,6 +12,9 @@ use XML::Compile::Tester;
 
 use Test::More tests => 11;
 
+set_compile_defaults
+    elements_qualified => 'NONE';
+
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
         xmlns="$SchemaNS"
@@ -32,10 +35,10 @@ __SCHEMA__
 
 ok(defined $schema);
 
-my $error = writer_error($schema, test2 => {test1 => 42});
+my $error = error_w($schema, test2 => {test1 => 42});
 is($error, "attempt to instantiate abstract element `test1' at {http://test-types}test2/test1");
 
-$error = reader_error($schema, test2 => <<__XML);
+$error = error_r($schema, test2 => <<__XML);
 <test2><test1>43</test1></test2>
 __XML
 is($error, "abstract element `test1' used at {http://test-types}test2/test1");

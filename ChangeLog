@@ -10,8 +10,34 @@ To be resolved (hopefully soon):
    length facet on base64/hex encoding about binary length (tests needed)
    handle XML::LibXML::Error objects
    handle xsi:type
+   useSchema() relation to ::Cache::declare()?
 
-version 1.00:
+version 1.01: Thu Feb 12 09:39:50 CET 2009
+
+	Fixes:
+
+	- do not use /bin/pwd in t/pod.t
+
+	- writer: report warnings when accepting a difficult construction.
+
+	- key_rewrite(PREFIXED) options now do stack, without the
+	  possibility to get it rewritten twice.
+
+	- reader: complain if no data was recognized. [Jozef Kutej]
+
+	- handle schema's with targetNamespace but not qualified
+	  elements.  http://www.w3.org/TR/xmlschema-0/#UnqualLocals
+	  [Jozef Kutej]
+
+	Improvements:
+
+	- ::Schema::useSchema() let you share definitions between
+	  various ::Schema extensions.
+
+	- document that XML::Compile::dataToXML() can be used as
+	  instance method as well.
+
+version 1.00: Wed Jan 21 10:51:23 CET 2009
 
 	Changes:
 

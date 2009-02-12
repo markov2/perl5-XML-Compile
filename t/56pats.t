@@ -12,6 +12,9 @@ use XML::Compile::Tester;
 
 use Test::More tests => 17;
 
+set_compile_defaults
+    elements_qualified => 'NONE';
+
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
         xmlns="$SchemaNS"
@@ -35,10 +38,10 @@ test_rw($schema, "test1" => <<__XML, "abc");
 <test1>abc</test1>
 __XML
 
-$error = reader_error($schema, test1 => <<__XML);
+$error = error_r($schema, test1 => <<__XML);
 <test1>abbc</test1>
 __XML
 is($error, "string `abbc' does not match pattern (?-xism:^(?:a.c)\$) at {http://test-types}test1#facet");
 
-$error = writer_error($schema, test1 => 'abbc');
+$error = error_w($schema, test1 => 'abbc');
 is($error, "string `abbc' does not match pattern (?-xism:^(?:a.c)\$) at {http://test-types}test1#facet");

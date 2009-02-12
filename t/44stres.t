@@ -12,6 +12,9 @@ use XML::Compile::Tester;
 
 use Test::More tests => 70;
 
+set_compile_defaults
+    elements_qualified => 'NONE';
+
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
         xmlns="$SchemaNS"
@@ -68,21 +71,21 @@ test_rw($schema, "test1" => <<__XML, 5);
 <test1>5</test1>
 __XML
 
-my $error = reader_error($schema, test2 => <<__XML);
+my $error = error_r($schema, test2 => <<__XML);
 <test2>6</test2>
 __XML
 is($error, 'too small inclusive 6, min 10 at {http://test-types}test2#facet');
 
-$error = writer_error($schema, test2 => 6);
+$error = error_w($schema, test2 => 6);
 is($error, "too small inclusive 6, min 10 at {http://test-types}test2#facet");
 
 # inherited restriction
-$error = reader_error($schema, test3 => <<__XML);
+$error = error_r($schema, test3 => <<__XML);
 <test3>6</test3>
 __XML
 is($error, 'too small inclusive 6, min 10 at {http://test-types}test3#facet');
 
-$error = writer_error($schema, test3 => 6);
+$error = error_w($schema, test3 => 6);
 is($error, "too small inclusive 6, min 10 at {http://test-types}test3#facet");
 
 #
@@ -97,10 +100,10 @@ test_rw($schema, "test2" => <<__XML, 56);
 <test2>56</test2>
 __XML
 
-$error = reader_error($schema, test3 => <<__XML);
+$error = error_r($schema, test3 => <<__XML);
 <test3>57</test3>
 __XML
 is($error, 'too large inclusive 57, max 20 at {http://test-types}test3#facet');
 
-$error = writer_error($schema, test3 => 57);
+$error = error_w($schema, test3 => 57);
 is($error, "too large inclusive 57, max 20 at {http://test-types}test3#facet");

@@ -67,7 +67,9 @@ __SCHEMA__
 
 ok(defined $schema);
 
-set_compile_defaults sloppy_integers => 0;
+set_compile_defaults
+    elements_qualified => 'NONE'
+  , sloppy_integers    => 0;
 
 ##
 ### Integers
@@ -91,13 +93,13 @@ __XML
 
 # limit to huge maxInclusive
 
-my $error = reader_error($schema, test2 => <<__XML);
+my $error = error_r($schema, test2 => <<__XML);
 <test2>$some_big2</test2>
 __XML
 
 is($error, 'too large inclusive 243587092790745290879, max 12432156239876121237 at {http://test-types}test2#facet');
 
-$error = writer_error($schema, test2 => Math::BigInt->new($some_big2));
+$error = error_w($schema, test2 => Math::BigInt->new($some_big2));
 is($error, 'too large inclusive 243587092790745290879, max 12432156239876121237 at {http://test-types}test2#facet');
 
 #

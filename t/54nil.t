@@ -10,6 +10,8 @@ use XML::Compile::Schema;
 use XML::Compile::Tester;
 
 use Test::More tests => 84;
+
+
 use XML::Compile::Util  qw/SCHEMA2001i/;
 my $xsi    = SCHEMA2001i;
 
@@ -76,7 +78,8 @@ __SCHEMA__
 ok(defined $schema);
 
 set_compile_defaults
-   include_namespaces => 1;
+    include_namespaces => 1
+  , elements_qualified => 'NONE';
 
 #
 # simple element type
@@ -97,19 +100,19 @@ _XML
 <test1 xmlns:xsi="$xsi"><e1>42</e1><e2 xsi:nil="true"/><e3>44</e3></test1>
 _XMLWriter
 
-{   my $error = reader_error($schema, test1 => <<_XML);
+{   my $error = error_r($schema, test1 => <<_XML);
 <test1 xmlns:xsi="$xsi"><e1></e1><e2 xsi:nil="true"/><e3>45</e3></test1>
 _XML
    is($error,"illegal value `' for type {http://www.w3.org/2001/XMLSchema}int");
 }
 
 {   my %t1b = (e1 => undef, e2 => undef, e3 => 45);
-    my $error = writer_error($schema, test1 => \%t1b);
+    my $error = error_w($schema, test1 => \%t1b);
 
     is($error, "required value for element `e1' missing at {http://test-types}test1");
 }
 
-{   my $error = reader_error($schema, test1 => <<_XML);
+{   my $error = error_r($schema, test1 => <<_XML);
 <test1><e1>87</e1><e3>88</e3></test1>
 _XML
     is($error, "data for element or block starting with `e2' missing at {http://test-types}test1");
@@ -120,7 +123,8 @@ _XML
 #
 
 set_compile_defaults
-    interpret_nillable_as_optional => 1;
+    interpret_nillable_as_optional => 1
+  , elements_qualified             => 'NONE';
 
 my %t1d = (e1 => 89, e2 => undef, e3 => 90);
 my %t1e = (e1 => 91, e2 => 'NIL', e3 => 92);
@@ -134,8 +138,9 @@ _XML
 # rt.cpan.org #39215
 #
 
-set_compile_defaults
-   include_namespaces => 1;  # reset
+set_compile_defaults   # reset
+    include_namespaces => 1
+  , elements_qualified => 'NONE';
 
 test_rw($schema, test2 => <<_XML, {roleId => 'NIL'});
 <test2 xmlns:xsi="$xsi">
