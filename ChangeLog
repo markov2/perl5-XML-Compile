@@ -12,6 +12,12 @@ To be resolved (hopefully soon):
    handle xsi:type
    useSchema() relation to ::Cache::declare()?
 
+version 1.02: Thu Feb 12 11:37:49 CET 2009
+
+	Fixes:
+
+	- fix useSchema() deep recursion
+
 version 1.01: Thu Feb 12 09:39:50 CET 2009
 
 	Fixes:

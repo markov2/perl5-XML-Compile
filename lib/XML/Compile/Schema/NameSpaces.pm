@@ -89,7 +89,7 @@ This method implements M<XML::Compile::Schema::useSchema()>.
 =cut
 
 sub use($)
-{   my ($self, $schema) = @_;
+{   my $self = shift;
     push @{$self->{use}}, @_;
     @{$self->{use}};
 }
@@ -210,7 +210,7 @@ sub printIndex(@)
 
     my $show_used = exists $opts{include_used} ? $opts{include_used} : 1;
     foreach my $use ($self->use)
-    {   $use->namespaces->printIndex(%opts, include_used => 0);
+    {   $use->printIndex(%opts, include_used => 0);
     }
 
     $self;
