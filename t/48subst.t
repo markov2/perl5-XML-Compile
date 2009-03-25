@@ -173,14 +173,14 @@ test_rw($schema, test2 => <<__XML, \%t6);
 </test2>
 __XML
 
-is($schema->template(PERL => "{$TestNS}test2"), <<__TEMPL);
+is($schema->template(PERL => "{$TestNS}test2", skip_header => 1, abstract_types => 1), <<__TEMPL);
+# xmlns:          http://test-types
+
 { # sequence of head, id2
 
-  # substitutionGroup {http://test-types}head:
-  #    alt1
-  #    alt2
-  #    alt3
-  #    head
+  # substitutionGroup
+  # {http://test-types}head:
+  #   alt1  alt2  alt3  head
   # occurs 0 <= # <= 3 times
   head =>  [ "{ alt1 => {...} }", ],
 

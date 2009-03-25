@@ -66,7 +66,9 @@ compare_xml($w1b,  '<test1 id="6"/>');
 
 # test template
 
-is($schema->template(PERL => "{$TestNS}test1"), <<'__TEMPL');
+is($schema->template(PERL => "{$TestNS}test1", skip_header => 1), <<'__TEMPL');
+# xmlns:          http://test-types
+
 # test1 has a mixed content
 { # is a {http://www.w3.org/2001/XMLSchema}string
   id => "example",

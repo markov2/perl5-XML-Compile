@@ -279,7 +279,7 @@ sub makeElementHandler
         sub { my ($doc, $values) = @_;
               my @values = ref $values eq 'ARRAY' ? @$values
                          : defined $values ? $values : ();
-              @values ? map {$optional->($doc,$_)} @$values : (undef);
+              @values ? map {$optional->($doc,$_)} @values : (undef);
             };
     }
 
@@ -1023,6 +1023,7 @@ sub _decodeBefore($$)
 {   my ($self, $path, $call) = @_;
     return $call if ref $call eq 'CODE';
 
+    # $code->($doc, $values, $path)
       $call eq 'PRINT_PATH' ? sub { print "$_[2]\n"; $_[1] }
     : error __x"labeled before hook `{name}' undefined for WRITER", name=>$call;
 }
@@ -1032,6 +1033,7 @@ sub _decodeReplace($$)
     return $call if ref $call eq 'CODE';
 
     # SKIP already handled
+    # $replace->($doc, $val, $path, $tag)
     error __x"labeled replace hook `{name}' undefined for WRITER", name=>$call;
 }
 

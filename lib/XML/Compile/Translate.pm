@@ -314,18 +314,21 @@ sub topLevel($$)
 
     delete $self->{_nest};  # reset recursion administration
 
+    my $data;
     my $name = $node->localName;
-    my $make
-      = $name eq 'element'   ? $self->element($tree)
-      : $name eq 'attribute' ? $self->attributeOne($tree)
-      : error __x"top-level {full} is not an element or attribute but {name} at {where}"
-            , full => $fullname, name => $name, where => $tree->path
-            , _class => 'usage';
-
-    my $data
-      = $name eq 'element'
-      ? $self->makeElementWrapper($path, $make)
-      : $self->makeAttributeWrapper($path, $make);
+    if($name eq 'element')
+    {   my $make = $self->element($tree);
+        $data    = $self->makeElementWrapper($path, $make) if $make;
+    }
+    elsif($name eq 'attribute')
+    {   my $make = $self->attributeOne($tree);
+        $data    = $self->makeAttributeWrapper($path, $make) if $make;
+    }
+    else
+    {   error __x"top-level {full} is not an element or attribute but {name} at {where}"
+          , full => $fullname, name => $name, where => $tree->path
+          , _class => 'usage';
+    }
 
     $node->removeAttribute('form')
         if $remove_form_attribute;
@@ -606,6 +609,10 @@ sub element($)
     $self->assertType($tree->path, name => NCName => $name);
     my $fullname = pack_type $ns, $name;
 
+    my $abstract = $node->getAttribute('abstract') || 'false';
+    $abstract = 'false' if $self->{abstract_types} eq 'ACCEPT';
+    return if $self->isTrue($abstract) && $self->{abstract_types} eq 'IGNORE';
+    
     # Handle re-usable fragments, fight against combinatorial explosions
 
     my $nodeid   = $node->nodePath.'#'.$fullname;
@@ -686,7 +693,6 @@ sub element($)
     my $default  = $node->getAttributeNode('default');
     my $fixed    = $node->getAttributeNode('fixed');
     my $nillable = $node->getAttribute('nillable') || 'false';
-    my $abstract = $node->getAttribute('abstract') || 'false';
 
     $default && $fixed
         and error __x"element can not have default and fixed at {where}"
@@ -879,6 +885,7 @@ sub particleElementRef($)
     @sgs or return $self->particleElement($tree); # simple element
 
     my ($label, $do) = $self->particleElement($tree);
+
     if(Log::Report->needs('TRACE')) # dump table of substgroup alternatives
     {   my $labelrw = $self->keyRewrite($label);
         my @full    = sort map { $_->{full} } @sgs;
@@ -887,7 +894,8 @@ sub particleElementRef($)
         local $"    = "\n  ";
         trace "substitutionGroup $type$\"SG=$label ($labelrw)$\"@c";
     }
-    my @elems = ($label => [$self->keyRewrite($label), $do]);
+    my @elems;
+    push @elems, $label => [$self->keyRewrite($label), $do] if $do;
 
     foreach my $subst (@sgs)
     {    local @$self{ qw/elems_qual attrs_qual tns/ }
@@ -895,7 +903,7 @@ sub particleElementRef($)
 
          my $subst_elem = $tree->descend($subst->{node});
          my ($l, $d) = $self->particleElement($subst_elem);
-         push @elems, $l => [$self->keyRewrite($l), $d];
+         push @elems, $l => [$self->keyRewrite($l), $d] if defined $d;
     } 
 
     my $where = $tree->path . '#subst';
@@ -930,7 +938,7 @@ sub particleElement($)
     my $fullname = pack_type $self->{tns}, $name;
     my $nodetype = $self->{elems_qual} ? $fullname : $name;
     my $do       = $self->element($tree->descend($node, $name));
-    ($nodetype => $do);
+    $do ? ($nodetype => $do) : ();
 }
 
 sub keyRewrite($)
@@ -1504,8 +1512,7 @@ sub findHooks($$$)
     {   my $match;
 
         $match++
-            if !$hook->{path} && !$hook->{id}
-            && !$hook->{type} && !$hook->{attribute};
+            if !$hook->{path} && !$hook->{id} && !$hook->{type};
 
         if(!$match && $hook->{path})
         {   my $p = $hook->{path};

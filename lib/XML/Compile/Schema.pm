@@ -635,6 +635,14 @@ show the default and fixed values in the result.  C<MINIMAL> does remove
 all fields which are the same as the default setting: simplifies.
 See L</Default Values>.
 
+=option  abstract_types 'ERROR'|'IGNORE'|'ACCEPT'
+=default abstract_types 'ERROR'
+How to handle the use abstract types.  Of course, they should not be
+used, but sometime they accidentally are.  When set to C<ERROR>, an error
+will be produced whenever an abstract type is encountered.  C<IGNORE>
+will ignore the existence of abstract types.  C<ACCEPT> will ignore the
+fact that the types are abstract, and treat them as non-abstract types.
+
 =cut
 
 sub compile($$@)
@@ -688,6 +696,7 @@ sub compile($$@)
 
     my @rewrite = $self->_key_rewrite(delete $args{key_rewrite});
 
+    $args{abstract_types} ||= 'ERROR';
     $args{mixed_elements} ||= 'ATTRIBUTES';
     $args{default_values} ||= $action eq 'READER' ? 'EXTEND' : 'IGNORE';
 
@@ -761,7 +770,7 @@ There are some extra OPTIONS defined for the final output process.
 The templates produced are B<not always correct>.  Please contribute
 improvements.
 
-=option  elements_qualified C<ALL>|C<TOP>|C<NONE>|BOOLEAN
+=option  elements_qualified 'ALL'|'TOP'|'NONE'|BOOLEAN
 =default elements_qualified <undef>
 
 =option  attributes_qualified BOOLEAN
@@ -782,6 +791,13 @@ The C<NONE> or empty string will exclude all comments.
 The leading indentation string per nesting.  Must start with at least one
 blank.
 
+=option  abstract_types 'ERROR'|'IGNORE'|'ACCEPT'
+=default abstract_types 'IGNORE'
+By default, do not show abstract types in the output.
+
+=option  skip_header BOOLEAN
+=default skip_header <false>
+Skip the comment header from the output.
 =cut
 
 sub template($@)
@@ -803,6 +819,7 @@ sub template($@)
     $args{include_namespaces} ||= 1;
     $args{mixed_elements}     ||= 'ATTRIBUTES';
     $args{default_values}     ||= 'EXTEND';
+    $args{abstract_types}     ||= 'IGNORE';
 
     # it could be used to add extra comment lines
     error __x"typemaps not implemented for XML template examples"
@@ -819,20 +836,23 @@ sub template($@)
 
     my $compiled = $transl->compile
      ( $type
-     , rewrite => \@rewrite
+     , rewrite     => \@rewrite
      , %args
      );
+    $compiled or return;
 
     my $ast = $compiled->();
 #use Data::Dumper; $Data::Dumper::Indent = 1; warn Dumper $ast;
 
     if($action eq 'XML')
     {   my $doc  = XML::LibXML::Document->new('1.1', 'UTF-8');
-        my $node = $transl->toXML($doc,$ast, @comment, indent => $indent);
+        my $node = $transl->toXML($doc,$ast, @comment
+          , indent => $indent, skip_header => $args{skip_header});
         return $node->toString(1);
     }
 
-    return $transl->toPerl($ast, @comment, indent => $indent)
+    return $transl->toPerl($ast, @comment
+       , indent => $indent, skip_header => $args{skip_header})
         if $action eq 'PERL';
 
     error __x"template output is either in XML or PERL layout, not '{action}'"

@@ -74,8 +74,10 @@ __SCHEMA__
 
 ok(defined $schema);
 
-my $out = templ_perl($schema, "{$TestNS}test1", show => 'ALL');
+my $out = templ_perl($schema, "{$TestNS}test1", show => 'ALL', skip_header => 1);
 is($out, <<__TEST1__);
+# xmlns:          http://test-types
+
 { # sequence of t1_a, t1_b, t1_c, t1_d, cho_t1_g
 
   # is a {http://www.w3.org/2001/XMLSchema}int
@@ -144,8 +146,10 @@ is($out, <<__TEST1__);
   ], }
 __TEST1__
 
-$out = templ_perl($schema, "{$TestNS}test1", show => 'NONE', indent => '    ');
+$out = templ_perl($schema, "{$TestNS}test1", show => 'NONE', indent => '    ', skip_header => 1);
 is($out, <<__TEST1b__);
+# xmlns:          http://test-types
+
 {   t1_a => 42,
     t1_b => 42,
     t1_c =>
@@ -168,9 +172,9 @@ is($out, <<__TEST1b__);
     ], }
 __TEST1b__
 
-$out = templ_xml($schema, "{$TestNS}test1", show => 'ALL');
+$out = templ_xml($schema, "{$TestNS}test1", show => 'ALL', skip_header => 1);
 is($out, <<__TEST1c__);
-<test1>
+<test1 xmlns="$TestNS">
   <!-- sequence of t1_a, t1_b, t1_c, t1_d, cho_t1_g -->
   <t1_a type="int">42</t1_a>
   <t1_b type="int">42</t1_b>
@@ -218,9 +222,9 @@ is($out, <<__TEST1c__);
 </test1>
 __TEST1c__
 
-$out = templ_xml($schema, "{$TestNS}test1", show => 'NONE');
+$out = templ_xml($schema, "{$TestNS}test1", show => 'NONE', skip_header => 1);
 is($out, <<__TEST1d__);
-<test1>
+<test1 xmlns="http://test-types">
   <t1_a>42</t1_a>
   <t1_b>42</t1_b>
   <t1_c>
