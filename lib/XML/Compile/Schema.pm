@@ -170,8 +170,11 @@ schema object (actually, the data is administered in an internal
 M<XML::Compile::Schema::NameSpaces> object)
 
 The initial information is extracted from the XMLDATA source.  The XMLDATA
-can be anything what is acceptable by M<importDefinitions()>, which is
-everything accepted by M<dataToXML()> or an ARRAY of those things.
+can be anything what is acceptable by M<importDefinitions()>, which
+is everything accepted by M<dataToXML()> or an ARRAY of those things.
+You may also add any OPTION accepted by M<addSchemas()> to guide the
+understanding of the schema.  When no XMLDATA is provided, you can add
+it later with M<importDefinitions()>
 
 You can specify the hooks before you define the schemas the hooks
 work on: all schema information and all hooks are only used when
@@ -192,7 +195,8 @@ serialization of objects.
 
 =option  key_rewrite HASH|CODE|ARRAY-of-HASH-and-CODE
 =default key_rewrite []
-Translate XML keys into different Perl keys.  See L</Key rewrite>.
+Translate XML element local-names into different Perl keys.
+See L</Key rewrite>.
 
 =option  ignore_unused_tags BOOLEAN|REGEXP
 =default ignore_unused_tags <false>
@@ -213,7 +217,7 @@ sub init($)
     $self->{namespaces} = XML::Compile::Schema::NameSpaces->new;
     $self->SUPER::init($args);
 
-    $self->importDefinitions($args->{top})
+    $self->importDefinitions($args->{top}, %$args)
         if $args->{top};
 
     $self->{hooks} = [];
@@ -307,6 +311,11 @@ the schema but only in the text.
 
 =option  attribute_form_default 'qualified'|'unqualified'
 =default attribute_form_default <undef>
+
+=option  target_namespace NAMESPACE
+=default target_namespace <undef>
+Overrule (or set) the target namespace in the schema.
+
 =cut
 
 sub addSchemas($@)
@@ -314,7 +323,7 @@ sub addSchemas($@)
     defined $node or return ();
 
     my @nsopts;
-    foreach my $o (qw/source filename
+    foreach my $o (qw/source filename target_namespace
         element_form_default attribute_form_default/)
     {   push @nsopts, $o => delete $opts{$o} if exists $opts{$o};
     }
@@ -487,7 +496,7 @@ The C<form> attributes will be respected, except on the top element when
 C<TOP> is specified.  Use hooks when you need to fix name-space use in
 more subtile ways.
 
-With M<importDefinitions(element_form_default)>, you can correct whole
+With C<element_form_default>, you can correct whole
 schema's about their name-space behavior.
 
 =option  attributes_qualified BOOLEAN
@@ -912,6 +921,10 @@ sub importDefinitions($@)
 {   my ($self, $thing, %options) = @_;
     my @data = ref $thing eq 'ARRAY' ? @$thing : $thing;
 
+    # this is a horrible hack, but by far the simpelest solution to
+    # avoid dataToXML process the same info twice.
+    local $self->{_use_cache} = 1;
+
     my @schemas;
     foreach my $data (@data)
     {   defined $data or next;
@@ -921,19 +934,19 @@ sub importDefinitions($@)
         if(defined $xml)
         {   my @added = $self->addSchemas($xml, %details, %options);
             if(my $checksum = $details{checksum})
-            {   $schemaByChecksum{$checksum} = \@added;
+            {   $self->{_cache_checksum}{$checksum} = \@added;
             }
             elsif(my $filestamp = $details{filestamp})
-            {   $schemaByFilestamp{$filestamp} = \@added;
+            {   $self->{_cache_file}{$filestamp} = \@added;
             }
             push @schemas, @added;
         }
         elsif(my $filestamp = $details{filestamp})
-        {   my $cached = $schemaByFilestamp{$filestamp};
+        {   my $cached = $self->{_cache_file}{$filestamp};
             $self->namespaces->add(@$cached);
         }
         elsif(my $checksum = $details{checksum})
-        {   my $cached = $schemaByChecksum{$checksum};
+        {   my $cached = $self->{_cache_checksum}{$checksum};
             $self->namespaces->add(@$cached);
         }
     }
@@ -942,31 +955,40 @@ sub importDefinitions($@)
 
 sub _parseScalar($)
 {   my ($thing, $data) = @_;
-    my $checksum = md5_hex $$data;
 
-    if($schemaByChecksum{$checksum})
-    {   trace "importDefinitions reusing string data with checksum $checksum";
+    ref $thing && $thing->{_use_cache}
+        or return $thing->SUPER::_parseScalar($data);
+
+    my $self = $thing;
+    my $checksum = md5_hex $$data;
+    if($self->{_cache_checksum}{$checksum})
+    {   trace "reusing string data with checksum $checksum";
         return (undef, checksum => $checksum);
     }
 
-    trace "importDefintions for scalar with checksum $checksum";
-    ( $thing->SUPER::_parseScalar($data)
+    trace "cache parsed scalar with checksum $checksum";
+    ( $self->SUPER::_parseScalar($data)
     , checksum => $checksum
     );
 }
 
 sub _parseFile($)
 {   my ($thing, $fn) = @_;
+
+    ref $thing && $thing->{_use_cache}
+        or return $thing->SUPER::_parseFile($fn);
+    my $self = $thing;
+
     my ($mtime, $size) = (stat $fn)[9,7];
     my $filestamp = basename($fn) . '-'. $mtime . '-' . $size;
 
-    if($schemaByFilestamp{$filestamp})
-    {   trace "importDefinitions reusing schemas from file $filestamp";
+    if($self->{_cache_file}{$filestamp})
+    {   trace "reusing schemas from file $filestamp";
         return (undef, filestamp => $filestamp);
     }
 
-    trace "importDefinitions for filestamp $filestamp";
-    ( $thing->SUPER::_parseFile($fn)
+    trace "cache parsed file $filestamp";
+    ( $self->SUPER::_parseFile($fn)
     , filestamp => $filestamp
     );
 }
@@ -1733,8 +1755,9 @@ which often is not named in the schema.
 The standard practice is to use the localName of the XML elements
 as key in the Perl HASH; the key rewrite mechanism is used to
 change that, sometimes to seperate elements which have the same
-localName within different name-spaces, in other cases just for
-fun or convenience.
+localName within different name-spaces, or when an element and
+an attribute share a name (key rewrite is only applied to elements,
+not to attributes) in other cases just for fun or convenience.
 
 Rewrite rules are interpreted at "compile-time", which means that they
 B<do not slow-down> the XML construction or deconstruction.  The rules
@@ -1755,7 +1778,7 @@ The last defined rewrite rules will be applied first, with one major
 exception: the C<PREFIXED> rules will be executed before any other
 rule.
 
-=subsection rewrite via table
+=subsection key_rewrite via table
 
 When a HASH is provided as rule, then the XML element name is looked-up.
 If found, the value is used as translated key.
@@ -1794,7 +1817,7 @@ for short:
   my $schema = XML::Compile::Schema->new( ..., 
       key_rewrite => sub { lc $_[1] } );
 
-=subsection rewrite when localName collides
+=subsection key_rewrite when localName collides
 
 Let's start with an appology: we cannot auto-detect when these rewrite
 rules are needed, because the colliding keys are within the same HASH,
@@ -1829,7 +1852,7 @@ then C<< my-elem-name >> in XML will get mapped onto C<< my_elem_name >>
 in Perl, both in the READER as the WRITER.  Be warned that the substitute
 command returns the success, not the modified value!
 
-=subsection pre-defined rewrite rules
+=subsection pre-defined key_rewrite rules
 
 =over 4
 =item UNDERSCORES

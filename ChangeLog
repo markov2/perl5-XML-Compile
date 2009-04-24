@@ -11,7 +11,29 @@ To be resolved:
    handle XML::LibXML::Error objects
    handle xsi:type
    useSchema() relation to ::Cache::declare()?
- - keyRewrite in template
+ - keyRewrite in PERL template leaves t:
+
+version 1.04: Fri Apr 24 16:08:43 CEST 2009
+
+	Fixes:
+
+	- the use of cached schema elements must be limited to single
+	  ::Schema objects (for instance per WSDL object).
+	  rt.cpan.org#44959 [Jozef Kutej]
+
+	- complex extension of anyType types.
+
+	Improvements:
+
+	- document that key_rewrite only applies to elements, not
+	  attributes.
+
+	- add 'target_namespace' overrule option to importDefinitions()
+	  and ::Schema::addSchemas()
+
+	- have ::Schema::new() pass options to importDefinitions()
+
+	- added various entries about fixing-up schema's to the FAQ.
 
 version 1.03: Wed Mar 25 15:41:43 CET 2009
 

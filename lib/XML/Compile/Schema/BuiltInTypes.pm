@@ -68,12 +68,16 @@ Both any*Type built-ins can contain any kind of data.  Perl decides how
 to represent the passed values.
 =cut
 
+# format not useful, because xsi:type not supported
 $builtin_types{anySimpleType} =
-$builtin_types{anyType}       = {example => 'anything'};
+$builtin_types{anyType} =
+ { example => 'anything'
+ , parse   => sub {shift}
+ };
 
 =function error
 =cut
-$builtin_types{error}         = {example => '[some error structure]'};
+$builtin_types{error}   = {example => '[some error structure]'};
 
 =section Ungrouped types
 

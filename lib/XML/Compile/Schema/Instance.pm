@@ -52,6 +52,11 @@ in the text.
 
 =option  attribute_form_default 'qualified'|'unqualified'
 =default attribute_form_default <undef>
+
+=option  target_namespace NAMESPACE
+=default target_namespace <undef>
+Overrule or set the target namespace.
+
 =cut
 
 sub new($@)
@@ -189,7 +194,10 @@ sub _collectTypes($$)
 
         $self->{xsi} = $def->{uri_xsi};
     }
-    my $tns = $self->{tns} = $schema->getAttribute('targetNamespace') || '';
+    my $tns = $self->{tns}
+       = $args->{target_namespace}
+      || $schema->getAttribute('targetNamespace')
+      || '';
 
     my $efd = $self->{efd}
        = $args->{element_form_default}

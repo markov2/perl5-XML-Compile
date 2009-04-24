@@ -202,7 +202,7 @@ sub makeChoice($@)
           # a choice, instead on choice itself.  That always succeeds.
           foreach my $some (values %do)
           {   try { $some->(undef) };
-              $@ or return;
+              $@ or return ();
           }
 
           $type

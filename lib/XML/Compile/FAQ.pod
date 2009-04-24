@@ -8,7 +8,7 @@ On this page, a wild collection of questions are answered.  If you have
 contributions either in question or as answer, then please contribute
 via the mailinglist.
 
-=head1 QUESTIONS
+=head1 FREQUENTLY ASKED QUESTIONS
 
 =head2 The data structure
 
@@ -44,6 +44,147 @@ are defined by the mapping table provided with the C<< prefixes >> option
 or by default from the XML schemas.
 
 See L<XML::Compile::Schema/"Key rewrite"> for the full list of options.
+
+=head2 Schemas
+
+Be aware that the "2001" schema specification is continuously under
+development.  So, the namespace has not been changed over time, but
+the content has.
+
+=head3 qualified elements
+
+One of the more noticable problems with schemas is the specification of
+the namespaces to be used for the schema.  In older schema's, like many
+important protocols, there was no way to specify wether elements should
+be used qualified or not.  Some schema's lack the target namespace
+declaration.  Those fields did not exist in earlier versions of the
+"2001" spec; it was defined in the documentation.
+
+So, what you may encounter is something like:
+
+  <schema xmlns="http://www.w3.org/2001/XMLSchema">
+
+where (in the current syntax) it should have been
+
+  <schema xmlns="http://www.w3.org/2001/XMLSchema"
+    targetNamespace="http://my-namespace"
+    elementFormDefault="qualified"
+    attributeFormDefault="unqualified">
+
+The default for C<targetNamespace> is "namespace-less".  The C<*FormDefault>
+defaults are C<unqualified>, which is a pity: most schemas will use
+qualified elements.
+
+Of course, you can add these fields to the schema file, but that violates
+the intergrity of that external resource.  Therefore, use options:
+
+  my $schema = XML::Compile::Schema->new;
+  $schema->importDefinitions("schema.xsd"
+     , target_namespace     => 'http://my-namespace'
+     , element_form_default => 'qualified'
+     );
+
+You may also provide all these options with M<new()> directly.
+
+  my $schema = XML::Compile::Schema->new("schema.xsd"
+     , target_namespace     => 'http://my-namespace'
+     , element_form_default => 'qualified'
+     );
+
+If you use the M<XML::Compile::Cache> object, which extends ::Schema, then
+you have a nice C<printIndex> method which shows you what has been read.
+
+=head3 schema location
+
+The official idea about the use of schema's, is that you get the latest
+version of them on the moment you start the application.  There are two
+major problems with that:
+
+=over 4
+=item . you may not have (a working) internet connection on that moment
+=item . remote changes in the spec may break your application unexpectedly
+=back
+
+In general, IMO as author of the XML::Compile suite, you should B<never>
+want this dynamic, unpredictable behavior!
+
+Besides, the content of the C<schemaLocation> attribute to C<import>,
+C<include> and C<schema> elements are usually broken, missing and/or
+flawed.  You can better do it by hand.
+
+Collect the schema's you need in a directory.  The name of the schema
+file does not need to means anything useful.  Then, add the location
+where the schema's are found:
+
+   my $schema = XML::Compile::Cache->new;
+   $schema->addSchemaDirs($my_schema_dir);
+
+Add the mapping from namespaces to filenames (you may provide an ARRAY of
+names or use the same namespace multiple times).  It is useful to have
+a constant defined for your namespace.
+
+   use constant MY_NS => 'http://very-long';
+   $schema->knownNamespace(&MY_NS => 'schemafile.xsd');
+   $schema->importDefinitions(MY_NS, @options);
+
+There is also a less clean solution:
+
+   my $schema = XML::Compile::Cache->new('schemafile.xsd', @options);
+
+When you have many xsd's to include, you may do this:
+
+   my @xsds = glob "$my_schema_dir/*.xsd";
+   my $schema = XML::Compile::Cache->new;
+   $schema->knownNamespace(&MY_NS => \@xsds);
+   $schema->importDefinitions(MY_NS, @options);
+
+or
+
+   my $schema = XML::Compile::Cache->new(\@xsds, @options);
+
+=head3 fixing schemas
+
+Many schema's are broken.  M<XML::Compile> is not a good tool to figure-out
+what is wrong with the schema.  Have you tried C<xmllint>?  Sometimes, you
+get sufficient help adding to the top of your script:
+
+   use Log::Report mode => 'DEBUG';
+
+When you know what is wrong, you can overrule parts of the schema by
+redefining elements; simply: the last definition for an element wins.
+For instance:
+
+   $schema->importDefinition(<<'_PATCH');
+   <schema ....>
+     <element name="has_bug">
+        ...
+     </element>
+   _PATCH
+
+Of course, you can also use an external file for this.
+
+=head3 Example
+
+This is a piece of code actually used.  It shows various complications
+when an external schema is "loaded" "dynamically" into an other schema.
+
+  # In the top of your script
+  my $schema_dir = '/usr/share/schemas';
+  my $xyz_ns     = 'http://www.xyzeorder.com/workflow';
+  my $xyz_xsd    = 'xyzSchema.xsd';
+
+  # In the main part of your script
+  my $schema     = XML::Compile::Cache->new(....);
+  $schema->addSchemaDirs($schema_dir);
+  $schema->importDefinitions($xyz_xsd, target_namespace => $xyz_ns);
+  $schema->prefixes(xyz => $xyz_ns);
+  $schema->addKeyRewrite('PREFIXED(xyz)');
+
+The schema "forgets" to mention its C<targetNamespace>, so it is
+overruled.  The ::Cache extension handles prefixes much nicer than
+the ::Schema base object.  So, with reading/writing the hash keys
+which relate to the elements in this schema will have C<xyz_> as
+prefix for clarity.
 
 =head2 Processing
 

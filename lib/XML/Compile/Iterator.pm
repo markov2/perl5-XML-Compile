@@ -17,7 +17,7 @@ XML::Compile::Iterator - reduce view on a node tree
 It would have been nice to be able to use M<XML::LibXML::Iterator>, but
 on the moment of this writing, that module is not maintained.  Besides,
 this implementation of the iterator is more specific for our purpose.
-The main user for this object currently is M<XML::Compile::Schema::Translate>.
+The main user for this object currently is M<XML::Compile::Translate>.
 
 =chapter METHODS
 
