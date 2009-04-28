@@ -11,7 +11,16 @@ To be resolved:
    handle XML::LibXML::Error objects
    handle xsi:type
    useSchema() relation to ::Cache::declare()?
- - keyRewrite in PERL template leaves t:
+   new in schemas: alternative
+   keyRewrite in PERL template leaves t:
+
+version 1.05: di apr 28 13:04:42 CEST 2009
+
+	Improvements:
+
+	- writer: accept single element for tagged and mixed.
+
+	- writer: accept scalar for mixed, upgraded to text node.
 
 version 1.04: Fri Apr 24 16:08:43 CEST 2009
 
