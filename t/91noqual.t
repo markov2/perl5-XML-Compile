@@ -16,16 +16,14 @@ set_compile_defaults
     include_namespaces => 1
   , prefixes           => [ me => $TestNS ];
 
-# elementFormDefault just to add confusion.
+# targetNamespace and elementFormDefault just to add confusion.
 
-my $schema   = XML::Compile::Schema->new( <<__SCHEMA);
+my $s = <<__SCHEMA;
 <xs:schema xmlns:xs="$SchemaNS"
   xmlns:me="$TestNS"
-  targetNamespace="$TestNS"
+  targetNamespace="http://will-be-overruled"
   elementFormDefault="unqualified"
   attributeFormDefault="unqualified">
-
-<!-- sequence with one element -->
 
 <xs:element name="test1" type="xs:int" />
 
@@ -54,7 +52,12 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA);
 </xs:schema>
 __SCHEMA
 
-ok(defined $schema);
+my $schema   = XML::Compile::Schema->new($s
+ , target_namespace     => $TestNS
+ , element_form_default => 'qualified'
+ );
+
+ok(defined $schema, 'compiled schema');
 
 is(join("\n", join "\n", $schema->types)."\n", "{$TestNS}ct1\n");
 
@@ -69,13 +72,13 @@ test_rw($schema, test1 => <<__XML, 10);
 __XML
 
 test_rw($schema, test2 => <<__XML, {c1_a => 11});
-<me:test2 xmlns:me="$TestNS"><c1_a>11</c1_a></me:test2>
+<me:test2 xmlns:me="$TestNS"><me:c1_a>11</me:c1_a></me:test2>
 __XML
 
 my %t4 = (c1_a => 14, a1_a => 15, c4_a => 16, a4_a => 17);
 test_rw($schema, test4 => <<__XML, \%t4);
 <me:test4 xmlns:me="$TestNS" a1_a="15" a4_a="17">
-   <c1_a>14</c1_a>
-   <c4_a>16</c4_a>
+   <me:c1_a>14</me:c1_a>
+   <me:c4_a>16</me:c4_a>
 </me:test4>
 __XML

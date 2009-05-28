@@ -210,6 +210,10 @@ With a REGEXP, you can have more control.  Only keys which do match
 the expression will be ignored silently.  Other keys (usually typos
 and other mistakes) will get reported.  See L</Typemaps>
 
+=option  block_namespace NAMESPACE|TYPE|HASH|CODE|ARRAY
+=default block_namespace []
+See M<blockNamespace()>
+
 =cut
 
 sub init($)
@@ -228,10 +232,13 @@ sub init($)
     {   $self->addHook($_) for ref $h2 eq 'ARRAY' ? @$h2 : $h2;
     }
  
-    $self->{key_rewrite}          = [];
+    $self->{key_rewrite} = [];
     if(my $kr = $args->{key_rewrite})
     {   $self->addKeyRewrite(ref $kr eq 'ARRAY' ? @$kr : $kr);
     }
+
+    $self->{block_nss}   = [];
+    $self->blockNamespace($args->{block_namespace});
 
     $self->{typemap}     = $args->{typemap} || {};
     $self->{unused_tags} = $args->{ignore_unused_tags};
@@ -419,6 +426,30 @@ sub _key_rewrite($)
       : ()), @other );
 }
 
+=method blockNamespace NAMESPACE|TYPE|HASH|CODE|ARRAY
+
+Block all references to a NAMESPACE or full TYPE, as if they do not appear
+in the schema.  Specially useful if the schema includes references to
+old (deprecated) versions of itself which are not being used.  It can
+also be used to block inclusion of huge structures which are not used,
+for increased compile performance, or to avoid buggy constructs.
+
+These values can also be passed with M<new(block_namespace)> and
+M<compile(block_namespace)>.
+
+=cut
+
+sub blockNamespace(@)
+{   my $self = shift;
+    push @{$self->{block_nss}}, @_;
+}
+
+sub _block_nss(@)
+{   my $self = shift;
+    grep defined, map {ref $_ eq 'ARRAY' ? @$_ : $_}
+        @_, @{$self->{block_nss}};
+}
+
 #--------------------------------------
 
 =section Compilers
@@ -444,7 +475,7 @@ When a WRITER is created, a CODE reference is returned which needs
 to be called with an M<XML::LibXML::Document> object and a HASH, and
 returns a M<XML::LibXML::Node>.
 
-Most options below are B<explained in more detailed> in the manual-page
+Many OPTIONS below are B<explained in more detailed> in the manual-page
 M<XML::Compile::Translate>, which implements the compilation.
 
 =option  validation BOOLEAN
@@ -652,6 +683,10 @@ will be produced whenever an abstract type is encountered.  C<IGNORE>
 will ignore the existence of abstract types.  C<ACCEPT> will ignore the
 fact that the types are abstract, and treat them as non-abstract types.
 
+=option  block_namespace NAMESPACE|TYPE|HASH|CODE|ARRAY
+=default block_namespace []
+See M<blockNamespace()>.
+
 =cut
 
 sub compile($$@)
@@ -704,6 +739,7 @@ sub compile($$@)
     trace "schema compile $action for $type";
 
     my @rewrite = $self->_key_rewrite(delete $args{key_rewrite});
+    my @blocked = $self->_block_nss(delete $args{block_namespace});
 
     $args{abstract_types} ||= 'ERROR';
     $args{mixed_elements} ||= 'ATTRIBUTES';
@@ -723,6 +759,7 @@ sub compile($$@)
      , hooks   => \@hooks
      , typemap => \%map
      , rewrite => \@rewrite
+     , block_namespace => \@blocked
      );
 }
 
@@ -840,13 +877,14 @@ sub template($@)
 
     my $transl = XML::Compile::Translate->new
      ( 'TEMPLATE'
-     , nss     => $self->namespaces
+     , nss => $self->namespaces
      );
 
     my $compiled = $transl->compile
      ( $type
      , rewrite     => \@rewrite
      , %args
+     , block_namespace => []   # not yet supported
      );
     $compiled or return;
 

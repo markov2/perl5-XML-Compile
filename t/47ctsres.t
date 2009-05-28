@@ -10,7 +10,7 @@ use TestTools;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 22;
+use Test::More tests => 29;
 
 set_compile_defaults
     elements_qualified => 'NONE';
@@ -21,9 +21,6 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
         xmlns:me="$TestNS">
 
 <element name="test1" type="me:t1" />
-<element name="test2" type="me:t2" />
-<element name="test3" type="me:t3" />
-
 <complexType name="t1">
   <simpleContent>
     <restriction base="int">
@@ -32,6 +29,7 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
   </simpleContent>
 </complexType>
 
+<element name="test2" type="me:t2" />
 <complexType name="t2">
   <simpleContent>
     <restriction base="int">
@@ -40,6 +38,7 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
   </simpleContent>
 </complexType>
 
+<element name="test3" type="me:t3" />
 <complexType name="t3">
   <simpleContent>
     <restriction>
@@ -51,22 +50,43 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
   </simpleContent>
 </complexType>
 
+<element name="test4">
+  <complexType>
+    <simpleContent>
+      <restriction base="anyType">
+        <simpleType>
+          <restriction base="string">
+            <minLength value="1"/>
+          </restriction>
+        </simpleType>
+        <attribute name="language" use="required"/>
+      </restriction>
+    </simpleContent>
+  </complexType>
+</element>
+
 </schema>
 __SCHEMA__
 
 ok(defined $schema);
 
 my %t1 = (_ => 11, a1_a => 10);
-test_rw($schema, test1 => <<__XML, \%t1);
+test_rw($schema, test1 => <<_XML, \%t1);
 <test1 a1_a="10">11</test1>
-__XML
+_XML
 
 my %t2 = (_ => 12, a2_a => 13);
-test_rw($schema, test2 => <<__XML, \%t2);
+test_rw($schema, test2 => <<_XML, \%t2);
 <test2 a2_a="13">12</test2>
-__XML
+_XML
 
 my %t3 = (_ => 14, a3_a => 15);
-test_rw($schema, test3 => <<__XML, \%t3);
+test_rw($schema, test3 => <<_XML, \%t3);
 <test3 a3_a="15">14</test3>
-__XML
+_XML
+
+# test 4, report rt.cpan.org#46212  by Erich Weigand
+
+test_rw($schema, test4 => <<_XML, { language => 'de', _ => 'Hallo Welt' } );
+<test4 language="de">Hallo Welt</test4>
+_XML

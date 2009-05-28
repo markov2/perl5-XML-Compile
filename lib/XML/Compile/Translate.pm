@@ -160,6 +160,9 @@ sub compile($@)
     my $typemap = $self->{typemap} ||= {};
     $self->typemapToHooks($hooks, $typemap);
 
+    $self->{blocked_nss}
+      = $self->decodeBlocked(delete $self->{block_namespace});
+
     my $nsp     = $self->namespaces;
     foreach my $t (keys %$typemap)
     {   $nsp->find(complexType => $t) || $nsp->find(simpleType => $t)
@@ -418,7 +421,8 @@ sub simpleList($)
                  , where => $where, _class => 'schema';
 
         my $typename = $self->rel2abs($where, $node, $type);
-        $per_item    = $self->typeByName($tree, $typename);
+        $per_item    = $self->blocked($where, simpleType => $typename)
+                    || $self->typeByName($tree, $typename);
     }
     else
     {   $tree->nrChildren==1
@@ -460,7 +464,8 @@ sub simpleUnion($)
     if(my $members = $node->getAttribute('memberTypes'))
     {   foreach my $union (split " ", $members)
         {   my $typename = $self->rel2abs($where, $node, $union);
-            my $type = $self->typeByName($tree, $typename);
+            my $type = $self->blocked($where, simpleType => $typename)
+                    || $self->typeByName($tree, $typename);
             my $st   = $type->{st}
                 or error __x"union only of simpleTypes, but {type} is complex at {where}"
                      , type => $typename, where => $where, _class => 'schema';
@@ -493,9 +498,10 @@ sub simpleRestriction($$)
     my $where = $tree->path . '#sres';
 
     my $base;
-    if(my $basename = $node->getAttribute('base'))
+    if(my $basename  = $node->getAttribute('base'))
     {   my $typename = $self->rel2abs($where, $node, $basename);
-        $base        = $self->typeByName($tree, $typename);
+        $base        = $self->blocked($where, simpleType => $typename)
+                    || $self->typeByName($tree, $typename);
     }
     else
     {   my $simple   = $tree->firstChild
@@ -651,7 +657,8 @@ sub element($)
                  , where => $where, _class => 'schema';
 
         $compname = $self->rel2abs($where, $node, $isa);
-        $comps    = $self->typeByName($tree, $compname);
+        $comps    = $self->blocked($where, anyType => $compname)
+                 || $self->typeByName($tree, $compname);
     }
     elsif($nr_childs==0)
     {   $compname = $self->anyType($node);
@@ -825,6 +832,9 @@ sub particleGroup($)
              , where => $where, _class => 'schema';
 
     my $typename = $self->rel2abs($where, $node, $ref);
+    if(my $blocked = $self->blocked($where, ref => $typename))
+    {   return ($typename, $blocked);
+    }
 
     my $dest  = $self->namespaces->find(group => $typename)
         or error __x"cannot find group `{name}' at {where}"
@@ -916,8 +926,9 @@ sub particleElement($)
     my $node  = $tree->node;
 
     if(my $ref =  $node->getAttribute('ref'))
-    {   my $refname = $self->rel2abs($tree, $node, $ref);
-        my $where   = $tree->path . "/$ref";
+    {   my $where   = $tree->path . "/$ref";
+        my $refname = $self->rel2abs($tree, $node, $ref);
+        return () if $self->blocked($where, ref => $refname);
  
         my $def     = $self->namespaces->find(element => $refname)
             or error __x"cannot find ref element '{name}' at {where}"
@@ -996,10 +1007,13 @@ sub attributeOne($)
 
     my($ref, $name, $form, $typeattr);
     if(my $refattr =  $node->getAttribute('ref'))
-    {   my $refname = $self->rel2abs($tree, $node, $refattr);
+    {   my $where  = $tree->path;
+        my $refname = $self->rel2abs($tree, $node, $refattr);
+        return () if $self->blocked($where, ref => $refname);
+
         my $def     = $self->namespaces->find(attribute => $refname)
             or error __x"cannot find attribute {name} at {where}"
-                 , name => $refname, where => $tree->path, _class => 'schema';
+                 , name => $refname, where => $where, _class => 'schema';
 
         $ref        = $def->{node};
         local $self->{tns} = $def->{ns};
@@ -1057,7 +1071,8 @@ sub attributeOne($)
           ? $self->rel2abs($where, $node, $typeattr)
           : $self->anyType($node);
 
-         $type  = $self->typeByName($tree, $typename);
+         $type  = $self->blocked($where, simpleType => $typename)
+               || $self->typeByName($tree, $typename);
     }
 
     my $st      = $type->{st}
@@ -1108,6 +1123,7 @@ sub attributeGroup($)
              , where => $tree->path, _class => 'schema';
 
     my $typename = $self->rel2abs($where, $node, $ref);
+    return () if $self->blocked($where, ref => $typename);
 
     my $def  = $self->namespaces->find(attributeGroup => $typename)
         or error __x"cannot find attributeGroup {name} at {where}"
@@ -1336,7 +1352,8 @@ sub simpleContentExtension($)
     my $typename = defined $base ? $self->rel2abs($where, $node, $base)
      : $self->anyType($node);
 
-    my $basetype = $self->typeByName($tree, $typename);
+    my $basetype = $self->blocked($where, simpleType => $typename)
+                || $self->typeByName($tree, $typename);
     defined $basetype->{st}
         or error __x"base of simpleContent not simple at {where}"
              , where => $where, _class => 'schema';
@@ -1348,7 +1365,6 @@ sub simpleContentExtension($)
               , where => $tree->path, _class => 'schema';
 
     $basetype;
-
 }
 
 sub simpleContentRestriction($$)
@@ -1364,21 +1380,19 @@ sub simpleContentRestriction($$)
     my $where = $tree->path . '#cres';
 
     my $type;
-    if(my $basename = $node->getAttribute('base'))
+    my $first = $tree->currentLocal || '';
+    if($first eq 'simpleType')
+    {   $type = $self->simpleType($tree->descend);
+        $tree->nextChild;
+    }
+    elsif(my $basename  = $node->getAttribute('base'))
     {   my $typename = $self->rel2abs($where, $node, $basename);
-        $type        = $self->typeByName($tree, $typename);
+        $type        = $self->blocked($where, simpleType => $type)
+                    || $self->typeByName($tree, $typename);
     }
     else
-    {   my $first    = $tree->currentLocal
-            or error __x"no base in complex-restriction, so simpleType required at {where}"
-                 , where => $where, _class => 'schema';
-
-        $first eq 'simpleType'
-            or error __x"simpleType expected, because there is no base attribute at {where}"
-                 , where => $where, _class => 'schema';
-
-        $type = $self->simpleType($tree->descend);
-        $tree->nextChild;
+    {   error __x"no base in complex-restriction, so simpleType required at {where}"
+          , where => $where, _class => 'schema';
     }
 
     my $st = $type->{st}
@@ -1423,14 +1437,19 @@ sub complexContent($$)
 
     if($base !~ m/\banyType$/)
     {   my $typename = $self->rel2abs($where, $node, $base);
-        my $typedef  = $self->namespaces->find(complexType => $typename)
-            or error __x"unknown base type '{type}' at {where}"
+        if($type = $self->blocked($where, complexType => $typename))
+        {   # blocked base type
+        }
+        else
+        {   my $typedef  = $self->namespaces->find(complexType => $typename)
+               or error __x"unknown base type '{type}' at {where}"
                  , type => $typename, where => $tree->path, _class => 'schema';
 
-        local @$self{ qw/elems_qual attrs_qual tns/ }
-            = $self->nsContext($typedef);
+            local @$self{ qw/elems_qual attrs_qual tns/ }
+                = $self->nsContext($typedef);
 
-        $type = $self->complexType($tree->descend($typedef->{node}));
+            $type = $self->complexType($tree->descend($typedef->{node}));
+        }
     }
 
     my $own = $self->complexBody($tree, $mixed);
@@ -1548,6 +1567,43 @@ sub findHooks($$$)
     }
 
     @hooks{ qw/before replace after/ };
+}
+
+# Namespace blocks, in most cases because the schema refers to an
+# older version of itself, which is deprecated.
+# performance is important, because it is called increadably often.
+
+sub decodeBlocked($)
+{   my ($self, $what) = @_;
+    defined $what or return;
+    my @blocked;   # code-refs called with ($type, $ns, $local, $path)
+    foreach my $w (ref $what eq 'ARRAY' ? @$what : $what)
+    {   push @blocked,
+            !ref $w             ? sub { $_[0] eq $w || $_[1] eq $w }
+          : ref $w eq 'HASH'
+          ? sub { defined $w->{$_[0]} ? $w->{$_[0]} : $w->{$_[1]} }
+          : ref $what eq 'CODE' ? $w
+          : error __x"blocking rule with {what} not supported", what => $w;
+    }
+    \@blocked;
+}
+
+sub blocked($$$)
+{   my ($self, $path, $class, $type) = @_;
+    # $class = simpleType, complexType, or ref
+    @{$self->{blocked_nss}} or return ();
+
+    my ($ns, $local) = unpack_type $type;
+    my $is_blocked;
+    foreach my $blocked ( @{$self->{blocked_nss}} )
+    {   $is_blocked = $blocked->($type, $ns, $local, $path);
+        last if defined $is_blocked;
+    }
+    $is_blocked or return;
+
+    trace "$type of $class is blocked";
+
+    $self->makeBlocked($path, $class, $type);
 }
 
 =chapter DETAILS
@@ -1742,6 +1798,55 @@ the option defaults to false: do not use the invisible prefix.
 
 You may explicitly specify a blank prefix with C<prefixes>,
 which will be used when applicable.
+
+=item block_namespace NAMESPACE|TYPE|HASH|CODE|ARRAY
+
+[1.06] Available on global scale via
+M<XML::Compile::Schema::new(block_namespace)> or
+M<XML::Compile::Schema::blockNamespace()>, and for a single compiled
+instance via M<XML::Compile::Schema::compile(block_namespace)>.
+
+Some schemas include other schemas which you do not need.  For instance,
+the other schema is only used in rare cases, or the other schema defines
+deprecated types and elements.  Of course, you can simply not load those
+schemas... however: the main schema may refer to those types and elements
+you do not need.  So, with this option, you can make the compilation to
+ignore whole namespaces and specific elements or types.
+
+The NAMESPACE is a uri, which will disable use of any element or type
+defined in that space.  You may also provide a specific full TYPE (toplevel
+element or type name).  You may also give an LIST or ARRAY of these, but
+then a HASH is much more suitable: with linear lookup time.
+
+When you provide a CODE reference, it will be called for each type
+and element to be judged.  Passed are C<$type>, C<$ns>, C<$local>,
+and C<$path>.  The C<$ns/$local> is the decomposition of C<$type>.
+When the CODE returns C<undef>, then it is undecisive, letting other
+rules decide.  When it returns C<0>, then the thing will not be blocked
+(whatever the other rules decide).  In other cases, the thing will not
+be used.
+
+  # block a whole namespace
+  $schema->blockNamespace("http://xyz.example.com");
+
+  # block only a single element or typedef
+  $schema->blockNamespace("{http://xyz.example.com}buggy");
+
+  # block $ns1 and $type1, unblock $ns2
+  $schema->blockNamespace( {$ns1 => 1, $ns2 => 0, $type1 => 1} );
+
+  $schema->blockNamespace($ns1, $type1);
+  $schema->compile(..., block_namespace => [$ns1, $type1]);
+  $schema->new(..., block_namespace => [$ns1, $type1]);
+
+  # very flexible
+  sub want_block($$$$) ( my ($type,$ns,$local,$path) = @_; undef}
+  $schema->blockNamespace(\&want_block);
+
+It is very well posible that the blocking of some namespaces breaks the
+validness of messages: when those elements are required but set to be
+ignored.  There is no way to detect this, on the moment.
+
 =back
 
 =subsection Wildcards handlers

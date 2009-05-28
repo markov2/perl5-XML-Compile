@@ -996,7 +996,7 @@ sub makeHook($$$$$$)
        }
 
        my $xml = @replace
-               ? $replace[0]->($doc, $val, $path, $tag)
+               ? $replace[0]->($doc, $val, $path, $tag, $r)
                : $r->($doc, $val);
        defined $xml or return ();
 
@@ -1033,6 +1033,28 @@ sub _decodeAfter($$)
 
       $call eq 'PRINT_PATH' ? sub { print "$_[2]\n"; $_[1] }
     : error __x"labeled after hook `{name}' undefined for WRITER", name=>$call;
+}
+
+sub makeBlocked($$$)
+{   my ($self, $where, $class, $type) = @_;
+
+    # errors are produced in class=misfit to allow other choices to succeed.
+      $class eq 'anyType'
+    ? { st => sub { error __x"use of `{type}' blocked at {where}"
+              , type => $type, where => $where, _class => 'misfit';
+          }}
+    : $class eq 'simpleType'
+    ? { st => sub { error __x"use of {class} `{type}' blocked at {where}"
+              , class => $class, type => $type, where => $where
+              , _class => 'misfit';
+          }}
+    : $class eq 'complexType'
+    ? { elems => [] }
+    : $class eq 'ref'
+    ? { st => sub { error __x"use of referenced `{type}' blocked at {where}"
+              , type => $type, where => $where, _class => 'misfit';
+          }}
+    : panic "blocking of $class for $type not implemented";
 }
 
 =chapter DETAILS
@@ -1139,11 +1161,17 @@ M<XML::LibXML::Node> or C<undef>.  The hook must use the
 C<XML::LibXML::Document> node (which is provided as first
 argument) to create a node.
 
+As parameters, the called replace function will receive the
+document, user-provided values, location in the data tree (for
+error messages), the tag of the node with prefix attached, and
+a reference to the code which would be executed if the replace
+hook had not been active.
+
 On the moment, the only predefined C<replace> hook is C<SKIP>.
 
 =example replace hook
- sub replace($$$)
- {  my ($doc, $values, $path, $tag) = @_
+ sub replace($$$$$)
+ {  my ($doc, $values, $path, $tag, $r) = @_
     my $node = $doc->createElement($tag);
     $node->appendText($values->{text});
     $node;

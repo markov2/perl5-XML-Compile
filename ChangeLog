@@ -13,6 +13,29 @@ To be resolved:
    useSchema() relation to ::Cache::declare()?
    new in schemas: alternative
    keyRewrite in PERL template leaves t:
+ - namespace blocking option for templates; exclude deprecated elements
+
+version 1.06: Thu May 28 10:28:45 CEST 2009
+
+	Fixes:
+
+	- prefer simpleType child over base type attribute in
+	  simpleContent/restriction.  rt.cpan.org#46212 [Erich Weigand]
+
+	Improvements:
+
+	- ignore all references to an (unloaded) schema, for instance
+	  with deprecated structures via ::compile(block_namespace) with
+	  tests in t/76blocked.t
+
+	- fixed tests in t/91noqual.t
+
+	- include t/75type.t in the distribution.
+
+	- added test for base64Binary to t/21types.t
+
+	- reader and writer: replace hook also gets code-ref able to
+	  process what is being replaced, implementing a wrapper.
 
 version 1.05: di apr 28 13:04:42 CEST 2009
 

@@ -10,7 +10,7 @@ use XML::Compile::Schema;
 use XML::Compile::Tester;
 use Math::BigFloat;
 
-use Test::More tests => 106;
+use Test::More tests => 113;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema xmlns="$SchemaNS"
@@ -21,6 +21,7 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <element name="test3" type="float" />
 <element name="test4" type="NMTOKENS" />
 <element name="test5" type="positiveInteger" />
+<element name="test6" type="base64Binary" />
 
 </schema>
 __SCHEMA__
@@ -76,3 +77,10 @@ test_rw($schema, test4 => '<test4>A bc D</test4>', [ qw/A bc D/ ]);
 ###
 
 test_rw($schema, test5 => '<test5>432000</test5>', Math::BigInt->new(432000)); 
+
+###
+### Base64Binary
+###
+
+test_rw($schema, test6 => '<test6>SGVsbG8sIFdvcmxkIQ==</test6>', 'Hello, World!'); 
+

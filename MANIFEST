@@ -80,6 +80,8 @@ t/70templ.t
 t/72typemap.t
 t/73rewrite.t
 t/74qname.t
+t/75type.t
+t/76blocked.t
 t/81-2000.t
 t/90nons.t
 t/91noqual.t

@@ -21,8 +21,6 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
         xmlns:xs="$SchemaNS"
         xmlns:me="$TestNS">
 
-<!-- sequence with one element -->
-
 <xs:element name="test1" type="xs:int" />
 
 <xs:complexType name="ct1">

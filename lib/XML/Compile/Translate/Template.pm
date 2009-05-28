@@ -765,6 +765,11 @@ sub _xmlAny($$$$)
     $node;
 }
 
+sub makeBlocked($$$)
+{   my ($self, $where, $class, $type) = @_;
+    panic "namespace blocking not yet supported for Templates";
+}
+
 =chapter DETAILS
 
 =section Processing Wildcards

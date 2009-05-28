@@ -19,8 +19,6 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
         xmlns="$SchemaNS"
         xmlns:me="$TestNS">
 
-<!-- sequence with one element -->
-
 <element name="test1" type="me:t1" />
 <complexType name="t1">
   <sequence>
