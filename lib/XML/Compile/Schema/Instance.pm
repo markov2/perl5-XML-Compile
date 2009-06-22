@@ -239,28 +239,31 @@ sub _collectTypes($$)
             next NODE;
         }
 
-        my $tag   = $node->getAttribute('name');
+        my $name  = $node->getAttribute('name');
         my $ref;
-        unless(defined $tag && length $tag)
-        {   $ref = $tag = $node->getAttribute('ref')
+        unless(defined $name && length $name)
+        {   $ref = $node->getAttribute('ref')
                or error __x"schema component {local} without name or ref at line {linenr}"
                     , local => $local, linenr => $node->line_number;
 
-            $tag =~ s/.*?\://;
+            ($name = $ref) =~ s/.*?\://;
         }
 
-        my $nns = $node->namespaceURI || '';
+        my $nns   = $node->namespaceURI || '';
         error __x"schema component `{name}' must be in namespace {ns}"
-          , name => $tag, ns => $xsd
+          , name => $name, ns => $xsd
               if $xsd && $nns ne $xsd;
 
         my $id    = $schema->getAttribute('id');
 
-        my ($prefix, $name)
-                  = index($tag, ':') >= 0 ? split(/\:/,$tag,2) : ('', $tag);
+        if($node->getAttribute('targetNamespace'))
+        {   # actually: close to supported: cannot be found by index but is
+            # handled by Translate.  Very ugly idea to mix tns inside schema.
+            warning __x"targetNamespace attribute on `{name}' for declarations not supported", name => $name;
+        }
 
-        # prefix existence enforced by xml parser
-        my $ns    = length $prefix ? $node->lookupNamespaceURI($prefix) : $tns;
+#       my $ns    = $node->getAttribute('targetNamespace') || $tns;
+        my $ns    = $tns;
         my $label = pack_type $ns, $name;
 
         my $sg;
@@ -271,7 +274,7 @@ sub _collectTypes($$)
              defined $sgns
                 or error __x"no namespace for {what} in substitutionGroup {group}"
                        , what => (length $sgpref ? "'$sgpref'" : 'target')
-                       , group => $tag;
+                       , group => $sgname;
              $sg = pack_type $sgns, $sgname;
         }
 
@@ -294,7 +297,7 @@ sub _collectTypes($$)
         my $info  = $self->{$local}{$label} =
           { type => $local, id => $id, node => $node
           , full => pack_type($ns, $name), ref => $ref, sg => $sg
-          , ns => $ns,  name => $name, prefix => $prefix
+          , ns => $ns,  name => $name #, prefix => $prefix
           , afd => $af, efd => $ef, schema => $self
           , abstract => ($abstract eq 'true' || $abstract eq '1')
           , final => ($final eq 'true' || $final eq '1')

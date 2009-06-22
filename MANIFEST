@@ -66,6 +66,7 @@ t/48subst.t
 t/49list.t
 t/50union.t
 t/51any.t
+t/52anytype.t
 t/54nil.t
 t/55facet.t
 t/56pats.t

@@ -106,28 +106,28 @@ set_compile_defaults
 
 ok(1, "** Testing simple namespace");
 
-test_rw($schema, test1 => <<__XML, 10);
+test_rw($schema, test1 => <<_XML, 10);
 <test1 xmlns="$TestNS">10</test1>
-__XML
+_XML
 
-test_rw($schema, "test2" => <<__XML, {c1_a => 11});
+test_rw($schema, "test2" => <<_XML, {c1_a => 11});
 <test2 xmlns="$TestNS"><c1_a>11</c1_a></test2>
-__XML
+_XML
 
-test_rw($schema, "{$NS2}test3" => <<__XML, {c1_a => 12, a1_a => 13});
+test_rw($schema, "{$NS2}test3" => <<_XML, {c1_a => 12, a1_a => 13});
 <test3 xmlns="$NS2" xmlns:that="$TestNS" that:a1_a="13">
    <that:c1_a>12</that:c1_a>
 </test3>
-__XML
+_XML
 
 my %t4 = (c1_a => 14, a1_a => 15, c4_a => 16, a4_a => 17);
-test_rw($schema, "{$NS2}test4" => <<__XML, \%t4);
+test_rw($schema, "{$NS2}test4" => <<_XML, \%t4);
 <test4 xmlns="$NS2" xmlns:that="$TestNS"
    that:a1_a="15" a4_a="17">
   <that:c1_a>14</that:c1_a>
   <c4_a>16</c4_a>
 </test4>
-__XML
+_XML
 
 # now with name-spaces off
 
@@ -135,11 +135,11 @@ set_compile_defaults
     ignore_namespaces  => 1
   , elements_qualified => 'NONE';
 
-test_rw($schema, "{$NS2}test3" => <<__XML, {c1_a => 18});
+test_rw($schema, "{$NS2}test3" => <<_XML, {c1_a => 18});
 <test3>
   <c1_a>18</c1_a>
 </test3>
-__XML
+_XML
 
 #
 # Test 5/6
@@ -151,9 +151,19 @@ set_compile_defaults
  , include_namespaces => 1;
 
 my %h6 = (e5a => 42, e6a => 'aap');
-test_rw($schema, "{$NS2}test6" => <<__XML, \%h6)
+test_rw($schema, "{$NS2}test6" => <<_XML, \%h6);
 <test6 xmlns="$NS2" xmlns:that="$TestNS">
   <that:e5a>42</that:e5a>
   <e6a>aap</e6a>
 </test6>
-__XML
+_XML
+
+#
+# Test 7
+# element in "wrong" namespace.
+#
+
+# <element name="test7" type="int" targetNamespace="$TestNS" />
+#test_rw($schema, "{$TestNS}test7" => <<_XML, 43);
+#<test7 xmlns="$TestNS">43</test7>
+#_XML

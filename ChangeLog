@@ -14,6 +14,26 @@ To be resolved:
    new in schemas: alternative
    keyRewrite in PERL template leaves t:
  - namespace blocking option for templates; exclude deprecated elements
+ - ::Instance cannot handle element and attribute declaration attribute
+   "targetNamespace"
+
+version 1.07: Mon Jun 22 11:35:22 CEST 2009
+
+	Fixes:
+
+	- mixed attribute on complexContent not detected.
+
+	- anyType elements which have sub-elements will not stringify, but only
+	  simple strings will get simplified.  Otherwise, an XML::LibXML::Node
+	  is kept.
+
+	Improvements:
+
+	- reader: anyType element processing can be hooked via a new
+	  compile(any_type) option.
+
+	- partial support for attribute targetNamespace on element
+	  and attribute declarations.  Currently produces a warning.
 
 version 1.06: Thu May 28 10:28:45 CEST 2009
 

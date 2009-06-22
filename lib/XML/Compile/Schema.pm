@@ -554,7 +554,7 @@ prefix, uri PAIRS is simpler.
 
 =option  output_namespaces HASH|ARRAY-of-PAIRS
 =default output_namespaces undef
-Pre release 0.87 name for the C<prefixes> option.  Deprecated.
+[Pre-0.87] name for the C<prefixes> option.  Deprecated.
 
 =option  include_namespaces BOOLEAN
 =default include_namespaces <true>
@@ -609,8 +609,7 @@ C<sloppy_integers>.
 If  you need to create or process any information, then read about
 wildcards in the DETAILS chapter of the manual-page for the specific
 back-end.
-Before release 0.89 this option was named C<anyElement>, which will
-still work.
+[pre-0.89] this option was named C<anyElement>, which will still work.
 
 =option  any_attribute CODE|'TAKE_ALL'|'SKIP_ALL'
 =default any_attribute C<undef>
@@ -618,8 +617,11 @@ still work.
 automatically.  If  you need to create or process anyAttribute
 information, then read about wildcards in the DETAILS chapter of the
 manual-page for the specific back-end.
-Before release 0.89 this option was named C<anyElement>, which will
-still work.
+[pre-0.89] this option was named C<anyElement>, which will still work.
+
+=option  any_type CODE
+=default any_type <returns string or node>
+[1.07] how to handle "anyType" type elements.  Depends on the backend.
 
 =option  hook HOOK|ARRAY-OF-HOOKS
 =default hook C<undef>
