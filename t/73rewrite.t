@@ -132,11 +132,9 @@ test_rw($schema, test2 => <<__XML, {T2B => 71});
 </test2>
 __XML
 
-is($schema->template( PERL => "{$TestNS}test2"
-                    , key_rewrite => sub {uc $_[1]}, skip_header => 1)
-                    , <<__TEMPL);
-# xmlns:          http://test-types
-
+my $out = templ_perl $schema, "{$TestNS}test2"
+            , key_rewrite => sub {uc $_[1]}, skip_header => 1;
+is($out, <<'__TEMPL');
 { # sequence of T2A
 
   # substitutionGroup

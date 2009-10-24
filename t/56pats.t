@@ -41,7 +41,7 @@ __XML
 $error = error_r($schema, test1 => <<__XML);
 <test1>abbc</test1>
 __XML
-is($error, "string `abbc' does not match pattern (?-xism:^(?:a.c)\$) at {http://test-types}test1#facet");
+is($error, "string `abbc' does not match pattern `a.c' at {http://test-types}test1#facet");
 
 $error = error_w($schema, test1 => 'abbc');
-is($error, "string `abbc' does not match pattern (?-xism:^(?:a.c)\$) at {http://test-types}test1#facet");
+is($error, "string `abbc' does not match pattern `a.c' at {http://test-types}test1#facet");

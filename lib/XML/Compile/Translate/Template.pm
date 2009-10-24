@@ -2,8 +2,6 @@
 package XML::Compile::Translate::Template;
 use base 'XML::Compile::Translate';
 
-use XML::Compile::Translate::Writer;
-
 use strict;
 use warnings;
 no warnings 'once';
@@ -41,21 +39,37 @@ the schema describes.
 
 =cut
 
-BEGIN {
-   no strict 'refs';
-   *$_ = *{"XML::Compile::Translate::Writer::$_"}
-      for qw/makeTagQualified makeTagUnqualified/;
+sub makeTagQualified
+{   my ($self, $path, $node, $local, $ns) = @_;
+    my $prefix = $self->_registerNSprefix('', $ns, 1);
+
+    if($self->{_output} eq 'XML')
+         { $local = $prefix .':'. $local if length $prefix }
+    else { $local = $prefix .'_'. $local if length $prefix }
+
+    $local;
+}
+
+sub makeTagUnqualified
+{   my ($self, $path, $node, $name) = @_;
+    $name =~ s/.*\://;
+    $name;
 }
 
 my (%recurse, %reuse);
-
 sub compile($@)
-{   my $self = shift;
+{   my ($self, $type, %args) = @_;
+    $self->{_output} = $args{output};
     (%recurse, %reuse) = ();
-    $self->SUPER::compile(@_);
+    $self->SUPER::compile($type, %args);
 }
 
-sub actsAs($) { $_[1] eq 'READER' }
+sub actsAs($)
+{   my ($self, $as) = @_;
+       ($as eq 'READER' && $self->{_output} eq 'PERL')
+    || ($as eq 'WRITER' && $self->{_output} eq 'XML')
+
+}
 
 sub makeWrapperNs($$$$)
 {   my ($self, $path, $processor, $index, $filter) = @_;
@@ -71,7 +85,9 @@ sub makeWrapperNs($$$$)
     }
 
     sub { my $data = $processor->(@_) or return ();
-          $data->{"xmlns:$_->[1]"} = $_->[0] for @entries;
+          if($self->{include_namespaces})
+          {   $data->{"xmlns:$_->[1]"} = $_->[0] for @entries;
+          }
           $data;
         };
 }
@@ -407,7 +423,7 @@ sub makeAttributeFixed
 
 sub makeSubstgroup
 {   my ($self, $path, $type, @do) = @_;
-    my @tags = sort map { $_->[0] } odd_elements @do;
+    my @tags    = sort map { $_->[0] } odd_elements @do;
 
     my $longest = max map length, @tags;
     my $columns = int(60 / ($longest + 2));
@@ -508,8 +524,6 @@ sub toPerl($%)
 {   my ($self, $ast, %args) = @_;
     $ast or return undef;
 
-    local $self->{_output} = 'PERL';
-
     my @lines;
     push @lines
       , "# BE WARNED: in most cases, the example below cannot be used without"
@@ -523,7 +537,7 @@ sub toPerl($%)
     foreach my $nsdecl (grep /^xmlns\:/, sort keys %$ast)
     {   push @lines, sprintf "# %-15s %s", $nsdecl, $ast->{$nsdecl};
     }
-    push @lines, '';
+    push @lines, '' if @lines;
     
     # produce data tree
     push @lines, $self->_perlAny($ast, \%args);
@@ -663,7 +677,6 @@ sub _perlAny($$)
 
 sub toXML($$%)
 {   my ($self, $doc, $ast, %args) = @_;
-    local $self->{_output} = 'XML';
     my $xml = $self->_xmlAny($doc, $ast, "\n$args{indent}", \%args);
 
     UNIVERSAL::isa($xml, 'XML::LibXML::Element')

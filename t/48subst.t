@@ -173,9 +173,10 @@ test_rw($schema, test2 => <<__XML, \%t6);
 </test2>
 __XML
 
-is($schema->template(PERL => "{$TestNS}test2", skip_header => 1, abstract_types => 1), <<__TEMPL);
-# xmlns:          http://test-types
+my $out = templ_perl $schema, "{$TestNS}test2", skip_header => 1
+ , abstract_types => 1;
 
+is($out, <<'__TEMPL');
 { # sequence of head, id2
 
   # substitutionGroup

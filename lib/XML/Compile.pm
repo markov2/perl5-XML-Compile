@@ -123,7 +123,6 @@ Where to find schema's.  This can be specified with the
 environment variable C<SCHEMA_DIRECTORIES> or with this option.
 See M<addSchemaDirs()> for a detailed explanation.
 
-=error no XML data specified
 =cut
 
 sub new($@)
@@ -218,13 +217,6 @@ all end-user objects) to inform the library where to find these files.
 According the M<XML::LibXML::Parser> manual page, passing a FILEHANDLE
 is much slower than pasing a FILENAME.  However, it may be needed to
 open a file with an explicit character-set.
-
-=error cannot find pre-installed name-space files
-Use C<$ENV{SCHEMA_LOCATION}> or M<new(schema_dirs)> to express location
-of installed name-space files, which came with the M<XML::Compile>
-distribution package.
-
-=error don't known how to interpret XML data
 
 =example
   my $xml = $schema->dataToXML('/etc/config.xml');

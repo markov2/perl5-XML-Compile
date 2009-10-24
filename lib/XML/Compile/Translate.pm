@@ -108,7 +108,6 @@ sub new($@)
 
 sub init($)
 {   my ($self, $args) = @_;
-
     $self->{nss}      = $args->{nss} or panic "no namespace tables";
     $self->{prefixes} = $args->{prefixes} || {};
     $self;

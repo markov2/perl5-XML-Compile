@@ -168,11 +168,9 @@ is($out[2], $type2);
 isa_ok($out[3], 'XML::LibXML::Document');
 compare_xml($x2, '<test2><e2>bbb</e2></test2>');
 
-is($schema->template( PERL => "{$TestNS}test2", skip_header => 1
-                    , typemap => { $type2 => '&function'} )
-  , <<__TEMPL);
-# xmlns:          http://test-types
-
+my $out = templ_perl $schema, "{$TestNS}test2", skip_header => 1
+                    , typemap => { $type2 => '&function'};
+is($out, <<__TEMPL);
 # call on converter function with object
 \$function->('WRITER', \$object, '{$TestNS}test2', \$doc)
 __TEMPL
@@ -199,11 +197,9 @@ ok(defined $w3, 'typemap writer from class');
 my $x3 = $w3->($doc, $someobj);
 compare_xml($x3, '<test2><e2>bbb</e2></test2>');
 
-is($schema->template( PERL => "{$TestNS}test2", skip_header => 1
-                    , typemap => { $type2 => 'My::Class'} )
-  , <<__TEMPL);
-# xmlns:          http://test-types
-
+$out = templ_perl $schema, "{$TestNS}test2", skip_header => 1
+                    , typemap => { $type2 => 'My::Class'};
+is($out, <<__TEMPL);
 # calls toXML() on My::Class objects
 #   with {http://test-types}test2 and doc
 bless({}, 'My::Class')
@@ -232,11 +228,9 @@ ok(defined $w4, 'typemap writer from object');
 my $x4 = $w4->($doc, $someobj);
 compare_xml($x4, '<test2><e2>bbb</e2></test2>');
 
-is($schema->template( PERL => "{$TestNS}test2", skip_header => 1
-                    , typemap => { $type2 => '$interface'} )
-  , <<__TEMPL);
-# xmlns:          http://test-types
-
+$out = templ_perl $schema, "{$TestNS}test2", skip_header => 1
+                , typemap => { $type2 => '$interface'};
+is($out, <<__TEMPL);
 # call on converter with object
 \$interface->toXML(\$object, '{$TestNS}test2', \$doc)
 __TEMPL

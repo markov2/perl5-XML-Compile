@@ -5,17 +5,28 @@ Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
 To be resolved:
-   facets on list base-types: length, maxLength, minLength, enumeration,
+ - facets on list base-types: length, maxLength, minLength, enumeration,
       , pattern, whiteSpace fixed to collapsed
-   length facet on base64/hex encoding about binary length (tests needed)
-   handle XML::LibXML::Error objects
-   handle xsi:type
-   useSchema() relation to ::Cache::declare()?
-   new in schemas: alternative
-   keyRewrite in PERL template leaves t:
+ - length facet on base64/hex encoding about binary length (tests needed)
+ - handle XML::LibXML::Error objects
+ - handle xsi:type (ancient schema feature, better not use it)
+ - useSchema() relation to ::Cache::declare()?
+ - new in schemas: alternative (new schema feature)
  - namespace blocking option for templates; exclude deprecated elements
  - ::Instance cannot handle element and attribute declaration attribute
-   "targetNamespace"
+   "targetNamespace" (new schema feature)
+
+version 1.08: Sat Oct 24 20:11:10 CEST 2009
+
+	Fixes:
+
+	- reader: fix last parameter of replacement hook
+
+	Improvements:
+
+	- template: support for key_rewrite
+
+	- use the new XML::LibXML::RegExp, to replace tricky XML::RegExp.
 
 version 1.07: Mon Jun 22 11:35:22 CEST 2009
 

@@ -9,7 +9,7 @@ use TestTools;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 5;
+use Test::More tests => 6;
 
 set_compile_defaults
     elements_qualified => 'NONE';
@@ -54,6 +54,7 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
   </complexContent>
 </complexType>
 
+<element name="test3" type="me:test3" />
 <complexType name="test3">
   <sequence>
     <element name="t3_a" />
@@ -76,8 +77,6 @@ ok(defined $schema);
 
 my $out = templ_perl($schema, "{$TestNS}test1", show => 'ALL', skip_header => 1);
 is($out, <<__TEST1__);
-# xmlns:          http://test-types
-
 { # sequence of t1_a, t1_b, t1_c, t1_d, cho_t1_g
 
   # is a {http://www.w3.org/2001/XMLSchema}int
@@ -148,8 +147,6 @@ __TEST1__
 
 $out = templ_perl($schema, "{$TestNS}test1", show => 'NONE', indent => '    ', skip_header => 1);
 is($out, <<__TEST1b__);
-# xmlns:          http://test-types
-
 {   t1_a => 42,
     t1_b => 42,
     t1_c =>
@@ -172,7 +169,9 @@ is($out, <<__TEST1b__);
     ], }
 __TEST1b__
 
-$out = templ_xml($schema, "{$TestNS}test1", show => 'ALL', skip_header => 1);
+$out = templ_xml($schema, "{$TestNS}test1", show => 'ALL', skip_header => 1
+ , use_default_namespace => 1, include_namespaces => 1);
+
 is($out, <<__TEST1c__);
 <test1 xmlns="$TestNS">
   <!-- sequence of t1_a, t1_b, t1_c, t1_d, cho_t1_g -->
@@ -222,7 +221,8 @@ is($out, <<__TEST1c__);
 </test1>
 __TEST1c__
 
-$out = templ_xml($schema, "{$TestNS}test1", show => 'NONE', skip_header => 1);
+$out = templ_xml($schema, "{$TestNS}test1", show => 'NONE', skip_header => 1
+ , use_default_namespace => 1, include_namespaces => 1);
 is($out, <<__TEST1d__);
 <test1 xmlns="http://test-types">
   <t1_a>42</t1_a>
@@ -248,3 +248,22 @@ is($out, <<__TEST1d__);
   <t1_i>-1</t1_i>
 </test1>
 __TEST1d__
+
+$out = templ_perl($schema, "{$TestNS}test3", show => 'ALL', skip_header => 1
+ , key_rewrite => 'PREFIXED', include_namespaces => 1
+ , prefixes => [ 'me' => $TestNS ], elements_qualified => 'ALL');
+is($out, <<__TEST3__);
+# xmlns:me        http://test-types
+
+{ # sequence of me_t3_a, me_t3_b
+
+  # is a {http://www.w3.org/2001/XMLSchema}anyType
+  me_t3_a => "anything",
+
+  # is a {http://www.w3.org/2001/XMLSchema}int
+  # with some value restrictions
+  me_t3_b => 42,
+
+  # is a {http://www.w3.org/2001/XMLSchema}int
+  a3_a => 42, }
+__TEST3__

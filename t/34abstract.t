@@ -44,10 +44,8 @@ __XML
 is($error, "abstract element `test1' used at {http://test-types}test2/test1");
 
 # abstract elements are skipped from the docs
-is($schema->template(PERL => "{$TestNS}test2", abstract_types => 1, skip_header => 1)
-  , <<__TEMPL);
-# xmlns:          http://test-types
-
+my $out = templ_perl($schema, "{$TestNS}test2", abstract_types => 1, skip_header => 1);
+is($out, <<'__TEMPL');
 { # empty sequence
 }
 __TEMPL

@@ -9,7 +9,7 @@ our @EXPORT = qw/builtin_facet/;
 use Log::Report     'xml-compile', syntax => 'SHORT';
 use Math::BigInt;
 use Math::BigFloat;
-use XML::RegExp;
+use XML::LibXML;  # for ::RegExp
 
 use constant DBL_MAX_DIG => 15;
 use constant DBL_MAX_EXP => 307;
@@ -215,30 +215,15 @@ sub _maxLength($$$)
         };
 }
 
-# Converts an XML pattern expresssion into a real Perl regular expression.
-# Gladly, most of the pattern features are taken from Perl.  The current
-# implementation of this function is dumb and incorrect.
-
 sub _pattern($$$)
 {   my ($path, $args, $pats) = @_;
-    my @pats = @$pats or return ();
+    @$pats or return ();
+    my $regex    = @$pats==1 ? $pats->[0] : "(".join(')|(', @$pats).")";
+    my $compiled = XML::LibXML::RegExp->new($regex);
 
-    foreach (@pats)
-    {   s/\\i/[a-zA-Z_:]/g;      # simplyfied, not correct
-        s/\\I/[^a-zA-Z_:]/g;     # idem
-        s/\\c/$XML::RegExp::NameChar/g;
-#       s/(?<!\\)\(/(?:/g;       # incorrect, performance
-        s/\\p\{..\}/\\p{Is$1}/g;
-        s/\\P\{..\}/\\P{Is$1}/g;
-    }
-
-    local $" = '|';
-    my $pat = qr/^(?:@pats)$/;
-    my $err = $args->{err};
-
-    sub { return $_[0] if $_[0] =~ $pat;
-          error __x"string `{string}' does not match pattern {pattern} at {where}"
-              , string => $_[0], pattern => $pat, where => $path;
+    sub { return $_[0] if $compiled->matches($_[0]);
+          error __x"string `{string}' does not match pattern `{pat}' at {where}"
+             , string => $_[0], pat => $regex, where => $path;
         };
 }
 
