@@ -1025,7 +1025,7 @@ sub makeAnyElement
     my %no  = map { ($_ => 1) } @{$no  || []};
 
     # Takes all, before filtering
-    my $any = $max eq 'unbounded' || $max > 1
+    my $any = ($max eq 'unbounded' || $max > 1)
     ? sub
       {   my $tree  = shift or return ();
           my $count = 0;
@@ -1038,7 +1038,6 @@ sub makeAnyElement
 
               my $k = pack_type $ns, $child->localName;
               push @{$result{$k}}, $child;
-
               $count++;
               $tree->nextChild;
           }

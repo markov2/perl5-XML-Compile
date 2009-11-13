@@ -185,6 +185,6 @@ is($out, <<'__TEMPL');
   # occurs 0 <= # <= 3 times
   head =>  [ "{ alt1 => {...} }", ],
 
-  # is a {http://www.w3.org/2001/XMLSchema}int
+  # is a xs:int
   id2 => 42, }
 __TEMPL

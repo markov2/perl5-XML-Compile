@@ -15,7 +15,7 @@ use Digest::MD5    qw/md5_hex/;
 use XML::Compile::Schema::Specs;
 use XML::Compile::Schema::Instance;
 use XML::Compile::Schema::NameSpaces;
-use XML::Compile::Util       qw/SCHEMA2001 unpack_type/;
+use XML::Compile::Util       qw/SCHEMA2001 SCHEMA2001i unpack_type/;
 
 use XML::Compile::Translate  ();
 
@@ -879,12 +879,16 @@ sub template($@)
         if $action eq 'XML' && defined $args{typemap} && keys %{$args{typemap}};
 
     my @rewrite = $self->_key_rewrite(delete $args{key_rewrite});
+    my @blocked = $self->_block_nss(delete $args{block_namespace});
 
-    $args{prefixes} = $self->_namespaceTable
+    my $table   = $args{prefixes} = $self->_namespaceTable
       (($args{prefixes} || $args{output_namespaces})
       , $args{namespace_reset}
       , !$args{use_default_namespace}
       );
+
+    $table->{&SCHEMA2001}  ||= {prefix => 'xs', uri => SCHEMA2001,  used => 0};
+    $table->{&SCHEMA2001i} ||= {prefix => 'xs', uri => SCHEMA2001i, used => 0};
 
     my $transl  = XML::Compile::Translate->new
      ( 'TEMPLATE'
@@ -893,9 +897,9 @@ sub template($@)
 
     my $compiled = $transl->compile
      ( $type
-     , rewrite         => \@rewrite
      , %args
-     , block_namespace => []   # not yet supported
+     , rewrite         => \@rewrite
+     , block_namespace => \@blocked   # not yet supported
      , output          => $action
      );
     $compiled or return;

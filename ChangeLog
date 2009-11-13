@@ -16,6 +16,18 @@ To be resolved:
  - ::Instance cannot handle element and attribute declaration attribute
    "targetNamespace" (new schema feature)
 
+version 1.09: Fri Nov 13 10:56:45 CET 2009
+
+	Fixes:
+
+	- writer: do not produce an empty element when minOccurs is
+	  combined with nillable in a simpleType
+	  rt.cpan.org#51264 [Roman Daniel]
+
+	Improvements:
+
+	- template: use prefixes to avoid namespaces in types.
+
 version 1.08: Sat Oct 24 20:11:10 CEST 2009
 
 	Fixes:

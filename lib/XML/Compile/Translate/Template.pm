@@ -327,7 +327,10 @@ sub makeSimpleElement
 sub makeBuiltin
 {   my ($self, $path, $node, $type, $def, $check_values) = @_;
     my $example = $def->{example};
-    sub { (type => $type, example => $example) };
+    my ($ns, $local) = unpack_type $type;
+    my $prefix       = $self->_registerNSprefix('', $ns, 1);
+    my $preftype     = length $prefix ? "$prefix:$local" : $local;
+    sub { (type => $preftype, example => $example) };
 }
 
 sub makeList

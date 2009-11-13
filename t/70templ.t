@@ -79,43 +79,43 @@ my $out = templ_perl($schema, "{$TestNS}test1", show => 'ALL', skip_header => 1)
 is($out, <<__TEST1__);
 { # sequence of t1_a, t1_b, t1_c, t1_d, cho_t1_g
 
-  # is a {http://www.w3.org/2001/XMLSchema}int
+  # is a xs:int
   t1_a => 42,
 
-  # is a {http://www.w3.org/2001/XMLSchema}int
+  # is a xs:int
   t1_b => 42,
 
   # occurs 1 <= # <= 2 times
   t1_c =>
   [ { # sequence of t3_a, t3_b
 
-      # is a {http://www.w3.org/2001/XMLSchema}anyType
+      # is a xs:anyType
       t3_a => "anything",
 
-      # is a {http://www.w3.org/2001/XMLSchema}int
+      # is a xs:int
       # with some value restrictions
       t3_b => 42,
 
       # sequence of t2_a
 
-      # is a {http://www.w3.org/2001/XMLSchema}int
+      # is a xs:int
       t2_a => 42,
 
-      # is a {http://www.w3.org/2001/XMLSchema}int
+      # is a xs:int
       a3_a => 42,
 
-      # is a {http://www.w3.org/2001/XMLSchema}int
+      # is a xs:int
       a2_a => 42,
 
-      # is a {http://www.w3.org/2001/XMLSchema}string
+      # is a xs:string
       a2_b => "example", }, ],
   t1_d =>
   { # sequence of t1_e, t1_f
 
-    # is a {http://www.w3.org/2001/XMLSchema}string
+    # is a xs:string
     t1_e => "example",
 
-    # is a {http://www.w3.org/2001/XMLSchema}float
+    # is a xs:float
     # occurs 1 <= # <= 2 times
     t1_f =>  [ 3.1415, ], },
 
@@ -125,21 +125,21 @@ is($out, <<__TEST1__);
   [ { t1_g =>
       { # sequence of t3_a, t3_b
 
-        # is a {http://www.w3.org/2001/XMLSchema}anyType
+        # is a xs:anyType
         t3_a => "anything",
 
-        # is a {http://www.w3.org/2001/XMLSchema}int
+        # is a xs:int
         # with some value restrictions
         t3_b => 42,
 
-        # is a {http://www.w3.org/2001/XMLSchema}int
+        # is a xs:int
         a3_a => 42, },
 
-      # is a {http://www.w3.org/2001/XMLSchema}int
+      # is a xs:int
       # is optional
       t1_h => 42,
 
-      # is a {http://www.w3.org/2001/XMLSchema}negativeInteger
+      # is a xs:negativeInteger
       # occurs 1 <= # <= unbounded times
       t1_i =>  [ -1, ], },
   ], }
@@ -173,28 +173,28 @@ $out = templ_xml($schema, "{$TestNS}test1", show => 'ALL', skip_header => 1
  , use_default_namespace => 1, include_namespaces => 1);
 
 is($out, <<__TEST1c__);
-<test1 xmlns="$TestNS">
+<test1 xmlns="http://test-types" xmlns:xs="http://www.w3.org/2001/XMLSchema">
   <!-- sequence of t1_a, t1_b, t1_c, t1_d, cho_t1_g -->
-  <t1_a type="int">42</t1_a>
-  <t1_b type="int">42</t1_b>
+  <t1_a type="xs:int">42</t1_a>
+  <t1_b type="xs:int">42</t1_b>
   <t1_c>
     <!-- occurs 1 <= # <= 2 times -->
     <!-- sequence of t3_a, t3_b -->
-    <t3_a type="anyType">anything</t3_a>
-    <t3_b type="int">
+    <t3_a type="xs:anyType">anything</t3_a>
+    <t3_b type="xs:int">
       <!-- with some value restrictions -->
       42
     </t3_b>
     <!-- sequence of t2_a -->
-    <t2_a type="int">42</t2_a>
-    <a3_a type="int">42</a3_a>
-    <a2_a type="int">42</a2_a>
-    <a2_b type="string">example</a2_b>
+    <t2_a type="xs:int">42</t2_a>
+    <a3_a type="xs:int">42</a3_a>
+    <a2_a type="xs:int">42</a2_a>
+    <a2_b type="xs:string">example</a2_b>
   </t1_c>
   <t1_d>
     <!-- sequence of t1_e, t1_f -->
-    <t1_e type="string">example</t1_e>
-    <t1_f type="float">
+    <t1_e type="xs:string">example</t1_e>
+    <t1_f type="xs:float">
       <!-- occurs 1 <= # <= 2 times -->
       3.1415
     </t1_f>
@@ -203,18 +203,18 @@ is($out, <<__TEST1c__);
        occurs 1 <= # <= 3 times -->
   <t1_g>
     <!-- sequence of t3_a, t3_b -->
-    <t3_a type="anyType">anything</t3_a>
-    <t3_b type="int">
+    <t3_a type="xs:anyType">anything</t3_a>
+    <t3_b type="xs:int">
       <!-- with some value restrictions -->
       42
     </t3_b>
-    <a3_a type="int">42</a3_a>
+    <a3_a type="xs:int">42</a3_a>
   </t1_g>
-  <t1_h type="int">
+  <t1_h type="xs:int">
     <!-- is optional -->
     42
   </t1_h>
-  <t1_i type="negativeInteger">
+  <t1_i type="xs:negativeInteger">
     <!-- occurs 1 <= # <= unbounded times -->
     -1
   </t1_i>
@@ -224,7 +224,7 @@ __TEST1c__
 $out = templ_xml($schema, "{$TestNS}test1", show => 'NONE', skip_header => 1
  , use_default_namespace => 1, include_namespaces => 1);
 is($out, <<__TEST1d__);
-<test1 xmlns="http://test-types">
+<test1 xmlns="http://test-types" xmlns:xs="http://www.w3.org/2001/XMLSchema">
   <t1_a>42</t1_a>
   <t1_b>42</t1_b>
   <t1_c>
@@ -254,16 +254,17 @@ $out = templ_perl($schema, "{$TestNS}test3", show => 'ALL', skip_header => 1
  , prefixes => [ 'me' => $TestNS ], elements_qualified => 'ALL');
 is($out, <<__TEST3__);
 # xmlns:me        http://test-types
+# xmlns:xs        http://www.w3.org/2001/XMLSchema
 
 { # sequence of me_t3_a, me_t3_b
 
-  # is a {http://www.w3.org/2001/XMLSchema}anyType
+  # is a xs:anyType
   me_t3_a => "anything",
 
-  # is a {http://www.w3.org/2001/XMLSchema}int
+  # is a xs:int
   # with some value restrictions
   me_t3_b => 42,
 
-  # is a {http://www.w3.org/2001/XMLSchema}int
+  # is a xs:int
   a3_a => 42, }
 __TEST3__

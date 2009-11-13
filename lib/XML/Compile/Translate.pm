@@ -761,7 +761,6 @@ sub particle($)
     # them in the reader, to see the value.
  
     defined $max or $max = 1;
-
     $max = 'unbounded'
         if $max ne 'unbounded' && $max > 1 && !$self->{check_occurs};
 

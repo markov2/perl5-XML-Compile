@@ -9,8 +9,7 @@ use TestTools;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 84;
-
+use Test::More tests => 105;
 
 use XML::Compile::Util  qw/SCHEMA2001i/;
 my $xsi    = SCHEMA2001i;
@@ -68,6 +67,20 @@ my $schema = XML::Compile::Schema->new( <<__SCHEMA__ );
     <sequence>
       <element name="e4" type="me:t4" minOccurs="0" maxOccurs="12"
          nillable="true" />
+    </sequence>
+  </complexType>
+</element>
+
+<element name="outer">
+  <complexType>
+    <sequence>
+      <element name="inner" minOccurs="0" nillable="true">
+        <simpleType>
+          <restriction base="string">
+            <minLength value="1"/>
+          </restriction>
+        </simpleType>
+      </element>
     </sequence>
   </complexType>
 </element>
@@ -215,4 +228,28 @@ test_rw($schema, test1 => <<_XML, {e1 => 42, e2 => 'NIL', e3 => 44} );
    <e2 xsi:nil="true"/>
    <e3>44</e3>
 </test1>
+_XML
+
+#
+# Bug reported by Roman Daniel rt.cpan.org#51264
+#
+
+set_compile_defaults
+    include_namespaces => 1
+  , elements_qualified => 1;
+
+test_rw($schema, outer => <<_XML, {});
+<outer xmlns="$TestNS" xmlns:xsi="$xsi"/>
+_XML
+
+test_rw($schema, outer => <<_XML, {inner => 'NIL'});
+<outer xmlns="$TestNS" xmlns:xsi="$xsi">
+  <inner xsi:nil="true"/>
+</outer>
+_XML
+
+test_rw($schema, outer => <<_XML, {inner => 'aap'});
+<outer xmlns="$TestNS" xmlns:xsi="$xsi">
+  <inner>aap</inner>
+</outer>
 _XML
