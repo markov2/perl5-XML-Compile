@@ -10,7 +10,7 @@ use TestTools;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 45;
+use Test::More tests => 48;
 
 set_compile_defaults
     elements_qualified => 'NONE';

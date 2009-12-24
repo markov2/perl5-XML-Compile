@@ -434,7 +434,9 @@ my $time = qr /^ $timeFrag $timezoneFrag? $/x;
 
 $builtin_types{time} =
  { parse   => \&_collapse
- , format  => sub { $_[0] =~ /\D/ ? $_[0] : strftime("%T", gmtime $_[0])}
+ , format  => sub { return $_[0] if $_[0] =~ /[^0-9.]/;
+      my $subsec = $_[0] =~ /(\.\d+)/ ? $1 : '';
+      strftime "%T$subsec", gmtime $_[0] }
  , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $time }
  , example => '11:12:13'
  };
@@ -455,8 +457,9 @@ my $dateTime = qr/^ $yearFrag \- $monthFrag \- $dayFrag
 
 $builtin_types{dateTime} =
  { parse   => \&_collapse
- , format  => sub { $_[0] =~ /\D/ ? $_[0]
-     : strftime("%Y-%m-%dT%H:%M:%SZ", gmtime($_[0])) }
+ , format  => sub { return $_[0] if $_[0] =~ /[^0-9.]/;
+       my $subsec = $_[0] =~ /(\.\d+)/ ? $1 : '';
+       strftime "%Y-%m-%dT%H:%M:%S${subsec}Z", gmtime $_[0] }
  , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $dateTime }
  , example => '2006-10-06T00:23:02Z'
  };

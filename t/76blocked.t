@@ -11,7 +11,7 @@ use XML::Compile::Schema;
 use XML::Compile::Tester;
 #use Log::Report mode => 'DEBUG';
 
-use Test::More tests => 122;
+use Test::More tests => 129;
 
 my $OtherNS = "http://test2/ns";
 

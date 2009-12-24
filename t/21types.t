@@ -10,7 +10,7 @@ use XML::Compile::Schema;
 use XML::Compile::Tester;
 use Math::BigFloat;
 
-use Test::More tests => 113;
+use Test::More tests => 127;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema xmlns="$SchemaNS"

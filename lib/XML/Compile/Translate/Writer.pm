@@ -64,10 +64,9 @@ sub _typemapClass($$)
         or error __x"class {pkg} does not implement toXML(), required for typemap {type}"
              , pkg => $class, type => $type;
 
-    sub { my ($doc, $values, $path) = @_;
-            UNIVERSAL::isa($values, $class)
-          ? $values->toXML($type, $doc)
-          : $values;
+    sub {
+        my ($doc, $values, $path) = @_;
+        UNIVERSAL::isa($values, $class) ? $values->toXML($type, $doc) : $values;
     };
 }
 
@@ -78,8 +77,9 @@ sub _typemapObject($$)
         or error __x"object of class {pkg} does not implement toXML(), required for typemap {type}"
              , pkg => ref($object), type => $type;
 
-    sub { my ($doc, $values, $path) = @_;
-          blessed($values) ? $object->toXML($values, $type, $doc) : $values;
+    sub {
+        my ($doc, $values, $path) = @_;
+        blessed($values) ? $object->toXML($values, $type, $doc) : $values;
     };
 }
 
@@ -114,14 +114,15 @@ sub typemapToHooks($$)
 
 sub makeElementWrapper
 {   my ($self, $path, $processor) = @_;
-    sub { my ($doc, $data) = @_;
-          UNIVERSAL::isa($doc, 'XML::LibXML::Document')
-              or error __x"first argument of call to writer must be an XML::LibXML::Document";
+    sub {
+        my ($doc, $data) = @_;
+        UNIVERSAL::isa($doc, 'XML::LibXML::Document')
+            or error __x"first argument of call to writer must be an XML::LibXML::Document";
 
-          my $top = $processor->(@_);
-          $doc->indexElements;
-          $top;
-        };
+        my $top = $processor->(@_);
+        $doc->indexElements;
+        $top;
+    };
 }
 *makeAttributeWrapper = \&makeElementWrapper;
 
@@ -131,7 +132,7 @@ sub makeWrapperNs
     $filter = sub {1} if ref $filter ne 'CODE';
 
     foreach my $entry (sort {$a->{prefix} cmp $b->{prefix}} values %$index)
-    { # ANY components are frustrating this
+    {   # ANY components are frustrating this
         $entry->{used} or next;
         $filter->($entry->{uri}, $entry->{prefix}) or next;
         push @entries, [ $entry->{uri}, $entry->{prefix} ];
@@ -140,12 +141,13 @@ sub makeWrapperNs
 
     @entries or return $processor;
 
-    sub { my $node = $processor->(@_) or return ();
-          UNIVERSAL::isa($node, 'XML::LibXML::Element')
-              or return $node;
-          $node->setNamespace(@$_, 0) for @entries;
-          $node;
-        };
+    sub {
+        my $node = $processor->(@_) or return ();
+        UNIVERSAL::isa($node, 'XML::LibXML::Element')
+            or return $node;
+        $node->setNamespace(@$_, 0) for @entries;
+        $node;
+    };
 }
 
 sub makeSequence($@)
@@ -156,15 +158,15 @@ sub makeSequence($@)
         return $do
             if ref $do eq 'BLOCK' || ref $do eq 'ANY';
 
-        return bless sub
-          { my ($doc, $values) = @_;
+        return bless sub {
+            my ($doc, $values) = @_;
             defined $values or return;
             $do->($doc, delete $values->{$take});
-          }, 'BLOCK';
+        }, 'BLOCK';
     }
  
-    bless sub
-     {  my ($doc, $values) = @_;
+    bless sub {
+        my ($doc, $values) = @_;
         defined $values or return;
 
         my @res;
@@ -190,52 +192,52 @@ sub makeChoice($@)
  
     if(!@specials && keys %do==1)
     {   my ($take, $do) = %do;
-        return bless
-        sub { my ($doc, $values) = @_;
-                defined $values && defined $values->{$take}
+        return bless sub {
+            my ($doc, $values) = @_;
+            defined $values && defined $values->{$take}
               ? $do->($doc, delete $values->{$take}) : ();
-            }, 'BLOCK';
+        }, 'BLOCK';
     }
 
-    bless
-    sub { my ($doc, $values) = @_;
-          defined $values or return ();
-          foreach my $take (keys %do)
-          {   return $do{$take}->($doc, delete $values->{$take})
-                  if defined $values->{$take};
-          }
+    bless sub {
+        my ($doc, $values) = @_;
+        defined $values or return ();
+        foreach my $take (keys %do)
+        {   return $do{$take}->($doc, delete $values->{$take})
+                if defined $values->{$take};
+        }
 
-          my $starter = keys %$values;
-          foreach (@specials)
-          {   my @d = try { $_->($doc, $values) };
-              if($@->wasFatal(class => 'misfit'))
-              {   # misfit error is ok, if nothing consumed
-                  trace "misfit $path ".$@->wasFatal->message;
-                  $@->reportAll if $starter != keys %$values;
-                  next;
-              }
-              elsif(defined $@) {$@->reportAll}
+        my $starter = keys %$values;
+        foreach (@specials)
+        {   my @d = try { $_->($doc, $values) };
+            if($@->wasFatal(class => 'misfit'))
+            {   # misfit error is ok, if nothing consumed
+                trace "misfit $path ".$@->wasFatal->message;
+                $@->reportAll if $starter != keys %$values;
+                next;
+            }
+            elsif(defined $@) {$@->reportAll}
 
-              return @d;
-          }
+            return @d;
+        }
 
-          # blurk... any element with minOccurs=0 or default?
-          foreach (values %do)
-          {   my @d = try { $_->($doc, undef) };
-              return @d if !$@ && @d;
-          }
-          foreach (@specials)
-          {   my @d = try { $_->($doc, undef) };
-              if($@->wasFatal(class => 'misfit'))
-              {   $@->reportAll if $starter != keys %$values;
-                  next;
-              }
-              elsif(defined $@) {$@->reportAll}
-              return @d;
-          }
+        # blurk... any element with minOccurs=0 or default?
+        foreach (values %do)
+        {   my @d = try { $_->($doc, undef) };
+            return @d if !$@ && @d;
+        }
+        foreach (@specials)
+        {   my @d = try { $_->($doc, undef) };
+            if($@->wasFatal(class => 'misfit'))
+            {   $@->reportAll if $starter != keys %$values;
+                next;
+            }
+            elsif(defined $@) {$@->reportAll}
+            return @d;
+        }
 
-          ();
-        }, 'BLOCK';
+        ();
+    }, 'BLOCK';
 }
 
 sub makeAll($@)
@@ -243,26 +245,26 @@ sub makeAll($@)
 
     if(@pairs==2 && !ref $pairs[1])
     {   my ($take, $do) = @pairs;
-        return bless
-        sub { my ($doc, $values) = @_;
-              $do->($doc, delete $values->{$take});
-            }, 'BLOCK';
+        return bless sub {
+            my ($doc, $values) = @_;
+           $do->($doc, delete $values->{$take});
+        }, 'BLOCK';
     }
 
-    return bless
-    sub { my ($doc, $values) = @_;
+    return bless sub {
+        my ($doc, $values) = @_;
 
-          my @res;
-          my @do = @pairs;
-          while(@do)
-          {   my ($take, $do) = (shift @do, shift @do);
-              push @res
-                 , ref $do eq 'BLOCK' || ref $do eq 'ANY'
-                 ? $do->($doc, $values)
-                 : $do->($doc, delete $values->{$take});
-          }
-          @res;
-        }, 'BLOCK';
+        my @res;
+        my @do = @pairs;
+        while(@do)
+        {   my ($take, $do) = (shift @do, shift @do);
+            push @res
+               , ref $do eq 'BLOCK' || ref $do eq 'ANY'
+               ? $do->($doc, $values)
+               : $do->($doc, delete $values->{$take});
+        }
+        @res;
+    }, 'BLOCK';
 }
  
 #
@@ -300,21 +302,22 @@ sub makeElementHandler
     return $required
         if $min==1 && $max==1;
 
-    sub { my ($doc, $values) = @_;
-          my @values
-            = ref $values eq 'ARRAY' ? @$values : defined $values ? $values : ();
+    sub {
+        my ($doc, $values) = @_;
+        my @values
+          = ref $values eq 'ARRAY' ? @$values : defined $values ? $values : ();
 
-          @values <= $max
-              or error "too many elements for `{tag}', max {max} found {nr} at {path}"
-                   , tag => $label, max => $max, nr => (scalar @values)
-                   , path => $path;
+        @values <= $max
+            or error "too many elements for `{tag}', max {max} found {nr} at {path}"
+                 , tag => $label, max => $max, nr => (scalar @values)
+                 , path => $path;
 
-          my @d = map { $required->($doc, shift @values) } 1..$min;
-          push @d, $optional->($doc, shift @values)
-              while @values && @d < $max;
+        my @d = map { $required->($doc, shift @values) } 1..$min;
+        push @d, $optional->($doc, shift @values)
+            while @values && @d < $max;
 
-          @d ? @d : (undef);
-        };
+        @d ? @d : (undef);
+    };
 }
 
 # To reflect the difference between a block which did not "succeed hence
@@ -324,90 +327,90 @@ sub makeBlockHandler
 {   my ($self, $path, $label, $min, $max, $process, $kind, $multi) = @_;
 
     if($min==0 && $max eq 'unbounded')
-    {   my $code =
-        sub { my $doc    = shift;
-              my $values = delete shift->{$multi};
-                ref $values eq 'ARRAY' ? (map {$process->($doc, $_)} @$values)
-              : defined $values        ? $process->($doc, $values)
-              :                          (undef);
-            };
+    {   my $code = sub {
+            my $doc    = shift;
+            my $values = delete shift->{$multi};
+              ref $values eq 'ARRAY' ? (map {$process->($doc, {%$_})} @$values)
+            : defined $values        ? $process->($doc, $values)
+            :                          (undef);
+        };
         return ($multi, bless($code, 'BLOCK'));
     }
 
     if($max eq 'unbounded')
-    {   my $code =
-        sub { my $doc    = shift;
-              my $values = delete shift->{$multi};
-              my @values = ref $values eq 'ARRAY' ? @$values
-                         : defined $values ? $values : ();
+    {   my $code = sub {
+            my $doc    = shift;
+            my $values = delete shift->{$multi};
+            my @values = ref $values eq 'ARRAY' ? @$values
+                       : defined $values ? $values : ();
 
-              @values >= $min
-                  or error __x"too few blocks for `{tag}' specified, got {found} need {min} at {path}"
-                        , tag => $multi, found => scalar @values
-                        , min => $min, path => $path, _class => 'misfit';
+            @values >= $min
+                or error __x"too few blocks for `{tag}' specified, got {found} need {min} at {path}"
+                     , tag => $multi, found => scalar @values
+                     , min => $min, path => $path, _class => 'misfit';
 
-              map { $process->($doc, $_) } @values;
-            };
+            map {$process->($doc, {%$_}) } @values;
+        };
         return ($multi, bless($code, 'BLOCK'));
     }
 
     if($min==0 && $max==1)
-    {   my $code =
-        sub { my ($doc, $values) = @_;
-              my @values = ref $values eq 'ARRAY' ? @$values
-                         : defined $values ? $values : ();
+    {   my $code = sub {
+            my ($doc, $values) = @_;
+            my @values = ref $values eq 'ARRAY' ? @$values
+                       : defined $values ? $values : ();
 
-              @values <= 1
-                  or error __x"only one block value for `{tag}', not {count} at {path}"
-                        , tag => $multi, count => scalar @values
-                        , path => $path, _class => 'misfit';
+            @values <= 1
+                or error __x"only one block value for `{tag}', not {count} at {path}"
+                     , tag => $multi, count => scalar @values
+                     , path => $path, _class => 'misfit';
 
-              @values ? $process->($doc, $values[0]) : undef;
-            };
+            @values ? $process->($doc, $values[0]) : undef;
+        };
         return ($label, bless($code, 'BLOCK'));
     }
 
     if($min==1 && $max==1)
-    {   my $code = 
-        sub { my @d = $process->(@_);
-              @d or error __x"no match for required block `{tag}' at {path}"
-                 , tag => $multi, path => $path, _class => 'misfit';
-              @d;
-            };
+    {   my $code = sub {
+            my @d = $process->(@_);
+            @d or error __x"no match for required block `{tag}' at {path}"
+              , tag => $multi, path => $path, _class => 'misfit';
+            @d;
+        };
         return ($label, bless($code, 'BLOCK'));
     }
 
     my $opt  = $max - $min;
-    my $code =
-    sub { my $doc    = shift;
-          my $values = delete shift->{$multi};
-          my @values = ref $values eq 'ARRAY' ? @$values
-                     : defined $values ? $values : ();
+    my $code = sub {
+        my $doc    = shift;
+        my $values = delete shift->{$multi};
+        my @values = ref $values eq 'ARRAY' ? @$values
+                   : defined $values ? $values : ();
 
-          @values >= $min && @values <= $max
-              or error __x"found {found} blocks for `{tag}', must be between {min} and {max} inclusive at {path}"
-                   , tag => $multi, min => $min, max => $max, path => $path
-                   , found => scalar @values, _class => 'misfit';
+        @values >= $min && @values <= $max
+            or error __x"found {found} blocks for `{tag}', must be between {min} and {max} inclusive at {path}"
+                 , tag => $multi, min => $min, max => $max, path => $path
+                 , found => scalar @values, _class => 'misfit';
 
-          map { $process->($doc, $_) } @values;
-        };
+        map { $process->($doc, {%$_}) } @values;
+    };
 
     ($multi, bless($code, 'BLOCK'));
 }
 
 sub makeRequired
 {   my ($self, $path, $label, $do) = @_;
-    my $req =
-    sub { my @nodes = $do->(@_);
-          return @nodes if @nodes;
+    my $req = sub {
+        my @nodes = $do->(@_);
+        return @nodes if @nodes;
 
-          error __x"required data for block (starts with `{tag}') missing at {path}"
-             , tag => $label, path => $path, _class => 'misfit'
-                 if ref $do eq 'BLOCK';
+        error __x"required data for block (starts with `{tag}') missing at {path}"
+          , tag => $label, path => $path, _class => 'misfit'
+            if ref $do eq 'BLOCK';
 
-          error __x"required value for element `{tag}' missing at {path}"
-             , tag => $label, path => $path, _class => 'misfit';
-        };
+        error __x"required value for element `{tag}' missing at {path}"
+          , tag => $label, path => $path, _class => 'misfit';
+    };
     bless $req, 'BLOCK' if ref $do eq 'BLOCK';
     $req;
 }
@@ -419,22 +422,23 @@ sub makeElement
 
 sub makeElementFixed
 {   my ($self, $path, $ns, $childname, $do, $fixed) = @_;
-    $fixed   = $fixed->value if ref $fixed;
+    $fixed = $fixed->value if ref $fixed;
 
-    sub { my ($doc, $value) = @_;
-          my $ret = defined $value ? $do->($doc, $value) : return;
-          return $ret
-              if defined $ret && $ret->textContent eq $fixed;
+    sub {
+        my ($doc, $value) = @_;
+        my $ret = defined $value ? $do->($doc, $value) : return;
+        return $ret
+            if defined $ret && $ret->textContent eq $fixed;
 
-          defined $ret
-              or error __x"required element `{name}' with fixed value `{fixed}' missing at {path}"
-                   , name => $childname, fixed => $fixed, path => $path,
-                   , _class => 'misfit';
+        defined $ret
+            or error __x"required element `{name}' with fixed value `{fixed}' missing at {path}"
+                 , name => $childname, fixed => $fixed, path => $path,
+                 , _class => 'misfit';
 
-          error __x"element `{name}' has value fixed to `{fixed}', got `{value}' at {path}"
-             , name => $childname, fixed => $fixed
-             , value => $ret->textContent, path => $path, _class => 'misfit';
-        };
+        error __x"element `{name}' has value fixed to `{fixed}', got `{value}' at {path}"
+           , name => $childname, fixed => $fixed
+           , value => $ret->textContent, path => $path, _class => 'misfit';
+    };
 }
 
 sub makeElementNillable
@@ -446,8 +450,8 @@ sub makeElementNillable
 
     sub
     {   my ($doc, $value) = @_;
-        defined $value && $value eq 'NIL'
-            or return $do->($doc, $value);
+        defined $value  or return;
+        $value eq 'NIL' or return $do->($doc, $value);
 
         return $doc->createTextNode('')
             if $inas;
@@ -559,43 +563,43 @@ sub makeTaggedElement
     my @attrs = @$attrs;
     my @anya  = @$attrs_any;
 
-    return
-    sub { my ($doc, $data) = @_;
-          return $doc->importNode($data)
-              if UNIVERSAL::isa($data, 'XML::LibXML::Element');
+    return sub {
+        my ($doc, $data) = @_;
+        return $doc->importNode($data)
+            if UNIVERSAL::isa($data, 'XML::LibXML::Element');
 
-          my $copy    = UNIVERSAL::isa($data,'HASH') ? {%$data} : {_ => $data};
-          my $content = delete $copy->{_};
+        my $copy    = UNIVERSAL::isa($data,'HASH') ? {%$data} : {_ => $data};
+        my $content = delete $copy->{_};
 
-          my ($node, @childs);
-          if(UNIVERSAL::isa($content, 'XML::LibXML::Node'))
-          {   $node = $doc->importNode($content);
-          }
-          elsif(defined $content)
-          {   push @childs, $st->($doc, $content);
-          }
+        my ($node, @childs);
+        if(UNIVERSAL::isa($content, 'XML::LibXML::Node'))
+        {   $node = $doc->importNode($content);
+        }
+        elsif(defined $content)
+        {   push @childs, $st->($doc, $content);
+        }
 
-          for(my $i=0; $i<@attrs; $i+=2)
-          {   push @childs, $attrs[$i+1]->($doc, delete $copy->{$attrs[$i]});
-          }
+        for(my $i=0; $i<@attrs; $i+=2)
+        {   push @childs, $attrs[$i+1]->($doc, delete $copy->{$attrs[$i]});
+        }
 
-          push @childs, $_->($doc, $copy)
-              for @anya;
+        push @childs, $_->($doc, $copy)
+            for @anya;
 
-          if(my @not_used = sort keys %$copy)
-          {   error __xn "tag `{tags}' not processed at {path}"
-                       , "unprocessed tags {tags} at {path}"
-                       , scalar @not_used, tags => \@not_used, path => $path;
-          }
+        if(my @not_used = sort keys %$copy)
+        {   error __xn "tag `{tags}' not processed at {path}"
+                     , "unprocessed tags {tags} at {path}"
+                     , scalar @not_used, tags => \@not_used, path => $path;
+        }
 
-          $node or @childs or return ();
-          $node ||= $doc->createElement($tag);
-          $node->addChild
-            ( UNIVERSAL::isa($_, 'XML::LibXML::Node') ? $_
-            : $doc->createTextNode(defined $_ ? $_ : ''))
-               for @childs;
-          $node;
-       };
+        $node or @childs or return ();
+        $node ||= $doc->createElement($tag);
+        $node->addChild
+          ( UNIVERSAL::isa($_, 'XML::LibXML::Node') ? $_
+          : $doc->createTextNode(defined $_ ? $_ : ''))
+             for @childs;
+        $node;
+    };
 }
 
 #
@@ -665,25 +669,27 @@ sub makeMixedElement
 
 sub makeSimpleElement
 {   my ($self, $path, $tag, $st) = @_;
-    sub { my ($doc, $data) = @_;
-          return $doc->importNode($data)
-              if UNIVERSAL::isa($data, 'XML::LibXML::Element');
-          $data = $data->{_}
-              if ref $data eq 'HASH';
+    sub {
+        my ($doc, $data) = @_;
+        return $doc->importNode($data)
+            if UNIVERSAL::isa($data, 'XML::LibXML::Element');
+        $data = $data->{_}
+            if ref $data eq 'HASH';
 
-          my $value = $st->($doc, $data);
-          defined $value
-              or return ();
+        my $value = $st->($doc, $data);
+        defined $value
+            or return ();
 
-          my $node  = $doc->createElement($tag);
-          error __x"expected single value for {tag}, but got {type}"
-             , tag => $tag, type => ref($value)
-              if ref $value eq 'ARRAY' || ref $value eq 'HASH';
-          $node->addChild
-            ( UNIVERSAL::isa($value, 'XML::LibXML::Node') ? $value
-            : $doc->createTextNode(defined $value ? $value : ''));
-          $node;
-        };
+        my $node  = $doc->createElement($tag);
+        error __x"expected single value for {tag}, but got {type}"
+          , tag => $tag, type => ref($value)
+            if ref $value eq 'ARRAY' || ref $value eq 'HASH';
+
+        $node->addChild
+          ( UNIVERSAL::isa($value, 'XML::LibXML::Node') ? $value
+          : $doc->createTextNode(defined $value ? $value : ''));
+        $node;
+    };
 }
 
 sub makeBuiltin
@@ -787,7 +793,7 @@ sub makeSubstgroup
 # Attributes
 
 sub makeAttributeRequired
-{   my ($self, $path, $ns, $tag, $do) = @_;
+{   my ($self, $path, $ns, $tag, $label, $do) = @_;
 
     sub { my $value = $do->(@_);
           return $_[0]->createAttributeNS($ns, $tag, $value)
@@ -799,7 +805,7 @@ sub makeAttributeRequired
 }
 
 sub makeAttributeProhibited
-{   my ($self, $path, $ns, $tag, $do) = @_;
+{   my ($self, $path, $ns, $tag, $label, $do) = @_;
 
     sub { my $value = $do->(@_);
           defined $value or return ();
@@ -810,14 +816,14 @@ sub makeAttributeProhibited
 }
 
 sub makeAttribute
-{   my ($self, $path, $ns, $tag, $do) = @_;
+{   my ($self, $path, $ns, $tag, $label, $do) = @_;
     sub { my $value = $do->(@_);
           defined $value ? $_[0]->createAttribute($tag, $value) : ();
         };
 }
 
 sub makeAttributeDefault
-{   my ($self, $path, $ns, $tag, $do, $default_node) = @_;
+{   my ($self, $path, $ns, $tag, $label, $do, $default_node) = @_;
 
     my $mode = $self->{default_values};
     $mode eq 'IGNORE'
@@ -845,7 +851,7 @@ sub makeAttributeDefault
 }
 
 sub makeAttributeFixed
-{   my ($self, $path, $ns, $tag, $do, $fixed) = @_;
+{   my ($self, $path, $ns, $tag, $label, $do, $fixed) = @_;
     $fixed   = $fixed->value if ref $fixed;
 
     sub { my ($doc, $value) = @_;
@@ -975,6 +981,37 @@ sub makeAnyElement
 
           @res ? @res : undef;   # empty, then "0 but true"
         }, 'ANY';
+}
+
+# xsi:type handling
+
+sub makeXsiTypeSwitch($$$$)
+{   my ($self, $where, $elem, $default_type, $types) = @_;
+    my $xsi = $self->_registerNSprefix(xsi => SCHEMA2001i, 1) . ':type';
+    my %types;
+    foreach my $type (sort keys %$types)
+    {   my ($ns, $local) = unpack_type $type;
+        my $tag = $self->makeTagQualified($where, undef, $local, $ns);
+        $types{$type} = [ $tag, $types->{$type} ];
+    }
+
+    sub {
+        my ($doc, $values) = @_;
+        ref $values eq 'HASH' && $values->{XSI_TYPE}
+            or return $types{$default_type}[1]->(@_);
+
+        my %v    = %$values;
+        my $type = delete $v{XSI_TYPE};
+        my $def  = $types{$type}
+            or error __x"specified xsi:type list for `{default}' does not contain `{got}'"
+                 , default => $default_type, got => $type;
+
+        my ($t, $code) = @$def;
+        my $node = $code->($doc, \%v)
+            or return;
+        $node->setAttribute($xsi, $t);
+        $node;
+    };
 }
 
 sub makeHook($$$$$$)

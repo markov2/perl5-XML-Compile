@@ -11,7 +11,7 @@ use XML::Compile::Schema;
 use XML::Compile::Tester;
 #use Log::Report mode => 3;
 
-use Test::More tests => 39;
+use Test::More tests => 44;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema
@@ -26,6 +26,9 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
       <element name="t1E2"  type="int"/>
       <element name="t1-e3" type="int"/>
     </sequence>
+    <attribute name="t1-A1" type="int"/>
+    <attribute name="t1A2"  type="int"/>
+    <attribute name="t1-a3" type="int"/>
   </complexType>
 </element>
 
@@ -47,7 +50,7 @@ ok(defined $schema);
 
 ### stacked rewrites
 
-my %rewrite_table = ( 't1-e3' => 'Tn3' );
+my %rewrite_table = ( 't1-e3' => 'Tn3', 't1-a3' => 'Ta3' );
 sub rewrite_dash { $_[1] =~ s/\-/_/g; $_[1] };
 sub rewrite_lowercase { lc $_[1] }
 
@@ -55,8 +58,10 @@ set_compile_defaults
     elements_qualified => 'NONE'
   , key_rewrite => [ \%rewrite_table, \&rewrite_dash, \&rewrite_lowercase ];
 
-test_rw($schema, test1 => <<__XML, {t1_e1 => 42, t1e2 => 43, tn3 => 44});
-<test1>
+my %t1a = (t1_e1 => 42, t1e2 => 43, tn3 => 44,
+           t1_a1 => 45, t1a2 => 46, ta3 => 47);
+test_rw($schema, test1 => <<__XML, \%t1a);
+<test1 t1-A1="45" t1A2="46" t1-a3="47">
   <t1-E1>42</t1-E1>
   <t1E2>43</t1E2>
   <t1-e3>44</t1-e3>
@@ -69,8 +74,10 @@ set_compile_defaults
     elements_qualified => 'NONE'
   , key_rewrite        => 'SIMPLIFIED';
 
-test_rw($schema, test1 => <<__XML, {t1_e1 => 45, t1e2 => 46, t1_e3 => 47});
-<test1>
+my %t1b = ( t1_e1 => 45, t1e2 => 46, t1_e3 => 47
+          , t1_a1 => 48, t1a2 => 49, t1_a3 => 50);
+test_rw($schema, test1 => <<__XML, \%t1b);
+<test1 t1-A1="48" t1A2="49" t1-a3="50">
   <t1-E1>45</t1-E1>
   <t1E2>46</t1E2>
   <t1-e3>47</t1-e3>
@@ -140,5 +147,5 @@ is($out, <<'__TEMPL');
   # substitutionGroup
   # {http://test-types}t2a:
   #   T2A  T2B
-  T2A => "{ T2A => {...} }", }
+  T2A => { T2A => {...} }, }
 __TEMPL

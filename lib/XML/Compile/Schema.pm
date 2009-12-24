@@ -758,9 +758,9 @@ sub compile($$@)
 
     $transl->compile
      ( $type, %args
-     , hooks   => \@hooks
-     , typemap => \%map
-     , rewrite => \@rewrite
+     , hooks    => \@hooks
+     , typemap  => \%map
+     , rewrite  => \@rewrite
      , block_namespace => \@blocked
      );
 }
@@ -1803,15 +1803,48 @@ which often is not named in the schema.
 
 =back
 
+=section Handling xsi:type
+
+[new in release 1.10]
+The C<xsi:type> is an old-fashioned mechanism, and should be avoided!
+In this case, the schema does tell you that a certain element has
+a certrain type, but at run-time(!) that is changed. When an XML
+element has a C<xsi:type> attribute, it tells you simply to have an
+extension of the original type.  This whole mechanism does bite the
+"compilation" idea of M<XML::Compile>... however with some help, it
+will work.
+
+To make C<xsi:type> work at run-time, you have to pass a table of
+which types you expect at compile-time.  Example:
+
+   my %xsi_type_table =
+     ( $base_type1 => [ $ext1_of_type1, $ext2_of_type2 ]
+     , $base_type2 => [ $ext1_of_type2 ]
+     );
+
+   my $r = $schema->compile(READER => $type
+     , xsi_type => \%xsi_type_table
+     );
+
+When your schema is an M<XML::Compile::Cache> (requires version 0.93),
+your types look like C<prefix:local>.  With a plain M<XML::Compile::Schema>,
+they will look like C<{namespace}local>, typically produced with
+M<XML::Compile::Util::pack_type()>.
+
+When used in a reader, the resulting data-set will contain a C<XSI_TYPE>
+key inbetween the facts which were taken from the element. With the
+writer, you have to provide such an C<XSI_TYPE> value or the element's
+base type will be used (and no C<xsi:type> attribute created).
+
 =section Key rewrite
 
-[release 0.87, improved 1.01]
-The standard practice is to use the localName of the XML elements
-as key in the Perl HASH; the key rewrite mechanism is used to
-change that, sometimes to seperate elements which have the same
-localName within different name-spaces, or when an element and
-an attribute share a name (key rewrite is only applied to elements,
-not to attributes) in other cases just for fun or convenience.
+[improved with release 1.10]
+The standard practice is to use the localName of the XML elements as
+key in the Perl HASH; the key rewrite mechanism is used to change that,
+sometimes to seperate elements which have the same localName within
+different name-spaces, or when an element and an attribute share a name
+(key rewrite is applied to elements AND attributes) in other cases just
+for fun or convenience.
 
 Rewrite rules are interpreted at "compile-time", which means that they
 B<do not slow-down> the XML construction or deconstruction.  The rules
@@ -1871,7 +1904,7 @@ for short:
   my $schema = XML::Compile::Schema->new( ..., 
       key_rewrite => sub { lc $_[1] } );
 
-=subsection key_rewrite when localName collides
+=subsection key_rewrite when localNames collide
 
 Let's start with an appology: we cannot auto-detect when these rewrite
 rules are needed, because the colliding keys are within the same HASH,

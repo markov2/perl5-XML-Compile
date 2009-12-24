@@ -10,7 +10,7 @@ use TestTools;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 51;
+use Test::More tests => 57;
 
 set_compile_defaults
     elements_qualified => 'NONE';
@@ -183,7 +183,7 @@ is($out, <<'__TEMPL');
   # {http://test-types}head:
   #   alt1  alt2  alt3  head
   # occurs 0 <= # <= 3 times
-  head =>  [ "{ alt1 => {...} }", ],
+  head =>  [ { alt1 => {...} }, ],
 
   # is a xs:int
   id2 => 42, }

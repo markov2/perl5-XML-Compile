@@ -378,10 +378,10 @@ sub makeUnion
 }
 
 sub makeAttributeRequired
-{   my ($self, $path, $ns, $tag, $do) = @_;
+{   my ($self, $path, $ns, $tag, $label, $do) = @_;
 
     sub { +{ kind    => 'attr'
-           , tag     => $tag
+           , tag     => $label
            , occurs  => "attribute $tag is required"
            , $do->()
            };
@@ -389,23 +389,23 @@ sub makeAttributeRequired
 }
 
 sub makeAttributeProhibited
-{   my ($self, $path, $ns, $tag, $do) = @_;
+{   my ($self, $path, $ns, $tag, $label, $do) = @_;
     ();
 }
 
 sub makeAttribute
-{   my ($self, $path, $ns, $tag, $do) = @_;
+{   my ($self, $path, $ns, $tag, $label, $do) = @_;
     sub { +{ kind    => 'attr'
-           , tag     => $tag
+           , tag     => $label
            , $do->()
            };
         };
 }
 
 sub makeAttributeDefault
-{   my ($self, $path, $ns, $tag, $do) = @_;
+{   my ($self, $path, $ns, $tag, $label, $do) = @_;
     sub { +{ kind   => 'attr'
-           , tag    => $tag
+           , tag    => $label
            , occurs => "attribute $tag has default"
            , $do->()
            };
@@ -413,11 +413,11 @@ sub makeAttributeDefault
 }
 
 sub makeAttributeFixed
-{   my ($self, $path, $ns, $tag, $do, $fixed) = @_;
+{   my ($self, $path, $ns, $tag, $label, $do, $fixed) = @_;
     my $value = $fixed->value;
 
     sub { +{ kind    => 'attr'
-           , tag     => $tag
+           , tag     => $label
            , occurs  => "attribute $tag is fixed"
            , example => $value
            };
@@ -442,6 +442,17 @@ sub makeSubstgroup
            , tag     => $do[1][0]
            , struct  => [ "substitutionGroup", "$type:", @lines ]
            , example => "{ $tags[0] => {...} }"
+           }
+        };
+}
+
+sub makeXsiTypeSwitch($$$$)
+{   my ($self, $where, $elem, $default_type, $types) = @_;
+
+    sub { +{ kind    => 'xsi:type switch'
+           , tag     => $elem
+           , struct  => [ 'xsi:type alternatives:', sort keys %$types ]
+           , example => "{ XSI_TYPE => '$default_type', %data }"
            }
         };
 }
@@ -666,7 +677,9 @@ sub _perlAny($$)
           if $example !~ m/^[+-]?\d+(?:\.\d+)?$/  # numeric or
           && $example !~ m/^\$/                   # variable or
           && $example !~ m/^bless\b/              # constructor or
-          && $example !~ m/^\$?[\w:]*\-\>/;       # method call example
+          && $example !~ m/^\$?[\w:]*\-\>/        # method call example
+          && $example !~ m/^\{.*\}$/              # anon HASH example
+          && $example !~ m/^\[.*\]$/;             # anon ARRAY example
 
         push @lines, "$tag => "
           . ($ast->{is_array} ? " [ $example, ]" : $example);

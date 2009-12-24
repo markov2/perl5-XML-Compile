@@ -9,7 +9,7 @@ use TestTools;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 105;
+use Test::More tests => 142;
 
 use XML::Compile::Util  qw/SCHEMA2001i/;
 my $xsi    = SCHEMA2001i;
@@ -71,6 +71,8 @@ my $schema = XML::Compile::Schema->new( <<__SCHEMA__ );
   </complexType>
 </element>
 
+<!-- Roman Daniel [rt.cpan.org #51264] BEGIN -->
+
 <element name="outer">
   <complexType>
     <sequence>
@@ -84,6 +86,25 @@ my $schema = XML::Compile::Schema->new( <<__SCHEMA__ );
     </sequence>
   </complexType>
 </element>
+
+<complexType name="typeAddress">
+  <sequence>
+    <element name="street" type="string" />
+    <element name="city" type="string"/>
+  </sequence>
+</complexType>
+
+<element name="updateAddress">
+  <complexType>
+    <sequence>
+      <element name="addressId" type="unsignedLong" />
+      <element name="address" type="me:typeAddress" minOccurs="0"
+        nillable="true" />
+    </sequence>
+  </complexType>
+</element>
+
+<!-- Roman Daniel [rt.cpan.org #51264] END -->
 
 </schema>
 __SCHEMA__
@@ -231,12 +252,13 @@ test_rw($schema, test1 => <<_XML, {e1 => 42, e2 => 'NIL', e3 => 44} );
 _XML
 
 #
-# Bug reported by Roman Daniel rt.cpan.org#51264
+# Bugs reported by Roman Daniel rt.cpan.org#51264
 #
 
 set_compile_defaults
     include_namespaces => 1
-  , elements_qualified => 1;
+  , elements_qualified => 1
+  , sloppy_integers    => 1;
 
 test_rw($schema, outer => <<_XML, {});
 <outer xmlns="$TestNS" xmlns:xsi="$xsi"/>
@@ -252,4 +274,31 @@ test_rw($schema, outer => <<_XML, {inner => 'aap'});
 <outer xmlns="$TestNS" xmlns:xsi="$xsi">
   <inner>aap</inner>
 </outer>
+_XML
+
+my %a = ( addressId => 100
+        , address   => {street => 'street', city => 'city' }
+        );
+
+test_rw($schema, updateAddress => <<_XML, \%a);
+<updateAddress xmlns="$TestNS" xmlns:xsi="$xsi">
+   <addressId>100</addressId>
+   <address>
+      <street>street</street>
+      <city>city</city>
+   </address>
+</updateAddress>
+_XML
+
+test_rw($schema, updateAddress => <<_XML, { addressId => 100 });
+<updateAddress xmlns="$TestNS" xmlns:xsi="$xsi">
+   <addressId>100</addressId>
+</updateAddress>
+_XML
+
+test_rw($schema, updateAddress => <<_XML, { addressId => 100, address => 'NIL'});
+<updateAddress xmlns="$TestNS" xmlns:xsi="$xsi">
+   <addressId>100</addressId>
+   <address xsi:nil="true"/>
+</updateAddress>
 _XML

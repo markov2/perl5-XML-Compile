@@ -11,7 +11,7 @@ use Test::Deep   qw/cmp_deeply/;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 44;
+use Test::More tests => 45;
 
 set_compile_defaults
     elements_qualified => 'NONE';

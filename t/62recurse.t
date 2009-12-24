@@ -11,7 +11,7 @@ use Data::Dumper;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 57;
+use Test::More tests => 65;
 
 set_compile_defaults
     elements_qualified => 'NONE';

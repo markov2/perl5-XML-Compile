@@ -10,7 +10,7 @@ use TestTools;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 81;
+use Test::More tests => 89;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"

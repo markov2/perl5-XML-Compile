@@ -12,7 +12,7 @@ use List::Util  qw/first max/;
 use XML::Compile::Schema::Specs;
 use XML::Compile::Schema::BuiltInFacets;
 use XML::Compile::Schema::BuiltInTypes qw/%builtin_types/;
-use XML::Compile::Util      qw/pack_type unpack_type type_of_node/;
+use XML::Compile::Util      qw/pack_type unpack_type type_of_node SCHEMA2001/;
 use XML::Compile::Iterator  ();
 
 my %translators =
@@ -341,26 +341,27 @@ sub topLevel($$)
 sub typeByName($$)
 {   my ($self, $tree, $typename) = @_;
 
+    my $node  = $tree->node;
+
     #
-    # First try to catch build-ins
+    # Try to detect a built-in type
     #
 
-    my $node  = $tree->node;
     my $def   = XML::Compile::Schema::Specs->builtInType($node, $typename
        , sloppy_integers => $self->{sloppy_integers}
        , sloppy_floats   => $self->{sloppy_floats});
 
     if($def)
-    {   my $where = $typename;
+    {   # Is built-in
+        my $where = $typename;
         my $st = $self->makeBuiltin($where, $node, $typename, $def, $self->{check_values});
 
         return +{ st => $st, is_list => $def->{is_list} };
     }
 
     #
-    # Then try own schemas
+    # not a schema standard type
     #
-
     my $top = $self->namespaces->find(complexType => $typename)
            || $self->namespaces->find(simpleType  => $typename)
        or error __x"cannot find type {type} at {where}"
@@ -648,20 +649,20 @@ sub element($)
 
     # Construct type processor
 
-    my ($compname, $comps);
+    my ($comptype, $comps);
     my $nr_childs = $tree->nrChildren;
     if(my $isa    = $node->getAttribute('type'))
     {   $nr_childs==0
             or error __x"no childs expected with attribute `type' at {where}"
                  , where => $where, _class => 'schema';
 
-        $compname = $self->rel2abs($where, $node, $isa);
-        $comps    = $self->blocked($where, anyType => $compname)
-                 || $self->typeByName($tree, $compname);
+        $comptype = $self->rel2abs($where, $node, $isa);
+        $comps    = $self->blocked($where, anyType => $comptype)
+                 || $self->typeByName($tree, $comptype);
     }
     elsif($nr_childs==0)
-    {   $compname = $self->anyType($node);
-        $comps    = $self->typeByName($tree, $compname);
+    {   $comptype = $self->anyType($node);
+        $comps    = $self->typeByName($tree, $comptype);
     }
     elsif($nr_childs!=1)
     {   error __x"expected is only one child at {where}"
@@ -687,11 +688,11 @@ sub element($)
 
     my $r;
     if($comps->{mixed})           # complexType mixed
-    {   $r = $self->makeMixedElement  ($where,$tag,$elems, $attrs,$attrs_any) }
+    {   $r = $self->makeMixedElement  ($where,$tag,$elems,$attrs,$attrs_any) }
     elsif(! defined $st)          # complexType
-    {   $r = $self->makeComplexElement($where,$tag,$elems, $attrs,$attrs_any) }
+    {   $r = $self->makeComplexElement($where,$tag,$elems,$attrs,$attrs_any) }
     elsif(@$attrs || @$attrs_any) # complex simpleContent
-    {   $r = $self->makeTaggedElement ($where,$tag,$st,    $attrs,$attrs_any) }
+    {   $r = $self->makeTaggedElement ($where,$tag,$st,   $attrs,$attrs_any) }
     else                          # simple
     {   $r = $self->makeSimpleElement ($where,$tag,$st) }
 
@@ -725,7 +726,7 @@ sub element($)
 
     # Implement hooks
     my ($before, $replace, $after)
-      = $self->findHooks($where, $compname, $node);
+      = $self->findHooks($where, $comptype, $node);
     my $do3
       = ($before || $replace || $after)
       ? $self->makeHook($where, $do2, $tag, $before, $replace, $after)
@@ -739,6 +740,26 @@ sub element($)
     delete $self->{_nest}{$nodeid};  # clean the outer definition
 
     $self->{_created}{$nodeid} = $do3;
+
+    $comptype && $self->{xsi_type}{$comptype}
+        or return $do3;
+
+    # Ugly xsi:type switch needed
+    my %alt = ($comptype => $do3);
+    foreach my $alttype (@{$self->{xsi_type}{$comptype}})
+    {   my ($ns, $local) = unpack_type $alttype;
+        my $prefix  = $node->lookupNamespacePrefix($ns);
+        my $type    = length $prefix ? "$prefix:$local" : $local;
+
+        my $doc     = $node->ownerDocument;
+        my $altnode = $doc->createElementNS(SCHEMA2001, 'element');
+        $altnode->setNamespace($ns => $prefix);
+        $altnode->setAttribute(name => $name);
+        $altnode->setAttribute(type => $type);
+        $alt{$alttype} = $self->element($tree->descend($altnode));
+    }
+
+    $self->makeXsiTypeSwitch($where, $name, $comptype, \%alt);
 }
 
 sub particle($)
@@ -787,8 +808,9 @@ sub particle($)
            , $process, $local, $multi);
     }
 
+    # only elements left
     my $required;
-    my $key   = $local eq 'element' ? $self->keyRewrite($label) : $label;
+    my $key   = $self->keyRewrite($label);
     $required = $self->makeRequired($where, $key, $process) if $min!=0;
 
     my $do    =
@@ -1106,8 +1128,9 @@ sub attributeOne($)
      :                       'makeAttribute';
 
     my $value = defined $default ? $default : $fixed;
-    my $do    = $self->$generate($where, $ns, $tag, $st, $value);
-    defined $do ? ($name => $do) : ();
+    my $label = $self->keyRewrite($name);
+    my $do    = $self->$generate($where, $ns, $tag, $label, $st, $value);
+    defined $do ? ($label => $do) : ();
 }
 
 sub attributeGroup($)

@@ -197,7 +197,10 @@ sub textContent()
 Returns the type of the M<currentChild()>, or the empty string.
 =cut
 
-sub currentType() { type_of_node(shift->currentChild) || '' }
+sub currentType()
+{   my $current = shift->currentChild or return '';
+    type_of_node $current;
+}
 
 =method currentLocal
 Returns the local name of the M<currentChild()>, or the empty string.

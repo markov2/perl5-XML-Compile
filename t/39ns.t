@@ -9,7 +9,7 @@ use TestTools;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 46;
+use Test::More tests => 52;
 
 my $NS2 = "http://test2/ns";
 

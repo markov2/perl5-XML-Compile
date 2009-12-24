@@ -9,12 +9,41 @@ To be resolved:
       , pattern, whiteSpace fixed to collapsed
  - length facet on base64/hex encoding about binary length (tests needed)
  - handle XML::LibXML::Error objects
- - handle xsi:type (ancient schema feature, better not use it)
  - useSchema() relation to ::Cache::declare()?
- - new in schemas: alternative (new schema feature)
+ - proposed new schema features:
+     . alternative
+       http://www.ibm.com/developerworks/library/x-xml11pt2/#N103D7
+     . ::Instance cannot handle element and attribute declaration attribute
+       "targetNamespace" (proposed schema feature)
  - namespace blocking option for templates; exclude deprecated elements
- - ::Instance cannot handle element and attribute declaration attribute
-   "targetNamespace" (new schema feature)
+
+version 1.10:
+
+	Changes:
+
+	- keyRewrite now also applies to attributes.
+
+	Fixes:
+
+	- writer sometimes destroyed the data-structure which was
+	  passed in. Now automatically tested for each test_rw.
+
+	- support sub-seconds in time format.
+
+	- writer: do not produce an empty element when minOccurs is
+	  combined with nillable in a complexType.
+	  rt.cpan.org#51264 [Roman Daniel]
+
+	- ::Iterator::currentType() could crash.
+
+	Improvements:
+
+	- writer: major readibility changes.
+
+	- all: implemented xsi:type
+
+	- template: do not produce superfluous quotes in Perl template
+	  examples when anonymous HASH of ARRAY is included.
 
 version 1.09: Fri Nov 13 10:56:45 CET 2009
 

@@ -18,7 +18,7 @@ BEGIN {
    {   plan skip_all => "Math::BigInt not installed";
    }
 
-   plan tests => 66;
+   plan tests => 74;
 }
 
 # Will fail when perl's longs get larger than 64bit
