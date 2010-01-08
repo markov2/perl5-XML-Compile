@@ -117,6 +117,14 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 </simpleType>
 <element name="test12" type="me:DecimalType" />
 
+<element name="test13">
+  <simpleType>
+    <restriction base="base64Binary">
+      <length value="5"/>
+    </restriction>
+  </simpleType>
+</element>
+
 </schema>
 __SCHEMA__
 
@@ -294,3 +302,16 @@ like($error, qr/^string \`1' does not match pattern /);
 # dot problem with regex '.'
 $error = error_r($schema, test12 => '<test12>42</test12>');
 like($error, qr/^string \`42' does not match pattern /);
+
+### test13 length on base64
+
+exit 0;
+
+#! not working
+test_rw($schema, test13 => '<test13>YWJjZGU=</test13>', 'abcde');
+
+$error = error_r($schema, test13 => '<test13>YWJjZGU=</test13>');
+is($error, '');
+
+$error = error_w($schema, test13 => 'abcde');
+is($error, '');

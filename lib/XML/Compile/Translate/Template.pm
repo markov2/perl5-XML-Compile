@@ -339,8 +339,8 @@ sub makeList
 }
 
 sub makeFacetsList
-{   my ($self, $path, $st, $info, $early, $late) = @_;
-    sub { (facets => "with some restrictions on list elements", $st->()) };
+{   my ($self, $path, $st, $info) = @_;
+    $self->makeFacets($path, $st, $info);
 }
 
 sub _fillFacets($@)
@@ -355,7 +355,7 @@ sub _fillFacets($@)
 }
 
 sub makeFacets
-{   my ($self, $path, $st, $info, @do) = @_;
+{   my ($self, $path, $st, $info) = @_;
     my $comment
        = keys %$info==1 && $info->{enumeration}
        ? $self->_fillFacets('Enum', sort @{$info->{enumeration}})

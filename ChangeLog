@@ -5,9 +5,7 @@ Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
 To be resolved:
- - facets on list base-types: length, maxLength, minLength, enumeration,
-      , pattern, whiteSpace fixed to collapsed
- - length facet on base64/hex encoding about binary length (tests needed)
+ - length facet on base64/hex encoding about binary length
  - handle XML::LibXML::Error objects
  - useSchema() relation to ::Cache::declare()?
  - proposed new schema features:
@@ -17,7 +15,16 @@ To be resolved:
        "targetNamespace" (proposed schema feature)
  - namespace blocking option for templates; exclude deprecated elements
 
-version 1.10:
+version 1.11: Fri Jan  8 12:37:23 CET 2010
+
+	Fixes:
+
+	- forgot to document the new xsi_type option to ::Schema::compile()
+
+	- implement facets on lists correctly. Tests in new t/55facet_list.t
+	  Pushed by rt.cpan.org #53392 [Николай Шуляковский]
+
+version 1.10: Thu Dec 24 16:56:13 CET 2009
 
 	Changes:
 

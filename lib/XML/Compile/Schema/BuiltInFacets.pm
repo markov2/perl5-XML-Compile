@@ -25,7 +25,7 @@ XML::Compile::Schema::BuiltInFacets - handling of built-in facet checks
 =chapter SYNOPSIS
 
  # Not for end-users
- use XML::Compile::Schema::BuiltInFacets qw/%facets/;
+ use XML::Compile::Schema::BuiltInFacets qw/builtin_facet/
 
 =chapter DESCRIPTION
 
@@ -41,33 +41,51 @@ The content is not for end-users, but called by the schema translator.
 
 =cut
 
-my %facets =
- ( whiteSpace      => \&_whiteSpace
- , minInclusive    => \&_minInclusive
- , minExclusive    => \&_minExclusive
- , maxInclusive    => \&_maxInclusive
- , maxExclusive    => \&_maxExclusive
- , enumeration     => \&_enumeration
- , totalDigits     => \&_totalDigits
- , fractionDigits  => \&_fractionDigits
- , pattern         => \&_pattern
- , length          => \&_length
- , minLength       => \&_minLength
- , maxLength       => \&_maxLength
- , minScale        => undef   # ignore
+my %facets_simple =
+ ( enumeration     => \&_enumeration
+ , fractionDigits  => \&_s_fractionDigits
+ , length          => \&_s_length
+ , maxExclusive    => \&_s_maxExclusive
+ , maxInclusive    => \&_s_maxInclusive
+ , maxLength       => \&_s_maxLength
  , maxScale        => undef   # ignore
+ , minExclusive    => \&_s_minExclusive
+ , minInclusive    => \&_s_minInclusive
+ , minLength       => \&_s_minLength
+ , minScale        => undef   # ignore
+ , pattern         => \&_pattern
+ , totalDigits     => \&_s_totalDigits
+ , whiteSpace      => \&_s_whiteSpace
  );
 
-sub builtin_facet($$$;@)
-{   my ($path, $args, $type, $value) = @_;
-    exists $facets{$type}
-        or panic "facet $type not implemented";
+my %facets_list =
+ ( enumeration     => \&_enumeration
+ , length          => \&_l_length
+ , maxLength       => \&_l_maxLength
+ , minLength       => \&_l_minLength
+ , pattern         => \&_pattern
+ , whiteSpace      => \&_l_whiteSpace
+ );
 
-    my $def = $facets{$type} or return;
-    $def->($path, $args, $value);
+sub builtin_facet($$$$$)
+{   my ($path, $args, $type, $value, $is_list) = @_;
+
+    my $def = $is_list ? $facets_list{$type} : $facets_simple{$type};
+      $def
+    ? $def->($path, $args, $value)
+    : error __x"facet {facet} not implemented at {where}"
+        , facet => $type, where => $path;
 }
 
-sub _whiteSpace($$$)
+sub _l_whiteSpace($$$)
+{   my ($path, undef, $ws) = @_;
+    $ws eq 'collapse'
+        or error __x"list whiteSpace facet fixed to 'collapse', not '{ws}' in {path}"
+          , ws => $ws, path => $path;
+    ();
+}
+
+sub _s_whiteSpace($$$)
 {   my ($path, undef, $ws) = @_;
       $ws eq 'replace'  ? \&_whitespace_replace
     : $ws eq 'collapse' ? \&_whitespace_collapse
@@ -121,98 +139,114 @@ sub _maybe_big($$$)
     $value;
 }
 
-sub _minInclusive($$$)
+sub _s_minInclusive($$$)
 {   my ($path, $args, $min) = @_;
     $min = _maybe_big $path, $args, $min;
-    my $err  = $args->{err};
     sub { return $_[0] if $_[0] >= $min;
-          error __x"too small inclusive {value}, min {min} at {where}"
-              , value => $_[0], min => $min, where => $path;
-        }
+        error __x"too small inclusive {value}, min {min} at {where}"
+          , value => $_[0], min => $min, where => $path;
+    };
 }
 
-sub _minExclusive($$$)
+sub _s_minExclusive($$$)
 {   my ($path, $args, $min) = @_;
     $min = _maybe_big $path, $args, $min;
-    my $err  = $args->{err};
     sub { return $_[0] if $_[0] > $min;
-          error __x"too small exclusive {value}, larger {min} at {where}"
-              , value => $_[0], min => $min, where => $path;
-        }
+        error __x"too small exclusive {value}, larger {min} at {where}"
+          , value => $_[0], min => $min, where => $path;
+    };
 }
 
-sub _maxInclusive($$$)
+sub _s_maxInclusive($$$)
 {   my ($path, $args, $max) = @_;
     $max = _maybe_big $path, $args, $max;
-    my $err  = $args->{err};
     sub { return $_[0] if $_[0] <= $max;
-          error __x"too large inclusive {value}, max {max} at {where}"
-              , value => $_[0], max => $max, where => $path;
-        }
+        error __x"too large inclusive {value}, max {max} at {where}"
+          , value => $_[0], max => $max, where => $path;
+    };
 }
 
-sub _maxExclusive($$$)
+sub _s_maxExclusive($$$)
 {   my ($path, $args, $max) = @_;
     $max = _maybe_big $path, $args, $max;
-    my $err  = $args->{err};
     sub { return $_[0] if $_[0] < $max;
-          error __x"too large exclusive {value}, smaller {max} at {where}"
-              , value => $_[0], max => $max, where => $path;
-        }
+        error __x"too large exclusive {value}, smaller {max} at {where}"
+          , value => $_[0], max => $max, where => $path;
+    };
 }
 
 sub _enumeration($$$)
 {   my ($path, $args, $enums) = @_;
     my %enum = map { ($_ => 1) } @$enums;
-    my $err  = $args->{err};
     sub { return $_[0] if exists $enum{$_[0]};
-          error __x"invalid enumerate `{string}' at {where}"
-              , string => $_[0], where => $path;
-        };
-}
-
-sub _totalDigits($$$)
-{   my ($path, undef, $nr) = @_;
-    sub { return $_[0] if $nr >= ($_[0] =~ tr/0-9//);
-          my $val = $_[0];
-          return sprintf "%.${nr}f", $val
-              if $val =~ m/^[+-]?0*(\d)[.eE]/ && length($1) < $nr;
-
-          error __x"decimal too long, got {length} digits max {max} at {where}"
-             , length => ($val =~ tr/0-9//), max => $nr, where => $path;
+        error __x"invalid enumerate `{string}' at {where}"
+          , string => $_[0], where => $path;
     };
 }
 
-sub _fractionDigits($$$)
+sub _s_totalDigits($$$)
+{   my ($path, undef, $nr) = @_;
+    sub { return $_[0] if $nr >= ($_[0] =~ tr/0-9//);
+        my $val = $_[0];
+        return sprintf "%.${nr}f", $val
+            if $val =~ m/^[+-]?0*(\d)[.eE]/ && length($1) < $nr;
+
+        error __x"decimal too long, got {length} digits max {max} at {where}"
+          , length => ($val =~ tr/0-9//), max => $nr, where => $path;
+    };
+}
+
+sub _s_fractionDigits($$$)
 {   my $nr = $_[2];
     sub { sprintf "%.${nr}f", $_[0] };
 }
 
-sub _length($$$)
+sub _s_length($$$)
 {   my ($path, $args, $len) = @_;
-    my $err = $args->{err};
     sub { return $_[0] if defined $_[0] && length($_[0])==$len;
-          error __x"string `{string}' does not have required length {len} at {where}"
-              , string => $_[0], len => $len, where => $path;
-        };
+        error __x"string `{string}' does not have required length {len} at {where}"
+          , string => $_[0], len => $len, where => $path;
+    };
 }
 
-sub _minLength($$$)
+sub _l_length($$$)
 {   my ($path, $args, $len) = @_;
-    my $err = $args->{err};
+    sub { return $_[0] if defined $_[0] && @{$_[0]}==$len;
+        error __x"list `{list}' does not have required length {len} at {where}"
+          , list => $_[0], len => $len, where => $path;
+    };
+}
+
+sub _s_minLength($$$)
+{   my ($path, $args, $len) = @_;
     sub { return $_[0] if defined $_[0] && length($_[0]) >=$len;
-          error __x"string `{string}' does not have minimum length {len} at {where}"
-              , string => $_[0], len => $len, where => $path;
-        };
+        error __x"string `{string}' does not have minimum length {len} at {where}"
+          , string => $_[0], len => $len, where => $path;
+    };
 }
 
-sub _maxLength($$$)
+sub _l_minLength($$$)
 {   my ($path, $args, $len) = @_;
-    my $err = $args->{err};
+    sub { return $_[0] if defined $_[0] && @{$_[0]} >=$len;
+        error __x"list `{list}' does not have minimum length {len} at {where}"
+          , list => $_[0], len => $len, where => $path;
+    };
+}
+
+sub _s_maxLength($$$)
+{   my ($path, $args, $len) = @_;
     sub { return $_[0] if defined $_[0] && length $_[0] <= $len;
-          error __x"string `{string}' longer maximum length {len} at {where}"
-              , string => $_[0], len => $len, where => $path;
-        };
+        error __x"string `{string}' longer than maximum length {len} at {where}"
+          , string => $_[0], len => $len, where => $path;
+    };
+}
+
+sub _l_maxLength($$$)
+{   my ($path, $args, $len) = @_;
+    sub { return $_[0] if defined $_[0] && @{$_[0]} <= $len;
+        error __x"list `{list}' longer than maximum length {len} at {where}"
+          , list => $_[0], len => $len, where => $path;
+    };
 }
 
 sub _pattern($$$)
@@ -222,9 +256,9 @@ sub _pattern($$$)
     my $compiled = XML::LibXML::RegExp->new($regex);
 
     sub { return $_[0] if $compiled->matches($_[0]);
-          error __x"string `{string}' does not match pattern `{pat}' at {where}"
-             , string => $_[0], pat => $regex, where => $path;
-        };
+         error __x"string `{string}' does not match pattern `{pat}' at {where}"
+           , string => $_[0], pat => $regex, where => $path;
+    };
 }
 
 1;

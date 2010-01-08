@@ -724,28 +724,24 @@ sub makeBuiltin
 sub makeList
 {   my ($self, $path, $st) = @_;
     sub { my ($doc, $v) = @_;
-          defined $v or return undef;
-          my @el = ref $v eq 'ARRAY' ? @$v : $v;
-          my @r  = grep {defined} map {$st->($doc, $_)} @el;
-          join ' ', @r;
-        };
+        defined $v or return undef;
+        join ' ', grep defined, map {$st->($doc, $_)}
+            ref $v eq 'ARRAY' ? @$v : $v;
+    };
 }
 
 sub makeFacetsList
 {   my ($self, $path, $st, $info, $early, $late) = @_;
-
-    # pre-lexical whiteSpace facet in $early can be ignored
-    sub { defined $_[1] or return undef;
-          my @el = ref $_[1] eq 'ARRAY' ? (grep {defined} @{$_[1]}) : $_[1];
-          my @r  = grep {defined} map {$st->($_[0], $_)} @el;
-
-      EL: for(@r)
-          {   for my $l (@$late) {defined $_ or next EL; $_ = $l->($_)}
-          }
-
-          @r or return undef;
-          join ' ', grep {defined} @r;
-        };
+    my @e = grep defined, @$early;
+    my @l = grep defined, @$late;
+    sub { my ($doc, $v) = @_;
+        defined $v or return undef;
+        $_->($v) for @l;
+        my $list = join ' ', map {$st->($doc, $_)} ref $v eq 'ARRAY' ? @$v : $v;
+        defined $list && length $list or return;
+        do { $list = $_->($list) } for @e;
+        $list;
+    }
 }
 
 sub makeFacets

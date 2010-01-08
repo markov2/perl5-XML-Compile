@@ -69,6 +69,7 @@ t/51any.t
 t/52anytype.t
 t/54nil.t
 t/55facet.t
+t/55facet_list.t
 t/56pats.t
 t/57fixed.t
 t/58default.t

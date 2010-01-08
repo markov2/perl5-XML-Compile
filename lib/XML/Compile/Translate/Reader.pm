@@ -800,51 +800,23 @@ sub makeList
 
 sub makeFacetsList
 {   my ($self, $path, $st, $info, $early, $late) = @_;
-    @$early <= 1
-        or panic "only whiteSpace is early";
+    my @e = grep defined, @$early;
+    my @l = grep defined, @$late;
 
-    @$early or return sub
-      { defined $_[0] or return undef;
-        my $v = $st->(@_);
-        my @r;
-    EL: for my $e (ref $v eq 'ARRAY' ? @$v : $v)
-        {   for(@$late) { defined $e or next EL; $e = $_->($e) }
-            push @r, $e;
-        }
-        @r ? \@r : ();
-      };
-
-    my $prelex = $early->[0];
-
-    @$late or return sub
-      { defined $_[0] or return undef;
-        my $v = $st->(@_);
-        defined $v        or return ();
-        ref $v ne 'ARRAY' or return @$v ? $v : ();
-        my $r = $prelex->($v);
-        my @r = defined $r ? split(" ", $r) : ();
-        @r ? \@r : ();
-      };
+    # enumeration and pattern are probably rare
+    @e or return sub {
+        my $values = $st->(@_) or return;
+        $_->($values) for @l;
+        $values;
+    };
 
     sub { defined $_[0] or return undef;
-          my $v = $st->(@_);
-          defined $v or return ();
-          my @v;
-          if(ref $v eq 'ARRAY')
-          {   # no early limits for repeated simpleTypes   #???
-              @v = @$v;
-          }
-          else
-          {   $v = $prelex->($v);
-              @v = defined $v ? split(" ", $v) : ();
-          }
-          my @r;
-      EL: for my $e (@v)
-          {   for(@$late) { defined $e or next EL; $e = $_->($e) }
-              push @r, $e;
-          }
-          @r ? \@r : ();
-        };
+        my $list = ref $_[0] ? $_[0]->textContent : $_[0];
+        $_->($list) for @e;
+        my $values = $st->($_[0]) or return;
+        $_->($values) for @l;
+        $values;
+    };
 }
 
 sub makeFacets

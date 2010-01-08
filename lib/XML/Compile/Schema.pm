@@ -689,6 +689,10 @@ fact that the types are abstract, and treat them as non-abstract types.
 =default block_namespace []
 See M<blockNamespace()>.
 
+=option  xsi_type HASH
+=default xsi_type {}
+See L</Handling xsi:type>
+
 =cut
 
 sub compile($$@)

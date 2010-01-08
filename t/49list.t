@@ -10,7 +10,7 @@ use TestTools;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 70;
+use Test::More tests => 92;
 
 set_compile_defaults
     elements_qualified => 'NONE';
@@ -39,8 +39,8 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA );
 <element name="test3">
   <simpleType>
     <restriction base="me:t2">
-      <enumeration value="1" />
-      <enumeration value="2" />
+      <enumeration value="1 2" />
+      <enumeration value="2 1" />
     </restriction>
   </simpleType>
 </element>
@@ -48,8 +48,8 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA );
 <element name="test4">
   <simpleType>
     <restriction base="NMTOKENS">
-      <enumeration value="3" />
-      <enumeration value="4" />
+      <enumeration value="3 4" />
+      <enumeration value="5 6" />
     </restriction>
   </simpleType>
 </element>
@@ -88,15 +88,28 @@ __XML
 
 # restriction on simple-list base
 
-test_rw($schema, test3 => <<__XML, [1, 2, 1, 1]);
-<test3>1 2 1 1</test3>
+test_rw($schema, test3 => <<__XML, [1, 2]);
+<test3>1 2</test3>
 __XML
+
+test_rw($schema, test3 => <<__XML, [2, 1]);
+<test3>2 1</test3>
+__XML
+
+my $error = error_r($schema, test3 => '<test3>2 2</test3>');
+is($error, "invalid enumerate `2 2' at {http://test-types}test3#facet");
+
+$error = error_w($schema, test3 => [3, 3]);
+is($error, "invalid enumerate `3 3' at {http://test-types}test3#facet");
 
 # predefined
 
-test_rw($schema, test4 => <<__XML, [3, 4, 4, 3]);
-<test4>3 4 4 3</test4>
+test_rw($schema, test4 => <<__XML, [3, 4]);
+<test4>3 4</test4>
 __XML
+
+$error = error_w($schema, test4 => [3, 3]);
+is($error, "invalid enumerate `3 3' at {http://test-types}test4#facet");
 
 # element has attributes as well
 

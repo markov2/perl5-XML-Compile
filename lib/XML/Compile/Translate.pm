@@ -75,10 +75,8 @@ documentation: C<notation, annotation>.  Compile the schema schema itself
 to interpret the message if you need them.
 
 A few nuts are still to crack:
- xsi:type
  openContent
- attribute limitiations (facets) on dates
- full understanding of patterns (now limited)
+ facets on dates and base64Binary
  final is not protected
 
 Of course, the latter list is all fixed in next release ;-)
@@ -529,14 +527,13 @@ sub simpleRestriction($$)
     +{ st => $do };
 }
 
-my @facets_prelex  = qw/whiteSpace/;
-my @facets_lexical = qw/pattern enumeration length minLength maxLength/;
-my @facets_value   = qw/totalDigits maxScale minScale maxInclusive
+my @facets_early = qw/whiteSpace pattern enumeration/;
+my @facets_late  = qw/length minLength maxLength
+  totalDigits maxScale minScale maxInclusive
   maxExclusive minInclusive minExclusive fractionDigits/;
-# assertions ignored
 
 sub applySimpleFacets($$$)
-{   my ($self, $tree, $st, $in_list) = @_;
+{   my ($self, $tree, $st, $is_list) = @_;
 
     # partial
     # content: facet*
@@ -579,19 +576,18 @@ sub applySimpleFacets($$$)
         $facets{totalFracDigits} = [$td, $fd];
     }
 
-    # Pre-lexicals
     my (@early, @late);
-    foreach my $facet (@facets_prelex)
+    foreach my $facet (@facets_early)
     {   my $limit = $facets{$facet} or next;
-        push @early, builtin_facet($where, $self, $facet, $limit);
+        push @early, builtin_facet($where, $self, $facet, $limit, $is_list);
     }
 
-    foreach my $facet (@facets_lexical, @facets_value)
+    foreach my $facet (@facets_late)
     {   my $limit = $facets{$facet} or next;
-        push @late, builtin_facet($where, $self, $facet, $limit);
+        push @late, builtin_facet($where, $self, $facet, $limit, $is_list);
     }
 
-      $in_list
+      $is_list
     ? $self->makeFacetsList($where, $st, \%facets_info, \@early, \@late)
     : $self->makeFacets($where, $st, \%facets_info, @early, @late);
 }
