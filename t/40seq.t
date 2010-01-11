@@ -9,7 +9,7 @@ use TestTools;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 205;
+use Test::More tests => 230;
 
 set_compile_defaults
     elements_qualified => 'NONE';
@@ -213,6 +213,19 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 </element>
 <element name="test19a"><complexType /></element>
 <element name="test19b"><complexType /></element>
+
+<!-- bug-report Roman Daniel -->
+<element name="test20">
+  <complexType>
+    <sequence>
+      <element name="a" type="int" />
+      <sequence minOccurs="0">
+         <element name="b" type="int" />
+         <element name="c" type="int" />
+      </sequence>
+    </sequence>
+  </complexType>
+</element>
 
 </schema>
 __SCHEMA__
@@ -489,3 +502,19 @@ __XML
 test_rw($schema, test19 => <<__XML, {test19b => {}} );
 <test19><test19b/></test19>
 __XML
+
+### test 20
+
+test_rw($schema, test20 => <<__XML, {a => 1, b => 2, c => 3} );
+<test20><a>1</a><b>2</b><c>3</c></test20>
+__XML
+
+test_rw($schema, test20 => <<__XML, {a => 4} );
+<test20><a>4</a></test20>
+__XML
+
+my $error = error_r($schema, test20 => "<test20><a>5</a><b>6</b></test20>");
+is($error, "data for element or block starting with `c' missing at {http://test-types}test20");
+
+$error = error_w($schema, test20 => {a => 7, b => 8});
+is($error, "required value for element `c' missing at {http://test-types}test20");

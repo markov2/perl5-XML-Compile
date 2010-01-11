@@ -15,6 +15,15 @@ To be resolved:
        "targetNamespace" (proposed schema feature)
  - namespace blocking option for templates; exclude deprecated elements
 
+version 1.12: Mon Jan 11 11:46:43 CET 2010
+
+	Fixes:
+
+	- writer: optional block was not optional [Roman Daniel]
+
+	- accept xsi:type with alternative in namespace which is not
+	  used by the schema itself [Roman Daniel]
+
 version 1.11: Fri Jan  8 12:37:23 CET 2010
 
 	Fixes:

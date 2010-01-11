@@ -359,13 +359,19 @@ sub makeBlockHandler
             my ($doc, $values) = @_;
             my @values = ref $values eq 'ARRAY' ? @$values
                        : defined $values ? $values : ();
-
             @values <= 1
                 or error __x"only one block value for `{tag}', not {count} at {path}"
                      , tag => $multi, count => scalar @values
                      , path => $path, _class => 'misfit';
 
-            @values ? $process->($doc, $values[0]) : undef;
+#           @values ? $process->($doc, $values[0]) : undef;
+            @values or return undef;
+
+            my $starter = keys %$values;
+            my @d = try { $process->($doc, $values[0]) };
+            $@->wasFatal(class => 'misfit') && $starter==keys %$values
+                or $@->reportAll;
+            @d;
         };
         return ($label, bless($code, 'BLOCK'));
     }
