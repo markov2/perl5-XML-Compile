@@ -608,8 +608,8 @@ sub makeElementAbstract
 
 sub makeComplexElement
 {   my ($self, $path, $tag, $elems, $attrs, $attrs_any) = @_;
-my @e = @$elems;
-my @a = @$attrs;
+#my @e = @$elems;
+#my @a = @$attrs;
     my @elems = odd_elements @$elems;
     my @attrs = (odd_elements(@$attrs), @$attrs_any);
 

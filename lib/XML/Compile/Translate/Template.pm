@@ -208,18 +208,19 @@ sub makeElement
 
 sub makeElementDefault
 {   my ($self, $path, $ns, $childname, $do, $default) = @_;
-    sub { (occur => "$childname defaults to example $default",  $do->()) };
+    sub { +{ occur => "$childname defaults to $default"
+           , tag => $childname, example => $default} };
 }
 
 sub makeElementFixed
 {   my ($self, $path, $ns, $childname, $do, $fixed) = @_;
-    $fixed   = $fixed->example;
-    sub { (occur => "$childname fixed to example $fixed", $do->()) };
+    sub { +{ occur => "$childname fixed to $fixed"
+           , tag => $childname, example => $fixed} };
 }
 
 sub makeElementNillable
 {   my ($self, $path, $ns, $childname, $do) = @_;
-    sub { (occur => "$childname is nillable", $do->()) };
+    sub { +{occur => "$childname is nillable", $do->()} };
 }
 
 sub makeElementAbstract
@@ -343,27 +344,39 @@ sub makeFacetsList
     $self->makeFacets($path, $st, $info);
 }
 
-sub _fillFacets($@)
-{   my ($self,$type) = (shift, shift);
+sub _ff($@)
+{  my ($self,$type) = (shift, shift);
     my @lines = $type.':';
     while(@_)
     {   my $facet = shift;
         push @lines, '  ' if length($lines[-1]) + length($facet) > 55;
         $lines[-1] .= ' '.$facet;
     }
-    \@lines;
+    @lines;
 }
 
 sub makeFacets
 {   my ($self, $path, $st, $info) = @_;
-    my $comment
-       = keys %$info==1 && $info->{enumeration}
-       ? $self->_fillFacets('Enum', sort @{$info->{enumeration}})
-       : keys %$info==1 && exists $info->{pattern}
-       ? $self->_fillFacets('Pattern', @{$info->{pattern}})
-       : "with some value restrictions";
-
-    sub { (facets => $comment, $st->()) };
+    my @comment;
+    foreach my $k (sort keys %$info)
+    {   my $v = $info->{$k};
+        push @comment
+        , $k eq 'enumeration'  ? $self->_ff('Enum', sort @$v)
+        : $k eq 'pattern'      ? $self->_ff('Pattern', @$v)
+        : $k eq 'length'       ? "fixed length of $v"
+        : $k eq 'maxLength'    ? "length <= $v"
+        : $k eq 'minLength'    ? "length >= $v"
+        : $k eq 'totalDigits'  ? "total digits is $v"
+        : $k eq 'maxScale'     ? "scale <= $v"
+        : $k eq 'minScale'     ? "scale >= $v"
+        : $k eq 'maxInclusive' ? "value <= $v"
+        : $k eq 'maxExclusive' ? "value < $v"
+        : $k eq 'minInclusive' ? "value >= $v"
+        : $k eq 'minExclusive' ? "value >  $v"
+        : $k eq 'fractionDigits' ? "faction digits is $v"
+        : "restriction $k = $v";
+    }
+    sub { (facets => \@comment, $st->()) };
 }
 
 sub makeUnion
@@ -736,7 +749,11 @@ sub _xmlAny($$$$)
     }
 
     push @comment, $ast->{occur}  if $ast->{occur}  && $args->{show_occur};
-    push @comment, $ast->{facets} if $ast->{facets} && $args->{show_facets};
+
+    if($ast->{facets}  && $args->{show_facets})
+    {   my $facets = $ast->{facets};
+        push @comment, ref $facets eq 'ARRAY' ? @$facets : $facets;
+    }
 
     if(defined $ast->{kind} && $ast->{kind} eq 'union')
     {   push @comment, map { "  $_->{type}"} @{$ast->{choice}};

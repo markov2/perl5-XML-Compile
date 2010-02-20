@@ -93,7 +93,8 @@ is($out, <<__TEST1__);
       t3_a => "anything",
 
       # is a xs:int
-      # with some value restrictions
+      # value < 77
+      # value >= 12
       t3_b => 42,
 
       # sequence of t2_a
@@ -129,7 +130,8 @@ is($out, <<__TEST1__);
         t3_a => "anything",
 
         # is a xs:int
-        # with some value restrictions
+        # value < 77
+        # value >= 12
         t3_b => 42,
 
         # is a xs:int
@@ -182,7 +184,8 @@ is($out, <<__TEST1c__);
     <!-- sequence of t3_a, t3_b -->
     <t3_a type="xs:anyType">anything</t3_a>
     <t3_b type="xs:int">
-      <!-- with some value restrictions -->
+      <!-- value < 77
+           value >= 12 -->
       42
     </t3_b>
     <!-- sequence of t2_a -->
@@ -205,7 +208,8 @@ is($out, <<__TEST1c__);
     <!-- sequence of t3_a, t3_b -->
     <t3_a type="xs:anyType">anything</t3_a>
     <t3_b type="xs:int">
-      <!-- with some value restrictions -->
+      <!-- value < 77
+           value >= 12 -->
       42
     </t3_b>
     <a3_a type="xs:int">42</a3_a>
@@ -262,7 +266,8 @@ is($out, <<__TEST3__);
   me_t3_a => "anything",
 
   # is a xs:int
-  # with some value restrictions
+  # value < 77
+  # value >= 12
   me_t3_b => 42,
 
   # is a xs:int

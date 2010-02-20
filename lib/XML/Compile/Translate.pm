@@ -753,6 +753,10 @@ sub element($)
         $altnode->setNamespace($ns => $prefix);
         $altnode->setAttribute(name => $name);
         $altnode->setAttribute(type => $type);
+
+        my $altnodeid = $altnode->nodePath.'#'.$fullname;
+        delete $self->{_created}{$altnodeid}; # clean nesting cache
+
         $alt{$alttype} = $self->element($tree->descend($altnode));
     }
 

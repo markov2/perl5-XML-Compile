@@ -15,6 +15,22 @@ To be resolved:
        "targetNamespace" (proposed schema feature)
  - namespace blocking option for templates; exclude deprecated elements
 
+version 1.13: Sun Feb 21 00:09:24 CET 2010
+
+	Fixes:
+
+	- xsi:type switch between elements based on the same abstract
+	  type. Reported by [Roman Daniel]
+
+	- template: display of fixed and default elements. [Anton Berezin]
+
+	- writer: add attributes to display of available tags in case
+	  of problems.
+
+	Improvements:
+
+	- template: show more details about applicable facets.
+
 version 1.12: Mon Jan 11 11:46:43 CET 2010
 
 	Fixes:
