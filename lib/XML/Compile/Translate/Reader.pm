@@ -1060,7 +1060,7 @@ sub makeXsiTypeSwitch($$$$)
 {   my ($self, $where, $elem, $default_type, $types) = @_;
 
     sub {
-        my $tree = shift;
+        my $tree = shift or return;
         my $node = $tree->node or return;
         my $type = $node->getAttributeNS(SCHEMA2001i, 'type');
         my ($alt, $code);
@@ -1074,7 +1074,8 @@ sub makeXsiTypeSwitch($$$$)
         else { ($alt, $code) = ($default_type, $types->{$default_type}) }
 
         my ($t, $d) = $code->($tree);
-        $d->{XSI_TYPE} ||= $alt if ref $d eq 'HASH';
+        $d = { _ => $d } if ref $d ne 'HASH';
+        $d->{XSI_TYPE} ||= $alt;
         ($t, $d);
     };
 }
@@ -1415,7 +1416,7 @@ M<XML::LibXML::Simple> to translate a part of your tree.  Simply
 
  use XML::LibXML::Simple  qw/XMLin/;
  $schema->addHook
-   ( type    => ...bad-type-definition...
+   ( type    => ...type-definition...
    , replace =>
        sub { my ($xml, $args, $path, $type, $r) = @_;
              ($type => XMLin($xml, ...));

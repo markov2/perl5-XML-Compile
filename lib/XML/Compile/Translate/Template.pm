@@ -6,7 +6,7 @@ use strict;
 use warnings;
 no warnings 'once';
 
-use XML::Compile::Util qw/odd_elements unpack_type/;
+use XML::Compile::Util qw/odd_elements pack_type unpack_type/;
 use Log::Report 'xml-compile', syntax => 'SHORT';
 use List::Util  qw/max/;
 
@@ -43,11 +43,9 @@ sub makeTagQualified
 {   my ($self, $path, $node, $local, $ns) = @_;
     my $prefix = $self->_registerNSprefix('', $ns, 1);
 
-    if($self->{_output} eq 'XML')
-         { $local = $prefix .':'. $local if length $prefix }
-    else { $local = $prefix .'_'. $local if length $prefix }
-
-    $local;
+      $self->{_output} eq 'PERL' ? $self->keyRewrite(pack_type $ns,$local)
+    : length $prefix             ? $prefix .':'. $local
+    :                              $local;
 }
 
 sub makeTagUnqualified
@@ -71,7 +69,7 @@ sub actsAs($)
 
 }
 
-sub makeWrapperNs($$$$)
+sub makeWrapperNs($$$$$)
 {   my ($self, $path, $processor, $index, $filter) = @_;
 
     my @entries;
@@ -163,7 +161,7 @@ sub makeBlockHandler
            : $max ne 'unbounded' && $max==1 && $min==1 ? ''  # the usual case
            :       "occurs $min <= # <= $max times";
 
-          $data->{occur}   = $occur if $occur;
+          $data->{occur} ||= $occur if $occur;
           if($max ne 'unbounded' && $max==1)
           {   bless $data, 'BLOCK';
           }
@@ -185,7 +183,7 @@ sub makeElementHandler
            : $max ne 'unbounded' && $max==1 && $min==0 ? 'is optional' 
            : $max ne 'unbounded' && $max==1 && $min==1 ? ''  # the usual case
            :                                  "occurs $min <= # <= $max times";
-          $data->{occur}    = $occur if $occur;
+          $data->{occur}  ||= $occur if $occur;
           $data->{is_array} = $max eq 'unbounded' || $max > 1;
           $data;
         };
@@ -203,19 +201,29 @@ sub makeElementHref
 
 sub makeElement
 {   my ($self, $path, $ns, $childname, $do) = @_;
-    $do;
+    sub {
+       my $h = $do->(@_);
+       $h->{_NAME} = $childname;
+       $h;
+    };
 }
 
 sub makeElementDefault
 {   my ($self, $path, $ns, $childname, $do, $default) = @_;
-    sub { +{ occur => "$childname defaults to $default"
-           , tag => $childname, example => $default} };
+    sub { my $h = $do->(@_);
+          $h->{occur}   = "$childname defaults to $default";
+          $h->{example} = $default;
+          $h;
+        };
 }
 
 sub makeElementFixed
 {   my ($self, $path, $ns, $childname, $do, $fixed) = @_;
-    sub { +{ occur => "$childname fixed to $fixed"
-           , tag => $childname, example => $fixed} };
+    sub { my $h = $do->(@_);
+          $h->{occur}   = "$childname fixed to $fixed";
+          $h->{example} = $fixed;
+          $h;
+        };
 }
 
 sub makeElementNillable
@@ -393,9 +401,9 @@ sub makeUnion
 sub makeAttributeRequired
 {   my ($self, $path, $ns, $tag, $label, $do) = @_;
 
-    sub { +{ kind    => 'attr'
-           , tag     => $label
-           , occurs  => "attribute $tag is required"
+    sub { +{ kind   => 'attr'
+           , tag    => $label
+           , occur  => "attribute $tag is required"
            , $do->()
            };
         };
@@ -417,9 +425,9 @@ sub makeAttribute
 
 sub makeAttributeDefault
 {   my ($self, $path, $ns, $tag, $label, $do) = @_;
-    sub { +{ kind   => 'attr'
-           , tag    => $label
-           , occurs => "attribute $tag has default"
+    sub { +{ kind  => 'attr'
+           , tag   => $label
+           , occur => "attribute $tag has default"
            , $do->()
            };
         };
@@ -429,9 +437,9 @@ sub makeAttributeFixed
 {   my ($self, $path, $ns, $tag, $label, $do, $fixed) = @_;
     my $value = $fixed->value;
 
-    sub { +{ kind    => 'attr'
-           , tag     => $label
-           , occurs  => "attribute $tag is fixed"
+    sub { +{ kind   => 'attr'
+           , tag    => $label
+           , occur  => "attribute $tag is fixed"
            , example => $value
            };
         };
@@ -552,17 +560,22 @@ sub toPerl($%)
     $ast or return undef;
 
     my @lines;
+    push @lines, "# Describing $ast->{kind} ".($ast->{_NAME}||$ast->{tag})
+        if $ast->{kind};
+
     push @lines
-      , "# BE WARNED: in most cases, the example below cannot be used without"
-      , "# interpretation.  The comments will guide you."
+      , "#"
       , "# Produced by ".__PACKAGE__." version $VERSION"
       , "#          on ".localtime()
+      , "#"
+      , "# BE WARNED: in most cases, the example below cannot be used without"
+      , "# interpretation.  The comments will guide you."
       , "#"
         unless $args{skip_header};
 
     # add info about name-spaces
     foreach my $nsdecl (grep /^xmlns\:/, sort keys %$ast)
-    {   push @lines, sprintf "# %-15s %s", $nsdecl, $ast->{$nsdecl};
+    {   push @lines, sprintf "# %-15s %s", $nsdecl, $ast->{$nsdecl} || '(none)';
     }
     push @lines, '' if @lines;
     

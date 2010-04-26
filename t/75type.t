@@ -79,6 +79,8 @@ __XML
 my $out = templ_perl $schema, "{$TestNS}f_test"
   , xsi_type => \%xsi_types, skip_header => 1;
 is($out, <<'__TEMPL');
+# Describing complex {http://test-types}f_test
+
 { # sequence of f_a3
 
   # xsi:type alternatives:

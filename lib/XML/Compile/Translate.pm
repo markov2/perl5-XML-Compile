@@ -748,9 +748,12 @@ sub element($)
         defined $prefix or $prefix = $self->_registerNSprefix(undef, $ns, 1);
         my $type    = length $prefix ? "$prefix:$local" : $local;
 
+        # do not accidentally use the default namespace, when there
+        # may also be namespace-less types used.
         my $doc     = $node->ownerDocument;
-        my $altnode = $doc->createElementNS(SCHEMA2001, 'element');
-        $altnode->setNamespace($ns => $prefix);
+        my $altnode = $doc->createElement('element');
+        $altnode->setNamespace(SCHEMA2001, 'temp1234', 1);
+        $altnode->setNamespace($ns, $prefix);
         $altnode->setAttribute(name => $name);
         $altnode->setAttribute(type => $type);
 
@@ -814,10 +817,8 @@ sub particle($)
     my $key   = $self->keyRewrite($label);
     $required = $self->makeRequired($where, $key, $process) if $min!=0;
 
-    my $do    =
-        $self->makeElementHandler($where, $key, $min, $max, $required,$process);
-
-    ( ($self->actsAs('READER') ? $label : $key) => $do);
+    ($self->actsAs('READER') ? $label : $key) =>
+       $self->makeElementHandler($where, $key, $min, $max, $required,$process);
 }
 
 # blockLabel KIND, LABEL

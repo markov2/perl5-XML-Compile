@@ -212,8 +212,9 @@ sub makeChoice($@)
         {   my @d = try { $_->($doc, $values) };
             if($@->wasFatal(class => 'misfit'))
             {   # misfit error is ok, if nothing consumed
-                trace "misfit $path ".$@->wasFatal->message;
-                $@->reportAll if $starter != keys %$values;
+                my $err = $@;
+                trace "misfit $path ".$err->wasFatal->message;
+                $err->reportAll if $starter != keys %$values;
                 next;
             }
             elsif(defined $@) {$@->reportAll}

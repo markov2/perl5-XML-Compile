@@ -177,6 +177,8 @@ my $out = templ_perl $schema, "{$TestNS}test2", skip_header => 1
  , abstract_types => 1;
 
 is($out, <<'__TEMPL');
+# Describing complex {http://test-types}test2
+
 { # sequence of head, id2
 
   # substitutionGroup

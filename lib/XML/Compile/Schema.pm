@@ -556,13 +556,17 @@ prefix, uri PAIRS is simpler.
 =default output_namespaces undef
 [Pre-0.87] name for the C<prefixes> option.  Deprecated.
 
-=option  include_namespaces BOOLEAN
+=option  include_namespaces BOOLEAN|CODE
 =default include_namespaces <true>
 Indicates whether the WRITER should include the prefix to namespace
 translation on the top-level element of the returned tree.  If not,
 you may continue with the same name-space table to combine various
 XML components into one, and add the namespaces later.  No namespace
 definition can be added the production rule produces an attribute.
+
+When a CODE reference is passed, it will be called for each namespace
+to decide whether it should be included or not. When true, it will
+we added.
 
 =option  namespace_reset BOOLEAN
 =default namespace_reset <false>
@@ -810,11 +814,11 @@ _DIRTY_TRICK
      $self->compile($action, $elem, %args);
 }
 
-=method template 'XML'|'PERL', TYPE, OPTIONS
+=method template 'XML'|'PERL', ELEMENT, OPTIONS
 
 Schema's can be horribly complex and unreadible.  Therefore, this template
 method can be called to create an example which demonstrates how data of
-the specified TYPE as XML or Perl is organized in practice.
+the specified ELEMENT as XML or Perl is organized in practice.
 
 Some OPTIONS are explained in M<XML::Compile::Translate>.
 There are some extra OPTIONS defined for the final output process.
@@ -828,7 +832,7 @@ improvements.
 =option  attributes_qualified BOOLEAN
 =default attributes_qualified <undef>
 
-=option  include_namespaces BOOLEAN
+=option  include_namespaces BOOLEAN|CODE
 =default include_namespaces <true>
 
 =option  show_comments STRING|'ALL'|'NONE'

@@ -68,12 +68,14 @@ compare_xml($w1b,  '<test1 id="6"/>');
 
 my $out = templ_perl $schema, "{$TestNS}test1", skip_header => 1;
 is($out, <<'__TEMPL');
-# x0_test1 has a mixed content
+# Describing mixed {http://test-types}test1
+
+# test1 has a mixed content
 { # is a xs:string
   id => "example",
 
   # mixed content cannot be processed automatically
-  _ => XML::LibXML::Element->new('x0_test1'), }
+  _ => XML::LibXML::Element->new('test1'), }
 __TEMPL
 
 #### explicit ATTRIBUTES

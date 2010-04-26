@@ -77,6 +77,8 @@ ok(defined $schema);
 
 my $out = templ_perl($schema, "{$TestNS}test1", show => 'ALL', skip_header => 1);
 is($out, <<__TEST1__);
+# Describing complex {http://test-types}test1
+
 { # sequence of t1_a, t1_b, t1_c, t1_d, cho_t1_g
 
   # is a xs:int
@@ -109,6 +111,7 @@ is($out, <<__TEST1__);
       a2_a => 42,
 
       # is a xs:string
+      # attribute a2_b is required
       a2_b => "example", }, ],
   t1_d =>
   { # sequence of t1_e, t1_f
@@ -149,6 +152,8 @@ __TEST1__
 
 $out = templ_perl($schema, "{$TestNS}test1", show => 'NONE', indent => '    ', skip_header => 1);
 is($out, <<__TEST1b__);
+# Describing complex {http://test-types}test1
+
 {   t1_a => 42,
     t1_b => 42,
     t1_c =>
@@ -192,7 +197,10 @@ is($out, <<__TEST1c__);
     <t2_a type="xs:int">42</t2_a>
     <a3_a type="xs:int">42</a3_a>
     <a2_a type="xs:int">42</a2_a>
-    <a2_b type="xs:string">example</a2_b>
+    <a2_b type="xs:string">
+      <!-- attribute a2_b is required -->
+      example
+    </a2_b>
   </t1_c>
   <t1_d>
     <!-- sequence of t1_e, t1_f -->
@@ -257,6 +265,7 @@ $out = templ_perl($schema, "{$TestNS}test3", show => 'ALL', skip_header => 1
  , key_rewrite => 'PREFIXED', include_namespaces => 1
  , prefixes => [ 'me' => $TestNS ], elements_qualified => 'ALL');
 is($out, <<__TEST3__);
+# Describing complex {http://test-types}test3
 # xmlns:me        http://test-types
 # xmlns:xs        http://www.w3.org/2001/XMLSchema
 

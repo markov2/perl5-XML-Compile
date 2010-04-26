@@ -142,6 +142,8 @@ __XML
 my $out = templ_perl $schema, "{$TestNS}test2"
             , key_rewrite => sub {uc $_[1]}, skip_header => 1;
 is($out, <<'__TEMPL');
+# Describing complex {http://test-types}test2
+
 { # sequence of T2A
 
   # substitutionGroup
