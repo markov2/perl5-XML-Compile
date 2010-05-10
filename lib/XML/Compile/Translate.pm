@@ -975,9 +975,9 @@ sub particleElement($)
     $do ? ($nodetype => $do) : ();
 }
 
-sub keyRewrite($)
-{   my ($self, $label) = @_;
-    my ($ns, $key) = unpack_type $label;
+sub keyRewrite($;$)
+{   my $self = shift;
+    my ($ns, $key) = @_==1 ? unpack_type(shift) : @_;
     my $oldkey = $key;
 
     foreach my $r ( @{$self->{rewrite}} )
@@ -1013,7 +1013,7 @@ sub keyRewrite($)
         }
     }
 
-    trace "rewrote key $label to $key"
+    trace "rewrote type @_ to $key"
         if $key ne $oldkey;
 
     $key;
@@ -1026,7 +1026,7 @@ sub attributeOne($)
     # content: annotation?, simpleType?
 
     my $node = $tree->node;
-    my $type;
+    my ($type, $tns);
 
     my($ref, $name, $form, $typeattr);
     if(my $refattr =  $node->getAttribute('ref'))
@@ -1039,7 +1039,7 @@ sub attributeOne($)
                  , name => $refname, where => $where, _class => 'schema';
 
         $ref        = $def->{node};
-        local $self->{tns} = $def->{ns};
+        local $self->{tns} = $tns = $def->{ns};
         my $attrs_qual = $def->{efd} eq 'qualified';
         if(exists $self->{attributes_qualified})
         {   my $qual = $self->{attributes_qualified} || 0;
@@ -1109,8 +1109,8 @@ sub attributeOne($)
       : error __x"form must be (un)qualified, not {form} at {where}"
             , form => $form, where => $where, _class => 'schema';
 
+    $tns      ||= $node->getAttribute('targetNamespace') || $self->{tns};
     my $trans   = $qual ? 'makeTagQualified' : 'makeTagUnqualified';
-    my $tns     = $node->getAttribute('targetNamespace') || $self->{tns};
     my $ns      = $qual ? $tns : '';
     my $tag     = $self->$trans($where, $node, $name, $ns);
 
@@ -1130,7 +1130,7 @@ sub attributeOne($)
      :                       'makeAttribute';
 
     my $value = defined $default ? $default : $fixed;
-    my $label = $self->keyRewrite($name);
+    my $label = $self->keyRewrite($ns, $name);
     my $do    = $self->$generate($where, $ns, $tag, $label, $st, $value);
     defined $do ? ($label => $do) : ();
 }
@@ -1154,6 +1154,7 @@ sub attributeGroup($)
         or error __x"cannot find attributeGroup {name} at {where}"
              , name => $typename, where => $where, _class => 'schema';
 
+    local $self->{tns} = $def->{ns};
     $self->attributeList($tree->descend($def->{node}));
 }
 

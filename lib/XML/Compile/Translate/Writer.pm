@@ -41,15 +41,17 @@ a (nested) Perl HASH structure onto XML.
 sub actsAs($) { $_[1] eq 'WRITER' }
 
 sub makeTagQualified
-{   my ($self, $path, $node, $local, $ns) = @_;
-    my $prefix = $self->_registerNSprefix('', $ns, 1);
-    length($prefix) ? "$prefix:$local" : $local;
+{ # my ($self, $path, $node, $local, $ns) = @_;
+  # my $prefix = $self->_registerNSprefix('', $ns, 1);
+  # length($prefix) ? "$prefix:$local" : $local;
+    my $prefix = $_[0]->_registerNSprefix('', $_[4], 1);
+    length($prefix) ? "$prefix:$_[3]" : $_[3];
 }
 
 sub makeTagUnqualified
-{   my ($self, $path, $node, $name) = @_;
-    $name =~ s/.*\://;
-    $name;
+{ # my ($self, $path, $node, $local, $ns) = @_;
+  # $local;
+    $_[3];
 }
 
 sub _typemapClass($$)
@@ -676,6 +678,7 @@ sub makeMixedElement
 
 sub makeSimpleElement
 {   my ($self, $path, $tag, $st) = @_;
+
     sub {
         my ($doc, $data) = @_;
         return $doc->importNode($data)
@@ -864,7 +867,7 @@ sub makeAttributeFixed
               or error __x"value of attribute `{tag}' is fixed to `{fixed}', not `{got}' at {path}"
                    , tag => $tag, got => $value, fixed => $fixed, path => $path;
 
-          $doc->createAttributeNS($ns, $tag, $fixed);
+          $doc->createAttribute($tag, $fixed);
         };
 }
 

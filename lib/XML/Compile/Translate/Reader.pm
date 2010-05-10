@@ -44,11 +44,16 @@ into a (nested) Perl HASH structure.
 sub actsAs($) { $_[1] eq 'READER' }
 
 sub makeTagUnqualified
-{   my ($self, $path, $node, $local, $ns) = @_;
-    $local =~ s/.*?\://;   # strip prefix, that's all
-    $local;
+{ # my ($self, $path, $node, $local, $ns) = @_;
+  # $local;
+    $_[3];
 }
-*makeTagQualified = \&makeTagUnqualified;
+
+sub makeTagQualified
+{ # my ($self, $path, $node, $local, $ns) = @_;
+#   $_[0]->keyRewrite($_[4], $_[3]);
+    $_[3];
+}
 
 sub typemapToHooks($$)
 {   my ($self, $hooks, $typemap) = @_;
@@ -608,8 +613,7 @@ sub makeElementAbstract
 
 sub makeComplexElement
 {   my ($self, $path, $tag, $elems, $attrs, $attrs_any) = @_;
-#my @e = @$elems;
-#my @a = @$attrs;
+#my @e = @$elems; my @a = @$attrs;
     my @elems = odd_elements @$elems;
     my @attrs = (odd_elements(@$attrs), @$attrs_any);
 
@@ -915,7 +919,7 @@ sub makeAttributeFixed
     my $def  = $do->($fixed);
 
     sub { my $node  = $_[0]->getAttributeNodeNS($ns, $tag)
-              or return ($tag => $def);
+              or return ($label => $def);
 
           my $value = $do->($node);
           defined $value && $value eq $def

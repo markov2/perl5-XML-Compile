@@ -752,15 +752,15 @@ Probably the same rules as M<anyURI()>.
 
 $builtin_types{uriReference} = $builtin_types{anyURI};
 
-=pod how to do these constants?
-$builtin_types{century}       = {                     period => 'P100Y' }
-$builtin_types{recurringDate} = { duration => 'P24H', period => 'P1Y'   }
-$builtin_types{recurringDay}  = { duration => 'P24H', period => 'P1M'   }
-$builtin_types{timeInstant}   = { duration => 'P0Y',  period => 'P0Y'   }
-$builtin_types{timePeriod}    = { duration => 'P0Y' }
-$builtin_types{year}          = {                     period => 'P1Y'   }
-$builtin_types{recurringDuration} = ??
-=cut
+# These constants where removed from the spec in 2001. Probably
+# no-one is using these (anymore)
+# century       = period   => 'P100Y'
+# recurringDate = duration => 'P24H', period => 'P1Y'
+# recurringDay  = duration => 'P24H', period => 'P1M'
+# timeInstant   = duration => 'P0Y',  period => 'P0Y'
+# timePeriod    = duration => 'P0Y'
+# year          = period => 'P1Y'
+# recurringDuration = ??
 
 # only in 2000/10 schemas
 $builtin_types{CDATA} =

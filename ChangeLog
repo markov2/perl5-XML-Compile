@@ -15,14 +15,31 @@ To be resolved:
        "targetNamespace" (proposed schema feature)
  - namespace blocking option for templates; exclude deprecated elements
 
+version 1.15: Mon May 10 15:20:17 CEST 2010
+
+	Fixes:
+
+	- reader: namespace qualified attributes. Discovered by [Heiko Jansen]
+
+	- reader: namespace of attributeGroups.
+
+	- writer: namespace qualified fixed value attribute.
+
+	Improvements:
+
+	- remove out-dated constants from the ::BuildInTypes manual-page
+
+	- ::Translate::keyRewrite accepts split ns/local as well. This
+	  avoids clumpsy pack/unpack.
+
 version 1.14: Mon Apr 26 09:39:28 CEST 2010
 
 	Fixes:
 
 	- ::Template(PERL) improve key_rewrite use.
 
-	- xsi:type when schema-namespace had default prefix and the
-	  user defined elements/types namespace-less. [Brendan Knox]
+	- xsi:type when schema-namespace has the default prefix and the
+	  user defined elements/types are namespace-less. [Brendan Knox]
 
 	- ::Writer report misfit failed due to reuse of $@
 

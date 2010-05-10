@@ -43,14 +43,15 @@ sub makeTagQualified
 {   my ($self, $path, $node, $local, $ns) = @_;
     my $prefix = $self->_registerNSprefix('', $ns, 1);
 
-      $self->{_output} eq 'PERL' ? $self->keyRewrite(pack_type $ns,$local)
+# it is certainly not correct to do a keyRewrite here, but it works :(
+      $self->{_output} eq 'PERL' ? $self->keyRewrite($ns, $local)
     : length $prefix             ? $prefix .':'. $local
     :                              $local;
 }
 
 sub makeTagUnqualified
 {   my ($self, $path, $node, $name) = @_;
-    $name =~ s/.*\://;
+#   $name =~ s/.*\://;
     $name;
 }
 
