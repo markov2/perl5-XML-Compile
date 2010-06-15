@@ -14,6 +14,20 @@ To be resolved:
      . ::Instance cannot handle element and attribute declaration attribute
        "targetNamespace" (proposed schema feature)
  - namespace blocking option for templates; exclude deprecated elements
+ - when you use appendChild i.s.o. addChild, the namespace declarators
+   are managed automatically correct, saving a wrapper in the writer
+   and avoiding the prefix trick. [Roman Daniel].  Nicer, but would
+   affect the whole code and most tests.
+
+version 1.16: Tue Jun 15 15:16:29 CEST 2010
+
+	Fixes:
+
+	- template: processing of nillable objects.
+	  rt.cpan.org#58321 [Max Cohan]
+
+	- the chaching needed for recursive schemas, did not contain
+	  xsi:type logic. [Knut Arne Bjørndal]
 
 version 1.15: Mon May 10 15:20:17 CEST 2010
 

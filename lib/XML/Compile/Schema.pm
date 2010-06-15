@@ -1029,6 +1029,7 @@ sub _parseScalar($)
     }
 
     trace "cache parsed scalar with checksum $checksum";
+
     ( $self->SUPER::_parseScalar($data)
     , checksum => $checksum
     );
@@ -1050,6 +1051,7 @@ sub _parseFile($)
     }
 
     trace "cache parsed file $filestamp";
+
     ( $self->SUPER::_parseFile($fn)
     , filestamp => $filestamp
     );

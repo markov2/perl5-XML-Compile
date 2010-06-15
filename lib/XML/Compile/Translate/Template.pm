@@ -229,7 +229,10 @@ sub makeElementFixed
 
 sub makeElementNillable
 {   my ($self, $path, $ns, $childname, $do) = @_;
-    sub { +{occur => "$childname is nillable", $do->()} };
+    sub { my $h = $do->();
+          $h->{occur} = "$childname is nillable";
+          $h;
+        };
 }
 
 sub makeElementAbstract

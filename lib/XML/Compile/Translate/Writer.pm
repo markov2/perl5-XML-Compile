@@ -276,7 +276,7 @@ sub makeAll($@)
 
 # see comment BlockHandler: undef means zero but success
 sub makeElementHandler
-{   my ($self, $path, $label, $min, $max, $required, $optional) = @_;
+{   my ($self, $path, $label, $min,$max, $required, $optional) = @_;
     $max eq "0" and return sub {};
 
     if($min==0 && $max eq 'unbounded')
@@ -504,6 +504,7 @@ sub makeComplexElement
 {   my ($self, $path, $tag, $elems, $attrs, $any_attr) = @_;
     my @elems = odd_elements @$elems;
     my @attrs = @$attrs;
+my $t = "@$elems @$attrs";
     my $tags  = join ', ', even_elements(@$elems), even_elements(@attrs);
     my @anya  = @$any_attr;
     my $iut   = $self->{ignore_unused_tags};
@@ -523,7 +524,7 @@ sub makeComplexElement
                , tag => $tag, found => (ref $data || $data), path => $path;
         }
 
-        my $copy   = { %$data };  # do not destroy caller's hash
+        my $copy   = { %$data };  # do not destroy callers hash
         my @childs = map {$_->($doc, $copy)} @elems;
         for(my $i=0; $i<@attrs; $i+=2)
         {   push @childs, $attrs[$i+1]->($doc, delete $copy->{$attrs[$i]});

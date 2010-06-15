@@ -728,42 +728,45 @@ sub element($)
       ? $self->makeHook($where, $do2, $tag, $before, $replace, $after)
       : $do2;
 
+    my $do4 = $do3;
+    if($comptype && $self->{xsi_type}{$comptype})
+    { 
+        # Ugly xsi:type switch needed
+        my %alt = ($comptype => $do3);
+        foreach my $alttype (@{$self->{xsi_type}{$comptype}})
+        {   my ($ns, $local) = unpack_type $alttype;
+            my $prefix  = $node->lookupNamespacePrefix($ns);
+            defined $prefix
+                or $prefix = $self->_registerNSprefix(undef, $ns, 1);
+
+            my $type    = length $prefix ? "$prefix:$local" : $local;
+
+            # do not accidentally use the default namespace, when there
+            # may also be namespace-less types used.
+            my $doc     = $node->ownerDocument;
+            my $altnode = $doc->createElement('element');
+            $altnode->setNamespace(SCHEMA2001, 'temp1234', 1);
+            $altnode->setNamespace($ns, $prefix);
+            $altnode->setAttribute(name => $name);
+            $altnode->setAttribute(type => $type);
+
+            my $altnodeid = $altnode->nodePath.'#'.$fullname;
+            delete $self->{_created}{$altnodeid}; # clean nesting cache
+
+            $alt{$alttype} = $self->element($tree->descend($altnode));
+        }
+
+        $do4 = $self->makeXsiTypeSwitch($where, $name, $comptype, \%alt);
+    }
+
     # handle recursion
     # this must look very silly to you... however, this is resolving
     # recursive schemas: this way nested use of the same element
     # definition will catch the code reference of the outer definition.
-    $self->{_nest}{$nodeid}    = $do3;
+    $self->{_nest}{$nodeid}    = $do4;
     delete $self->{_nest}{$nodeid};  # clean the outer definition
 
-    $self->{_created}{$nodeid} = $do3;
-
-    $comptype && $self->{xsi_type}{$comptype}
-        or return $do3;
-
-    # Ugly xsi:type switch needed
-    my %alt = ($comptype => $do3);
-    foreach my $alttype (@{$self->{xsi_type}{$comptype}})
-    {   my ($ns, $local) = unpack_type $alttype;
-        my $prefix  = $node->lookupNamespacePrefix($ns);
-        defined $prefix or $prefix = $self->_registerNSprefix(undef, $ns, 1);
-        my $type    = length $prefix ? "$prefix:$local" : $local;
-
-        # do not accidentally use the default namespace, when there
-        # may also be namespace-less types used.
-        my $doc     = $node->ownerDocument;
-        my $altnode = $doc->createElement('element');
-        $altnode->setNamespace(SCHEMA2001, 'temp1234', 1);
-        $altnode->setNamespace($ns, $prefix);
-        $altnode->setAttribute(name => $name);
-        $altnode->setAttribute(type => $type);
-
-        my $altnodeid = $altnode->nodePath.'#'.$fullname;
-        delete $self->{_created}{$altnodeid}; # clean nesting cache
-
-        $alt{$alttype} = $self->element($tree->descend($altnode));
-    }
-
-    $self->makeXsiTypeSwitch($where, $name, $comptype, \%alt);
+    $self->{_created}{$nodeid} = $do4;
 }
 
 sub particle($)
@@ -818,7 +821,7 @@ sub particle($)
     $required = $self->makeRequired($where, $key, $process) if $min!=0;
 
     ($self->actsAs('READER') ? $label : $key) =>
-       $self->makeElementHandler($where, $key, $min, $max, $required,$process);
+       $self->makeElementHandler($where, $key, $min,$max, $required, $process);
 }
 
 # blockLabel KIND, LABEL
@@ -977,7 +980,7 @@ sub particleElement($)
 
 sub keyRewrite($;$)
 {   my $self = shift;
-    my ($ns, $key) = @_==1 ? unpack_type(shift) : @_;
+    my ($ns, $key) = @_==1 ? unpack_type($_[0]) : @_;
     my $oldkey = $key;
 
     foreach my $r ( @{$self->{rewrite}} )
