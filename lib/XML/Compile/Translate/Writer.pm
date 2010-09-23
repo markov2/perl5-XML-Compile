@@ -504,7 +504,6 @@ sub makeComplexElement
 {   my ($self, $path, $tag, $elems, $attrs, $any_attr) = @_;
     my @elems = odd_elements @$elems;
     my @attrs = @$attrs;
-my $t = "@$elems @$attrs";
     my $tags  = join ', ', even_elements(@$elems), even_elements(@attrs);
     my @anya  = @$any_attr;
     my $iut   = $self->{ignore_unused_tags};

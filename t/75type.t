@@ -87,5 +87,5 @@ is($out, <<'__TEMPL');
   # {http://test-types}f_t1
   # {http://test-types}f_t2
   # occurs any number of times
-  f_a3 =>  [ { XSI_TYPE => '{http://test-types}f_t1', %data }, ], }
+  f_a3 => [ { XSI_TYPE => '{http://test-types}f_t1', %data }, ], }
 __TEMPL

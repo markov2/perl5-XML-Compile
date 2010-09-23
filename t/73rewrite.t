@@ -149,5 +149,5 @@ is($out, <<'__TEMPL');
   # substitutionGroup
   # {http://test-types}t2a:
   #   T2A  T2B
-  T2A => { T2A => {...} }, }
+  T2A => { T2A => ... }, }
 __TEMPL

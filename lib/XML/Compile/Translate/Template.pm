@@ -6,7 +6,7 @@ use strict;
 use warnings;
 no warnings 'once';
 
-use XML::Compile::Util qw/odd_elements pack_type unpack_type/;
+use XML::Compile::Util qw/odd_elements even_elements pack_type unpack_type/;
 use Log::Report 'xml-compile', syntax => 'SHORT';
 use List::Util  qw/max/;
 
@@ -131,13 +131,16 @@ sub _block($@)
           my @tags   = map { $_->{tag} } @elems;
 
           local $" = ', ';
-          my $struct = @tags ? "$block of @tags" : "empty $block";
+          my $struct = @tags ? "$block of @tags"
+            : "empty $block from ".join(" ", even_elements @pairs);
+
           my @lines;
           while(length $struct > 65)
-          {   $struct =~ s/(.{1,60})(\s)//;
+          {   $struct =~ s/(.{1,60}|\S+)(?:\s+|$)//;
               push @lines, $1;
           }
-          push @lines, $struct;
+          push @lines, $struct
+              if length $struct;
           $lines[$_] =~ s/^/  / for 1..$#lines;
 
            { tag    => $block
@@ -451,7 +454,16 @@ sub makeAttributeFixed
 
 sub makeSubstgroup
 {   my ($self, $path, $type, @do) = @_;
-    my @tags    = sort map { $_->[0] } odd_elements @do;
+
+    my $tag = $do[1][0];
+    my @tags;
+    while(@do)
+    {   my ($type,  $info) = (shift @do, shift @do);
+        my ($label, $call) = @$info;
+        my $show           = $call->();
+        next unless $show;  # skip abstract types
+        push @tags, $label;
+    }
 
     my $longest = max map length, @tags;
     my $columns = int(60 / ($longest + 2));
@@ -464,9 +476,9 @@ sub makeSubstgroup
     }
 
     sub { +{ kind    => 'substitution group'
-           , tag     => $do[1][0]
+           , tag     => $tag
            , struct  => [ "substitutionGroup", "$type:", @lines ]
-           , example => "{ $tags[0] => {...} }"
+           , example => "{ $tags[0] => ... }"
            }
         };
 }
@@ -698,11 +710,12 @@ sub _perlAny($$)
            push @lines, @l;
         }
     }
-    elsif(!$ast->{example})
+    elsif(!exists $ast->{example})
     {   push @lines, "$tag => 'TEMPLATE-ERROR $ast->{kind}'";
     }
 
-    if(my $example = $ast->{example})
+    my $example = $ast->{example};
+    if(defined $example)
     {   $example = qq{"$example"}      # in quotes unless
           if $example !~ m/^[+-]?\d+(?:\.\d+)?$/  # numeric or
           && $example !~ m/^\$/                   # variable or
@@ -712,7 +725,7 @@ sub _perlAny($$)
           && $example !~ m/^\[.*\]$/;             # anon ARRAY example
 
         push @lines, "$tag => "
-          . ($ast->{is_array} ? " [ $example, ]" : $example);
+          . ($ast->{is_array} ? "[ $example, ]" : $example);
     }
     @lines;
 }

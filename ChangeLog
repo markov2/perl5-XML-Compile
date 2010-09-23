@@ -18,6 +18,44 @@ To be resolved:
    are managed automatically correct, saving a wrapper in the writer
    and avoiding the prefix trick. [Roman Daniel].  Nicer, but would
    affect the whole code and most tests.
+ - errors on types should show dynamic nested location in structure,
+   not path in schema.
+
+version 1.17: Thu Sep 23 09:31:40 CEST 2010
+
+	Changes:
+
+	- removed 'IGNORE' choice for abstract_types options. Either
+	  they produce and ERROR or you ACCEPT them in your message,
+	  ignoring them to be abstract.
+
+	- move t/99pod.t to xt/ which removes dependency from Test::Pod
+
+	Fixes:
+
+	- writer: do not complain about mal-formatted integers when
+	  validation is off [Titi Ala'ilima]
+
+	- reader: do not complain about mal-formed integers when
+	  validation is off.
+
+	- template: do not show "TEMPLATE_ERROR" when the defaults
+	  of fields are '0'.
+
+	- template: did not show extensions of abstract types.
+
+	- template: fix line folding with long words.
+
+	- template: remove double blanks before '['
+
+	Improvements:
+
+	- template: report wrong value of action parameter before
+	  anything else.
+
+	- template: show reason for empty sequences
+
+	- template: do not show abstract types in substitutionGroups
 
 version 1.16: Tue Jun 15 15:16:29 CEST 2010
 

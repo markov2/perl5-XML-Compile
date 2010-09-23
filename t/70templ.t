@@ -121,7 +121,7 @@ is($out, <<__TEST1__);
 
     # is a xs:float
     # occurs 1 <= # <= 2 times
-    t1_f =>  [ 3.1415, ], },
+    t1_f => [ 3.1415, ], },
 
   # choice of t1_g, t1_h, t1_i
   # occurs 1 <= # <= 3 times
@@ -146,7 +146,7 @@ is($out, <<__TEST1__);
 
       # is a xs:negativeInteger
       # occurs 1 <= # <= unbounded times
-      t1_i =>  [ -1, ], },
+      t1_i => [ -1, ], },
   ], }
 __TEST1__
 
@@ -165,14 +165,14 @@ is($out, <<__TEST1b__);
           a2_b => "example", }, ],
     t1_d =>
     {   t1_e => "example",
-        t1_f =>  [ 3.1415, ], },
+        t1_f => [ 3.1415, ], },
     cho_t1_g => 
     [ {   t1_g =>
           {   t3_a => "anything",
               t3_b => 42,
               a3_a => 42, },
           t1_h => 42,
-          t1_i =>  [ -1, ], },
+          t1_i => [ -1, ], },
     ], }
 __TEST1b__
 

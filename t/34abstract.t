@@ -48,6 +48,6 @@ my $out = templ_perl($schema, "{$TestNS}test2", abstract_types => 1, skip_header
 is($out, <<'__TEMPL');
 # Describing complex {http://test-types}test2
 
-{ # empty sequence
+{ # empty sequence from test1
 }
 __TEMPL

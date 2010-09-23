@@ -183,9 +183,9 @@ is($out, <<'__TEMPL');
 
   # substitutionGroup
   # {http://test-types}head:
-  #   alt1  alt2  alt3  head
+  #   alt1  alt2  alt3
   # occurs 0 <= # <= 3 times
-  head =>  [ { alt1 => {...} }, ],
+  head => [ { alt1 => ... }, ],
 
   # is a xs:int
   id2 => 42, }

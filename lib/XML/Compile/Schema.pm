@@ -681,13 +681,13 @@ show the default and fixed values in the result.  C<MINIMAL> does remove
 all fields which are the same as the default setting: simplifies.
 See L</Default Values>.
 
-=option  abstract_types 'ERROR'|'IGNORE'|'ACCEPT'
+=option  abstract_types 'ERROR'|'ACCEPT'
 =default abstract_types 'ERROR'
 How to handle the use abstract types.  Of course, they should not be
 used, but sometime they accidentally are.  When set to C<ERROR>, an error
-will be produced whenever an abstract type is encountered.  C<IGNORE>
-will ignore the existence of abstract types.  C<ACCEPT> will ignore the
-fact that the types are abstract, and treat them as non-abstract types.
+will be produced whenever an abstract type is encountered.
+C<ACCEPT> will ignore the fact that the types are abstract, and treat
+them as non-abstract types.
 
 =option  block_namespace NAMESPACE|TYPE|HASH|CODE|ARRAY
 =default block_namespace []
@@ -847,8 +847,8 @@ The C<NONE> or empty string will exclude all comments.
 The leading indentation string per nesting.  Must start with at least one
 blank.
 
-=option  abstract_types 'ERROR'|'IGNORE'|'ACCEPT'
-=default abstract_types 'IGNORE'
+=option  abstract_types 'ERROR'|'ACCEPT'
+=default abstract_types 'ERROR'
 By default, do not show abstract types in the output.
 
 =option  skip_header BOOLEAN
@@ -862,6 +862,12 @@ Skip the comment header from the output.
 sub template($@)
 {   my ($self, $action, $type, %args) = @_;
 
+    my $to_perl
+      = $action eq 'PERL' ? 1
+      : $action eq 'XML'  ? 0
+      : error __x"template output is either in XML or PERL layout, not '{action}'"
+        , action => $action;
+
     my $show
       = exists $args{show_comments} ? $args{show_comments}
       : exists $args{show} ? $args{show} # pre-0.79 option name 
@@ -873,11 +879,11 @@ sub template($@)
 
     my $nss = $self->namespaces;
 
-    my $indent                  = $args{indent} || "  ";
-    $args{check_occurs}         = 1;
-    $args{mixed_elements}     ||= 'ATTRIBUTES';
-    $args{default_values}     ||= 'EXTEND';
-    $args{abstract_types}     ||= 'IGNORE';
+    my $indent              = $args{indent} || "  ";
+    $args{check_occurs}     = 1;
+    $args{mixed_elements} ||= 'ATTRIBUTES';
+    $args{default_values} ||= 'EXTEND';
+    $args{abstract_types} ||= 'ERROR';
 
     exists $args{include_namespaces}
         or $args{include_namespaces} = 1;
@@ -915,19 +921,16 @@ sub template($@)
     my $ast = $compiled->();
 #use Data::Dumper; $Data::Dumper::Indent = 1; warn Dumper $ast;
 
-    if($action eq 'XML')
-    {   my $doc  = XML::LibXML::Document->new('1.1', 'UTF-8');
-        my $node = $transl->toXML($doc,$ast, @comment
-          , indent => $indent, skip_header => $args{skip_header});
-        return $node->toString(1);
+    if($to_perl)
+    {   return $transl->toPerl($ast, @comment
+           , indent => $indent, skip_header => $args{skip_header})
     }
 
-    return $transl->toPerl($ast, @comment
-       , indent => $indent, skip_header => $args{skip_header})
-        if $action eq 'PERL';
-
-    error __x"template output is either in XML or PERL layout, not '{action}'"
-        , action => $action;
+    # to_xml
+    my $doc  = XML::LibXML::Document->new('1.1', 'UTF-8');
+    my $node = $transl->toXML($doc,$ast, @comment
+      , indent => $indent, skip_header => $args{skip_header});
+    $node->toString(1);
 }
 
 #------------------------------------------

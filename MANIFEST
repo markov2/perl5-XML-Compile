@@ -87,5 +87,5 @@ t/76blocked.t
 t/81-2000.t
 t/90nons.t
 t/91noqual.t
-t/99pod.t
 t/TestTools.pm
+xt/99pod.t

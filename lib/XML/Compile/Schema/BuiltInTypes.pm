@@ -56,8 +56,13 @@ You B<cannot call> these functions yourself.
 # Format has a second argument for QNAME as well.
 
 sub identity  { $_[0] }
-sub str2int   { use warnings FATAL => 'all'; $_[0] + 0 }
-sub int2str   { use warnings FATAL => 'all'; sprintf "%ld", $_[0] }
+
+# already validated, unless that is disabled.
+sub str2int   { $_[0] + 0 }
+
+# sprintf returns '0' if non-int, with warning. We need a validation error
+sub int2str   { $_[0] =~ m/^\s*[0-9]+\s*$/ ? sprintf("%ld", $_[0]) : $_[0] }
+
 sub str       { "$_[0]" }
 sub _replace  { $_[0] =~ s/[\t\r\n]/ /g; $_[0]}
 sub _collapse { local $_ = $_[0]; s/[\t\r\n]+/ /g; s/^ +//; s/ +$//; $_}
@@ -166,7 +171,7 @@ $builtin_types{nonPositiveInteger} =
  { parse   => \&bigint
  , check   => sub { $_[0] =~ m/^\s*(?:\-\s*)?\d[\s\d]*$/
                  || $_[0] =~ m/^\s*(?:\+\s*)0[0\s]*$/ }
- , example => '-0'
+ , example => '-42'
  };
 
 =function long
