@@ -901,8 +901,8 @@ sub template($@)
       , !$args{use_default_namespace}
       );
 
-    $table->{&SCHEMA2001}  ||= {prefix => 'xs', uri => SCHEMA2001,  used => 0};
-    $table->{&SCHEMA2001i} ||= {prefix => 'xs', uri => SCHEMA2001i, used => 0};
+    $table->{&SCHEMA2001}  ||= {prefix => 'xs',  uri => SCHEMA2001,  used => 0};
+    $table->{&SCHEMA2001i} ||= {prefix => 'xsi', uri => SCHEMA2001i, used => 0};
 
     my $transl  = XML::Compile::Translate->new
      ( 'TEMPLATE'
@@ -1206,9 +1206,7 @@ The schemas define kinds of data types.  There are various ways to define
 them (with restrictions and extensions), but for the resulting data
 structure is that knowledge not important.
 
-=over 4
-
-=item simpleType
+=subsection simpleType
 
 A single value.  A lot of single value data-types are built-in (see
 M<XML::Compile::Schema::BuiltInTypes>).
@@ -1238,7 +1236,7 @@ With reader hook C<< after => 'XML_NODE' >> hook applied, it will become
           , _XML_NODE => $obj
           }
  
-=item complexType/simpleContent
+=subsection complexType/simpleContent
 
 In this case, the single value container may have attributes.  The number
 of attributes can be endless, and the value is only one.  This value
@@ -1256,7 +1254,7 @@ As a HASH, this looks like
           , question => 'everything'
           }
 
-=item complexType and complexType/complexContent
+=subsection complexType and complexType/complexContent
 
 These containers not only have attributes, but also multiple values
 as content.  The C<complexContent> is used to create inheritance
@@ -1280,7 +1278,7 @@ Represented as HASH, this looks like
           , when     => '5 billion BC'
           }
 
-=item anything by XML NODE
+=subsection Manually produced XML NODE
 
 For a WRITER, you may also specify a XML::LibXML::Node anywhere.
 
@@ -1288,11 +1286,10 @@ For a WRITER, you may also specify a XML::LibXML::Node anywhere.
  test3 => $doc->createElement('ariba');
 
 This data-structure is used without validation, so you are fully on
-your own with this one.
+your own with this one. Typically, nodes are produced by hooks to
+implement work-arounds.
 
-=back
-
-=section Processing
+=subsection Occurence
 
 A second factor which determines the data-structure is the element
 occurrence.  Usually, elements have to appear once and exactly once
@@ -1326,13 +1323,16 @@ unless M<compile(check_occurs)> is C<false>.
 
 =example elements with maxOccurs larger than 1
 In the schema:
+
  <element name="a" type="int" maxOccurs="unbounded" />
  <element name="b" type="int" />
 
 In the XML message:
+
  <a>12</a><a>13</a><b>14</b>
 
 In the Perl representation:
+
  a => [12, 13], b => 14
 
 =item value is C<NIL>
@@ -1361,12 +1361,91 @@ the white-space rules where applied).
 
 =back
 
-=section Repetative blocks
+=subsection Default Values
+
+[added in v0.91]
+With M<compile(default_values)> you can control how much information about
+default values defined by the schema will be passed into your program.
+
+The choices, available for both READER and WRITER, are:
+
+=over 4
+
+=item C<IGNORE>   (the WRITER's standard behavior)
+Only include element and attribute values in the result if they are in
+the XML message.  Behaviorally, this treats elements with default values
+as if they are just optional.  The WRITER does not try to be smarter than
+you.
+
+=item C<EXTEND>   (the READER's standard behavior)
+If some element or attribute is not in the source but has a default in
+the schema, that value will be produced.  This is very convenient for the
+READER, because your application does not have to hard-code the same
+constant values as defaults as well.
+
+=item C<MINIMAL>
+Only produce the values which differ from the defaults.  This choice is
+useful when producing XML, to reduce the size of the output.
+=back
+
+=example use of default_values EXTEND
+
+Let us process a schema using the schema schema.  A schema file can
+contain lines like this:  
+
+ <element minOccurs="0" ref="myelem"/>
+
+In mode C<EXTEND> (the READER default), this gets translated into:
+
+ element => { ref => 'myelem', maxOccurs => 1
+            , minOccurs => 0, nillable => 0 };
+
+With C<EXTEND> in the READER, all schema information is used to provide
+a complete overview of available information.  Your code does not need
+to check whether the attributes were available or not: attributes with
+defaults or fixed values are automatically added.
+
+Again mode C<EXTEND>, now for the writer:
+
+ element => { ref => 'myelem', minOccurs => 0 };
+ <element minOccurs="0" maxOccurs="1" ref="myelem" nillable="0"/>
+
+=example use of default_values IGNORE
+
+With option C<default_values> set to C<IGNORE> (the WRITER default), you
+would get
+
+ element => { ref => 'myelem', maxOccurs => 1, minOccurs => 0 }
+ <element minOccurs="0" maxOccurs="1" ref="myelem"/>
+
+The same in both translation directions.
+The nillable attribute is not used, so will not be shown by the READER.  The
+writer does not try to be smart, so does not add the nillable default.
+
+=example use of default_values MINIMAL
+
+With option C<default_values> set to C<MINIMAL>, the READER would do this:
+
+ <element minOccurs="0" maxOccurs="1" ref="myelem"/>
+ element => { ref => 'myelem', minOccurs => 0 }
+
+The maxOccurs default is "1", so will not be included, minimalizing the
+size of the HASH.
+
+For the WRITER:
+
+ element => { ref => 'myelem', minOccurs => 0, nillable => 0 }
+ <element minOccurs="0" ref="myelem"/>
+
+because the default value for nillable is '0', it will not show as attribute
+value.
+
+=subsection Repetative blocks
 
 Particle blocks come in four shapes: C<sequence>, C<choice>, C<all>,
 and C<group> (an indirect block).  This also affects C<substitutionGroups>.
 
-=subsection repetative sequence, choice, all
+=subsubsection repetative sequence, choice, all
 
 In situations like this:
 
@@ -1454,7 +1533,7 @@ In the XML message:
 In Perl representation:
  seq_a => [ {a => 15, b => 16}, {a => 17, b => 18} ]
 
-=subsection repetative groups
+=subsubsection repetative groups
 
 [behavioral change in 0.93]
 In contrast to the normal partical blocks, as described above, do the
@@ -1485,7 +1564,7 @@ translates into
 
   gr_xyz => [ {a => 42, b => 43}, {a => 44, b => 45} ]
 
-=subsection repetative substitutionGroups
+=subsubsection repetative substitutionGroups
 
 For B<substitutionGroup>s which are repeating, the I<name of the base
 element> is used (the element which has attribute C<<abstract="true">>.
@@ -1503,7 +1582,7 @@ something like this:
 
 Each HASH has only one key.
 
-=section List type
+=subsection List type
 
 List simpleType objects are also represented as ARRAY, like elements
 with a minOccurs or maxOccurs unequal 1.
@@ -1516,7 +1595,7 @@ as Perl structure:
 
   test5 => [3, 8, 12]
 
-=section substitutionGroup
+=subsection Using substitutionGroup constructs
 
 A substitution group is kind-of choice between alternative (complex)
 types.  However, in this case roles have reversed: instead a C<choice>
@@ -1557,7 +1636,7 @@ The HASH repesentation is respectively
  product => {name => 'Ball', euro  => 12}
  product => {name => 'Ball', dollar => 6}
  
-=section Wildcards
+=subsection Wildcards any and anyAttribute
 
 The C<any> and C<anyAttribute> elements are referred to as C<wildcards>:
 they specify groups of elements and attributes which can be used, in
@@ -1578,7 +1657,7 @@ knowledge into code explicitly.  Read about the processing of wildcards
 in the manual page for each of the back-ends, because it is different
 in each case.
 
-=section ComplexType with "mixed" attribute
+=subsection ComplexType with "mixed" attribute
 
 [largely improved in 0.86, reader only]
 ComplexType and ComplexContent components can be declared with the
@@ -1593,6 +1672,29 @@ Each back-end has its own way of handling mixed elements.  The
 M<compile(mixed_elements)> currently only modifies the reader's
 behavior; the writer's capabilities are limited.
 See M<XML::Compile::Translate::Reader>.
+
+=subsection hexBinary and base64Binary
+
+These are used to include images and such in an XML message. Usually,
+they are quite large with respect to the other elements. When you use
+SOAP, you may wish to use M<XML::Compile::XOP> instead.
+
+The element values which you need to pass for fields of these
+types is a binary BLOB, something Perl does not have. So, it is
+a string containing binary data but not specially marked that way.
+
+If you need to store an integer in such a binary field, you first have
+to promote it into a BLOB (string) like this
+
+   { color => pack('N', $i) }          # writer
+   my $i = unpack('N', $d->{color});   # reader
+
+Module M<Geo::KML> implements a nice hook to avoid the explicit need
+for this C<pack> and C<unpack>. The KML schema designers liked colors
+to be written as C<ffc0c0c0> and abused C<hexBinary> for that purpose.
+The C<colorType> fields in KML are treated as binary, but just represent
+an int. Have a look in that M<Geo::KML> code if your schema has some of
+those tricks.
 
 =section Schema hooks
 
@@ -2005,85 +2107,6 @@ if the same prefix appears twice, or a C<PREFIXED> rule is provided as well,
 then still only one prefix is added.
 
 =back
-
-=section Default Values
-
-[added in v0.91]
-With M<compile(default_values)> you can control how much information about
-default values defined by the schema will be passed into your program.
-
-The choices, available for both READER and WRITER, are:
-
-=over 4
-
-=item C<IGNORE>   (the WRITER's standard behavior)
-Only include element and attribute values in the result if they are in
-the XML message.  Behaviorally, this treats elements with default values
-as if they are just optional.  The WRITER does not try to be smarter than
-you.
-
-=item C<EXTEND>   (the READER's standard behavior)
-If some element or attribute is not in the source but has a default in
-the schema, that value will be produced.  This is very convenient for the
-READER, because your application does not have to hard-code the same
-constant values as defaults as well.
-
-=item C<MINIMAL>
-Only produce the values which differ from the defaults.  This choice is
-useful when producing XML, to reduce the size of the output.
-=back
-
-=example use of default_values EXTEND
-
-Let us process a schema using the schema schema.  A schema file can
-contain lines like this:  
-
- <element minOccurs="0" ref="myelem"/>
-
-In mode C<EXTEND> (the READER default), this gets translated into:
-
- element => { ref => 'myelem', maxOccurs => 1
-            , minOccurs => 0, nillable => 0 };
-
-With C<EXTEND> in the READER, all schema information is used to provide
-a complete overview of available information.  Your code does not need
-to check whether the attributes were available or not: attributes with
-defaults or fixed values are automatically added.
-
-Again mode C<EXTEND>, now for the writer:
-
- element => { ref => 'myelem', minOccurs => 0 };
- <element minOccurs="0" maxOccurs="1" ref="myelem" nillable="0"/>
-
-=example use of default_values IGNORE
-
-With option C<default_values> set to C<IGNORE> (the WRITER default), you
-would get
-
- element => { ref => 'myelem', maxOccurs => 1, minOccurs => 0 }
- <element minOccurs="0" maxOccurs="1" ref="myelem"/>
-
-The same in both translation directions.
-The nillable attribute is not used, so will not be shown by the READER.  The
-writer does not try to be smart, so does not add the nillable default.
-
-=example use of default_values MINIMAL
-
-With option C<default_values> set to C<MINIMAL>, the READER would do this:
-
- <element minOccurs="0" maxOccurs="1" ref="myelem"/>
- element => { ref => 'myelem', minOccurs => 0 }
-
-The maxOccurs default is "1", so will not be included, minimalizing the
-size of the HASH.
-
-For the WRITER:
-
- element => { ref => 'myelem', minOccurs => 0, nillable => 0 }
- <element minOccurs="0" ref="myelem"/>
-
-because the default value for nillable is '0', it will not show as attribute
-value.
 
 =cut
 

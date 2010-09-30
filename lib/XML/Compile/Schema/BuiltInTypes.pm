@@ -392,10 +392,8 @@ hex encoded, two hex digits per byte.
 
 # (Use of) an XS implementation would be nice
 $builtin_types{hexBinary} =
- { parse   =>
-     sub { $_[0] =~ s/\s+//g; $_[0] =~ s/([0-9a-fA-F]{2})/chr hex $1/ge; $_[0]}
- , format  =>
-     sub { join '',map {sprintf "%02X", ord $_} unpack "C*", $_[0]}
+ { parse   => sub { $_[0] =~ s/\s+//g; pack 'H*', $_[0]}
+ , format  => sub { unpack 'H*', $_[0]}
  , check   =>
      sub { $_[0] !~ m/[^0-9a-fA-F\s]/ && (($_[0] =~ tr/0-9a-fA-F//) %2)==0}
  , example => 'F00F'

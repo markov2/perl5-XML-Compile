@@ -142,12 +142,14 @@ __XML
 my $out = templ_perl $schema, "{$TestNS}test2"
             , key_rewrite => sub {uc $_[1]}, skip_header => 1;
 is($out, <<'__TEMPL');
-# Describing complex {http://test-types}test2
+# Describing complex x0:test2
+#     {http://test-types}test2
 
+# is an unnamed complex
 { # sequence of T2A
 
-  # substitutionGroup
-  # {http://test-types}t2a:
-  #   T2A  T2B
-  T2A => { T2A => ... }, }
+  # substitutionGroup x0:t2a
+  #   T2A xs:int
+  #   T2B xs:anyType
+  T2A => { T2A => 42 }, }
 __TEMPL

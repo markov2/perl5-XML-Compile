@@ -613,6 +613,7 @@ sub element($)
 
     my $abstract = $node->getAttribute('abstract') || 'false';
     $abstract = 'false' if $self->{abstract_types} eq 'ACCEPT';
+#return if $self->isTrue($abstract);
 
     # Handle re-usable fragments, fight against combinatorial explosions
 
@@ -668,9 +669,11 @@ sub element($)
         my $local = $child->localname;
         my $nest  = $tree->descend($child);
 
-        $comps
-          = $local eq 'simpleType'  ? $self->simpleType($nest, 0)
-          : $local eq 'complexType' ? $self->complexType($nest)
+        ($comps, $comptype)
+          = $local eq 'simpleType'
+          ? ($self->simpleType($nest, 0), 'unnamed simple')
+          : $local eq 'complexType'
+          ? ($self->complexType($nest), 'unnamed complex')
           : error __x"illegal element child `{name}' at {where}"
                 , name => $local, where => $where, _class => 'schema';
     }
@@ -681,15 +684,14 @@ sub element($)
 
     # Construct basic element handler
 
-    my $r;
-    if($comps->{mixed})           # complexType mixed
-    {   $r = $self->makeMixedElement  ($where,$tag,$elems,$attrs,$attrs_any) }
-    elsif(! defined $st)          # complexType
-    {   $r = $self->makeComplexElement($where,$tag,$elems,$attrs,$attrs_any) }
-    elsif(@$attrs || @$attrs_any) # complex simpleContent
-    {   $r = $self->makeTaggedElement ($where,$tag,$st,   $attrs,$attrs_any) }
-    else                          # simple
-    {   $r = $self->makeSimpleElement ($where,$tag,$st) }
+    my $elem_handler
+      = $comps->{mixed}          ? 'makeMixedElement'
+      : (! defined $st)          ? 'makeComplexElement' # other complexType
+      : (@$attrs || @$attrs_any) ? 'makeTaggedElement'  # complex/simpleContent
+      :                            'makeSimpleElement';
+
+    my $r = $self->$elem_handler
+      ( $where, $tag, ($st||$elems), $attrs, $attrs_any, $comptype);
 
     # Add defaults and stuff
     my $default  = $node->getAttributeNode('default');
@@ -1021,6 +1023,16 @@ sub keyRewrite($;$)
         if $key ne $oldkey;
 
     $key;
+}
+
+sub prefixed($)
+{   my ($self, $qname) = @_;
+    my ($ns, $local) = unpack_type $qname;
+    defined $ns or return $qname;
+
+    my $pn = $self->{prefixes}{$ns} or return;
+    $pn->{used}++;
+    length $pn->{prefix} ? "$pn->{prefix}:$local" : $local;
 }
 
 sub attributeOne($)

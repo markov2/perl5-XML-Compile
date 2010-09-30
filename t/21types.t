@@ -10,7 +10,7 @@ use XML::Compile::Schema;
 use XML::Compile::Tester;
 use Math::BigFloat;
 
-use Test::More tests => 143;
+use Test::More tests => 151;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema xmlns="$SchemaNS"
@@ -24,6 +24,7 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <element name="test6" type="base64Binary" />
 <element name="test7" type="dateTime" />
 <element name="test8" type="duration" />
+<element name="test9" type="hexBinary" />
 
 </schema>
 __SCHEMA__
@@ -99,3 +100,10 @@ test_rw($schema, test7 => "<test7>$d</test7>", $d);
 
 my $e = 'PT5M';
 test_rw($schema, test8 => "<test8>$e</test8>", $e); 
+
+###
+### hexBinary
+###
+
+my $f = pack "N", 0x12345678;
+test_rw($schema, test9 => "<test9>12345678</test9>", $f); 

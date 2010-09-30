@@ -787,8 +787,8 @@ sub makeSubstgroup
     sub { my ($doc, $values) = @_;
 #warn "SUBST($type) AVAILABLE ARE ", join ', ', keys %do;
           foreach my $take (keys %do)
-          {   my $subst = delete $values->{$take}
-                  or next;
+          {   my $subst = delete $values->{$take};
+              defined $subst or next;
 
               return $do{$take}->($doc, $subst);
           }
@@ -1187,7 +1187,7 @@ On the moment, the only predefined C<before> hook is C<PRINT_PATH>.
 =example before hook on simpleType data
  sub beforeOnSimple($$$)
  {   my ($doc, $value, $path) = @_;
-     $value *= 100;    # convert euro to euro-cents
+     $value * 100;    # convert euro to euro-cents
  }
 
 =example before hook with object for complexType

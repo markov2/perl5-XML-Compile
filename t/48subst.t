@@ -177,15 +177,19 @@ my $out = templ_perl $schema, "{$TestNS}test2", skip_header => 1
  , abstract_types => 1;
 
 is($out, <<'__TEMPL');
-# Describing complex {http://test-types}test2
+# Describing complex x0:test2
+#     {http://test-types}test2
 
+# is an unnamed complex
 { # sequence of head, id2
 
-  # substitutionGroup
-  # {http://test-types}head:
-  #   alt1  alt2  alt3
+  # substitutionGroup x0:head
+  #   alt1 unnamed complex
+  #   alt2 unnamed complex
+  #   alt3 xs:int
+  #   head xs:string (abstract)
   # occurs 0 <= # <= 3 times
-  head => [ { alt1 => ... }, ],
+  head => [ { alt1 => {...} }, ],
 
   # is a xs:int
   id2 => 42, }

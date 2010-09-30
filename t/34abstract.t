@@ -46,8 +46,13 @@ is($error, "abstract element `test1' used at {http://test-types}test2/test1");
 # abstract elements are skipped from the docs
 my $out = templ_perl($schema, "{$TestNS}test2", abstract_types => 1, skip_header => 1);
 is($out, <<'__TEMPL');
-# Describing complex {http://test-types}test2
+# Describing complex x0:test2
+#     {http://test-types}test2
 
-{ # empty sequence from test1
-}
+# is an unnamed complex
+{ # sequence of test1
+
+  # is a xs:int
+  # ABSTRACT
+  test1 => 42, }
 __TEMPL

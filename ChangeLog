@@ -21,6 +21,50 @@ To be resolved:
  - errors on types should show dynamic nested location in structure,
    not path in schema.
 
+version 1.18: Thu Sep 30 17:00:29 CEST 2010
+
+	Fixes:
+
+	- hexBinary processing was simply wrong.
+
+	- template: call parameters of replace hook.
+
+	- writer: substitutionGroup of simpleType value 0 got ignored.
+
+	- template: recursive substitutionGroups with abstracts will
+	  not crash.
+
+	- template: apply key rewrite also on unqualified names.
+
+	- preferred prefix for SCHEMA2001i is xsi, not xs
+
+	Improvements:
+
+	- added explanation how to use hexBinary and base64Binary.
+
+	- reorganized the ::Schema manpage a little.
+
+	- template: show types in prefixed form, not qname.
+
+	- template: show enums which contain blanks within quotes.
+
+	- template: if a simpletype has facet enumeration, one of
+	  those values will be used as example.
+
+	- template: always lead a block display by a blank line, not
+	  only when there is comment.
+
+	- template: do also show types of complex elements.
+
+	- template: show types of alternatives to substitutionGroups
+
+	- template: show when an substitutionGroups is abstract (not
+	  instantiatable)
+
+	- template: pick an non-abstract alternative as example for
+	  a substitionGroup. Let it point to a correct example value
+	  if available.
+
 version 1.17: Thu Sep 23 09:31:40 CEST 2010
 
 	Changes:

@@ -6,7 +6,8 @@ use strict;
 use warnings;
 no warnings 'once';
 
-use XML::Compile::Util qw/odd_elements even_elements pack_type unpack_type/;
+use XML::Compile::Util
+  qw/odd_elements even_elements SCHEMA2001i pack_type unpack_type/;
 use Log::Report 'xml-compile', syntax => 'SHORT';
 use List::Util  qw/max/;
 
@@ -43,16 +44,20 @@ sub makeTagQualified
 {   my ($self, $path, $node, $local, $ns) = @_;
     my $prefix = $self->_registerNSprefix('', $ns, 1);
 
-# it is certainly not correct to do a keyRewrite here, but it works :(
+    # it is certainly not correct to do a keyRewrite here, but it works :(
       $self->{_output} eq 'PERL' ? $self->keyRewrite($ns, $local)
-    : length $prefix             ? $prefix .':'. $local
+    : length $prefix             ? "$prefix:$local"
     :                              $local;
 }
 
 sub makeTagUnqualified
-{   my ($self, $path, $node, $name) = @_;
+{   my ($self, $path, $node, $local, $ns) = @_;
 #   $name =~ s/.*\://;
-    $name;
+    return $self->keyRewrite($ns, $local)
+        if $self->{_output} eq 'PERL';
+
+    my $prefix = $self->_registerNSprefix('', $ns, 1);
+    length $prefix ? "$prefix:$local" : $local;
 }
 
 my (%recurse, %reuse);
@@ -240,11 +245,17 @@ sub makeElementNillable
 
 sub makeElementAbstract
 {   my ($self, $path, $ns, $childname, $do) = @_;
-    sub { () };
+#   sub { () };
+    sub {
+       my $h = $do->(@_);
+       $h->{_NAME} = $childname;
+       $h->{occur} = "ABSTRACT";
+       $h;
+    };
 }
 
 sub makeComplexElement
-{   my ($self, $path, $tag, $elems, $attrs, $any_attr) = @_;
+{   my ($self, $path, $tag, $elems, $attrs, $any_attr, $type) = @_;
     my @parts = (odd_elements(@$elems, @$attrs), @$any_attr);
 
     sub { my (@attrs, @elems);
@@ -254,6 +265,7 @@ sub makeComplexElement
               +{ kind   => 'complex'
                , struct => 'probably a recursive complex'
                , tag    => $tag
+               , _TYPE  => $type
                };
           }
 
@@ -262,6 +274,7 @@ sub makeComplexElement
               +{ kind   => 'complex'
                , struct => 'complex structure shown above'
                , tag    => $tag
+               , _TYPE  => $type
                };
           }
 
@@ -274,17 +287,18 @@ sub makeComplexElement
           }
           $recurse{$tag}--;
 
-          +{ kind    => 'complex'
-#          , struct  => "$tag is complex"  # too obvious to mention
-           , tag     => $tag
-           , attrs   => \@attrs
-           , elems   => \@elems
+          +{ kind   => 'complex'
+#          , struct => "$tag is complex"  # too obvious to mention
+           , tag    => $tag
+           , attrs  => \@attrs
+           , elems  => \@elems
+           , _TYPE  => $type
            };
         };
 }
 
 sub makeTaggedElement
-{   my ($self, $path, $tag, $st, $attrs, $attrs_any) = @_;
+{   my ($self, $path, $tag, $st, $attrs, $attrs_any, $type) = @_;
     my @parts = (odd_elements(@$attrs), @$attrs_any);
 
     my %content =
@@ -301,12 +315,13 @@ sub makeTaggedElement
            , tag     => $tag
            , attrs   => \@attrs
            , elems   => [ \%content ]
+           , _TYPE   => $type
            };
         };
 }
 
 sub makeMixedElement
-{   my ($self, $path, $tag, $elems, $attrs, $attrs_any) = @_;
+{   my ($self, $path, $tag, $elems, $attrs, $attrs_any, $type) = @_;
     my @parts = (odd_elements(@$attrs), @$attrs_any);
 
     my %mixed =
@@ -316,7 +331,8 @@ sub makeMixedElement
      );
 
     unless(@parts)   # show simpler alternative
-    {   $mixed{tag} = $tag;
+    {   $mixed{tag}   = $tag;
+        $mixed{type} = $type;
         return sub { \%mixed };
     }
 
@@ -326,12 +342,13 @@ sub makeMixedElement
            , tag     => $tag
            , elems   => [ \%mixed ]
            , attrs   => \@attrs
+           , _TYPE   => $type
            };
         };
 }
 
 sub makeSimpleElement
-{   my ($self, $path, $tag, $st) = @_;
+{   my ($self, $path, $tag, $st, undef, undef, $type) = @_;
     sub { +{ kind    => 'simple'
 #          , struct  => "elem $tag is a single value"  # too obvious
            , tag     => $tag
@@ -342,11 +359,7 @@ sub makeSimpleElement
 
 sub makeBuiltin
 {   my ($self, $path, $node, $type, $def, $check_values) = @_;
-    my $example = $def->{example};
-    my ($ns, $local) = unpack_type $type;
-    my $prefix       = $self->_registerNSprefix('', $ns, 1);
-    my $preftype     = length $prefix ? "$prefix:$local" : $local;
-    sub { (type => $preftype, example => $example) };
+    sub { (_TYPE=> $type, example => $def->{example}) };
 }
 
 sub makeList
@@ -364,6 +377,8 @@ sub _ff($@)
     my @lines = $type.':';
     while(@_)
     {   my $facet = shift;
+        $facet =~ s/\t/\t/g;
+        $facet = qq{"$facet"} if $facet =~ m/\s/;
         push @lines, '  ' if length($lines[-1]) + length($facet) > 55;
         $lines[-1] .= ' '.$facet;
     }
@@ -391,7 +406,14 @@ sub makeFacets
         : $k eq 'fractionDigits' ? "faction digits is $v"
         : "restriction $k = $v";
     }
-    sub { (facets => \@comment, $st->()) };
+
+    my %facet = (facets => \@comment, $st->());
+
+    if(my $enum = $info->{enumeration})
+    {   $facet{example} = $enum->[0];
+    }
+
+    sub { %facet };
 }
 
 sub makeUnion
@@ -455,41 +477,57 @@ sub makeAttributeFixed
 sub makeSubstgroup
 {   my ($self, $path, $type, @do) = @_;
 
-    my $tag = $do[1][0];
-    my @tags;
-    while(@do)
-    {   my ($type,  $info) = (shift @do, shift @do);
-        my ($label, $call) = @$info;
-        my $show           = $call->();
-        next unless $show;  # skip abstract types
-        push @tags, $label;
-    }
+    sub {
+        my ($example_tag, $example_nest, %tags);
+        my $group = $do[1][0];
 
-    my $longest = max map length, @tags;
-    my $columns = int(60 / ($longest + 2));
-    my $rows    = int(@tags / $columns) + (@tags % $columns ? 1 : 0);
+        while(@do)
+        {   my ($type,  $info) = (shift @do, shift @do);
+            my ($label, $call) = @$info;
+            my $processed = $call->();
+            my $show = '';
+            if(my $type = $processed->{_TYPE})
+            {   $show = $self->prefixed($type);
+            }
 
-    my @lines;
-    foreach (0..@tags)
-    {   defined $tags[$_] or next;
-        $lines[$_ % $rows] .= sprintf "  %-${longest}s", $tags[$_];
-    }
+            if($processed->{occur} && $processed->{occur} eq 'ABSTRACT')
+            {   $show .= ' (abstract)';
+            }
+            elsif(!$example_tag)
+            {   $example_tag  = $label;
+                $example_nest = $processed->{kind} eq 'simple'
+                    ? ($processed->{example} || '...') : '{...}';
+            }
+        
+            $tags{$label} = $show;
+        }
 
-    sub { +{ kind    => 'substitution group'
-           , tag     => $tag
-           , struct  => [ "substitutionGroup", "$type:", @lines ]
-           , example => "{ $tags[0] => ... }"
-           }
-        };
+        my $longest = max map length, keys %tags;
+        my @lines = map sprintf("  %-${longest}s %s", $_, $tags{$_}),
+            sort keys %tags;
+
+        my $example = $example_tag ? "{ $example_tag => $example_nest }"
+          : "undef  # only abstract types known";
+
+        my $name    = $self->prefixed($type);
+
+       +{ kind    => 'substitution group'
+        , tag     => $group
+        , struct  => [ "substitutionGroup $name", @lines ]
+        , example => $example
+        }
+    };
 }
 
 sub makeXsiTypeSwitch($$$$)
 {   my ($self, $where, $elem, $default_type, $types) = @_;
+    my @types   = map "  ".$self->prefixed($_), sort keys %$types;
+    my $deftype = $self->prefixed($default_type);
 
     sub { +{ kind    => 'xsi:type switch'
            , tag     => $elem
-           , struct  => [ 'xsi:type alternatives:', sort keys %$types ]
-           , example => "{ XSI_TYPE => '$default_type', %data }"
+           , struct  => [ 'xsi:type alternatives:', @types ]
+           , example => "{ XSI_TYPE => '$deftype', %data }"
            }
         };
 }
@@ -525,13 +563,14 @@ sub makeHook($$$$$$)
     my @after   = $after   ? map {$self->_decodeAfter($path,$_)  } @$after  :();
 
     sub
-    {  for(@before) { $_->($tag, $path) or return }
+    {   my $doc = XML::LibXML::Document->new;
+        for(@before) { $_->($doc, undef, $path) or return }
 
-       my $d = @replace ? $replace[0]->($tag, $path, $r) : $r->();
-       defined $d or return ();
+       my $xml = @replace ? $replace[0]->($doc, undef, $path, $tag,$r) : $r->();
+       defined $xml or return ();
 
-       for(@after) { $d = $_->($d, $tag, $path) or return }
-       $d;
+       for(@after) { $xml = $_->($doc, $xml, $path, undef) or return }
+       $xml;
      }
 }
 
@@ -576,8 +615,13 @@ sub toPerl($%)
     $ast or return undef;
 
     my @lines;
-    push @lines, "# Describing $ast->{kind} ".($ast->{_NAME}||$ast->{tag})
-        if $ast->{kind};
+    if($ast->{kind})
+    {   my $name = $ast->{_NAME} || $ast->{tag};
+        my $pref = $self->prefixed($name);
+        push @lines, defined $pref
+          ? ("# Describing $ast->{kind} $pref", "#     $name")
+          :  "# Describing $ast->{kind} $name";
+    }
 
     push @lines
       , "#"
@@ -623,10 +667,18 @@ sub _perlAny($$)
         s/^/# /gm for @struct;
         push @lines, @struct;
     }
-    push @lines, "# is a $ast->{type}" if $ast->{type} && $args->{show_type};
-    push @lines, "# $ast->{occur}"  if $ast->{occur}   && $args->{show_occur};
 
-    if($ast->{facets}  && $args->{show_facets})
+    if($ast->{_TYPE} && $args->{show_type})
+    {   my $pref = $self->prefixed($ast->{_TYPE});
+        push @lines  # not perfect, but a good attempt
+          , $pref =~ m/^[aiou]/i && $pref !~ m/^(uni|eu)/i
+          ? "# is an $pref" : "# is a $pref";
+    }
+
+    push @lines, "# $ast->{occur}"
+        if $ast->{occur} && $args->{show_occur};
+
+    if($ast->{facets} && $args->{show_facets})
     {   my $facets = $ast->{facets};
         my @facets = ref $facets ? @$facets : $facets;
         s/^/# /gm for @facets;
@@ -651,7 +703,9 @@ sub _perlAny($$)
         }
 
         # seperator blank, sometimes
-        unshift @sub, '' if $sub[0] =~ m/^\s*[#{]/;  # } 
+        unshift @sub, ''
+            if $sub[0] =~ m/^\s*[#{]/   # } 
+            || (@subs && $subs[-1] =~ m/[}\]]\,\s*$/);
 
         push @subs, @sub;
     }
@@ -771,6 +825,8 @@ sub _xmlAny($$$$);
 sub _xmlAny($$$$)
 {   my ($self, $doc, $ast, $indent, $args) = @_;
     my @res;
+    my $xsi = $self->_registerNSprefix('xsi', SCHEMA2001i, 1)
+        if $args->{show_type};
 
     my @comment;
     if($ast->{struct} && $args->{show_struct})
@@ -778,7 +834,8 @@ sub _xmlAny($$$$)
         push @comment, ref $struct ? @$struct : $struct;
     }
 
-    push @comment, $ast->{occur}  if $ast->{occur}  && $args->{show_occur};
+    push @comment, $ast->{occur}
+        if $ast->{occur}  && $args->{show_occur};
 
     if($ast->{facets}  && $args->{show_facets})
     {   my $facets = $ast->{facets};
@@ -825,11 +882,9 @@ sub _xmlAny($$$$)
           (@comment ? "$indent$example$outdent" : $example)
     }
 
-    if($ast->{type} && $args->{show_type})
-    {   my $full = $ast->{type};
-        my ($ns, $type) = unpack_type $full;
-        # Don't known how to encode the namespace (yet)
-        push @res, $doc->createAttribute(type => $type);
+    if($ast->{_TYPE} && $args->{show_type})
+    {   my $pref = $self->prefixed($ast->{_TYPE});
+        push @res, $doc->createAttribute("$xsi:type" => $pref);
     }
 
     return @res

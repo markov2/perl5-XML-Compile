@@ -79,13 +79,15 @@ __XML
 my $out = templ_perl $schema, "{$TestNS}f_test"
   , xsi_type => \%xsi_types, skip_header => 1;
 is($out, <<'__TEMPL');
-# Describing complex {http://test-types}f_test
+# Describing complex x0:f_test
+#     {http://test-types}f_test
 
+# is an unnamed complex
 { # sequence of f_a3
 
   # xsi:type alternatives:
-  # {http://test-types}f_t1
-  # {http://test-types}f_t2
+  #   x0:f_t1
+  #   x0:f_t2
   # occurs any number of times
-  f_a3 => [ { XSI_TYPE => '{http://test-types}f_t1', %data }, ], }
+  f_a3 => [ { XSI_TYPE => 'x0:f_t1', %data }, ], }
 __TEMPL

@@ -68,9 +68,11 @@ compare_xml($w1b,  '<test1 id="6"/>');
 
 my $out = templ_perl $schema, "{$TestNS}test1", skip_header => 1;
 is($out, <<'__TEMPL');
-# Describing mixed {http://test-types}test1
+# Describing mixed x0:test1
+#     {http://test-types}test1
 
 # test1 has a mixed content
+# is an unnamed complex
 { # is a xs:string
   id => "example",
 
