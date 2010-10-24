@@ -6,10 +6,11 @@ use base 'Exporter';
 
 our @EXPORT = qw/builtin_facet/;
 
-use Log::Report     'xml-compile', syntax => 'SHORT';
+use Log::Report        'xml-compile', syntax => 'SHORT';
 use Math::BigInt;
 use Math::BigFloat;
 use XML::LibXML;  # for ::RegExp
+use XML::Compile::Util qw/SCHEMA2001 pack_type/;
 
 use constant DBL_MAX_DIG => 15;
 use constant DBL_MAX_EXP => 307;
@@ -67,14 +68,14 @@ my %facets_list =
  , whiteSpace      => \&_l_whiteSpace
  );
 
-sub builtin_facet($$$$$)
-{   my ($path, $args, $type, $value, $is_list) = @_;
+sub builtin_facet($$$$$$$$)
+{   my ($path, $args, $facet, $value, $is_list, $type, $nss, $action) = @_;
 
-    my $def = $is_list ? $facets_list{$type} : $facets_simple{$type};
+    my $def = $is_list ? $facets_list{$facet} : $facets_simple{$facet};
       $def
-    ? $def->($path, $args, $value)
+    ? $def->($path, $args, $value, $type, $nss, $action)
     : error __x"facet {facet} not implemented at {where}"
-        , facet => $type, where => $path;
+        , facet => $facet, where => $path;
 }
 
 sub _l_whiteSpace($$$)
@@ -175,8 +176,21 @@ sub _s_maxExclusive($$$)
     };
 }
 
-sub _enumeration($$$)
-{   my ($path, $args, $enums) = @_;
+my $qname = pack_type SCHEMA2001, 'QName';
+sub _enumeration($$$$$$)
+{   my ($path, $args, $enums, $type, $nss, $action) = @_;
+
+    if($action eq 'WRITER' && $nss->doesExtend($type, $qname))
+    {   # quite tricky to get ns involved here..., so validation
+        # only partial
+        my %enum = map { s/.*\}//; ($_ => 1) } @$enums;
+        return sub { my $x = $_[0]; $x =~ s/.*\://;
+              return $_[0] if exists $enum{$x};
+              error __x"invalid enumerate `{string}' at {where}"
+                 , string => $_[0], where => $path;
+            };
+    }
+
     my %enum = map { ($_ => 1) } @$enums;
     sub { return $_[0] if exists $enum{$_[0]};
         error __x"invalid enumerate `{string}' at {where}"
@@ -201,11 +215,54 @@ sub _s_fractionDigits($$$)
     sub { sprintf "%.${nr}f", $_[0] };
 }
 
-sub _s_length($$$)
-{   my ($path, $args, $len) = @_;
+my $base64 = pack_type SCHEMA2001, 'base64Binary';
+my $hex    = pack_type SCHEMA2001, 'hexBinary';
+
+sub _base64_length($)
+{   my $ref  = shift;
+
+    # too expensive :(
+    my $enc = $$ref =~ tr/A-Za-z0-9+=//;
+    ($enc >> 2) * 3 - ($$ref =~ tr/=//);
+}
+
+sub _hex_length($)
+{   my $ref  = shift;
+    my $enc = $$ref =~ tr/0-9a-fA-F//;
+    $enc >> 1;
+}
+
+sub _s_length($$$$$$)
+{   my ($path, $args, $len, $type, $nss, $action) = @_;
+
+    if($action eq 'WRITER' && $nss->doesExtend($type, $base64))
+    {   # it is a pitty that this is called after formatting... now the
+        # size check is expensive.
+        return sub
+          { defined $_[0]
+                or error __x"base64 data missing at {where}", where => $path;
+            my $size = _base64_length \$_[0];
+            return $_[0] if $size == $len;
+            error __x"base64 data does not have required length {len}, but {has} at {where}"
+              , len => $len, has => $size, where => $path;
+          };
+    }
+
+    if($action eq 'WRITER' && $nss->doesExtend($type, $hex))
+    {   return sub
+          { defined $_[0]
+                or error __x"hex data missing at {where}", where => $path;
+            my $size = _hex_length \$_[0];
+            return $_[0] if $size == $len;
+
+            error __x"hex data does not have required length {len}, but {has} at {where}"
+              , len => $len, has => $size, where => $path;
+          };
+    }
+
     sub { return $_[0] if defined $_[0] && length($_[0])==$len;
-        error __x"string `{string}' does not have required length {len} at {where}"
-          , string => $_[0], len => $len, where => $path;
+        error __x"string `{string}' does not have required length {len} but {size} at {where}"
+          , string => $_[0], len => $len, size => length($_[0]), where => $path;
     };
 }
 
@@ -218,7 +275,30 @@ sub _l_length($$$)
 }
 
 sub _s_minLength($$$)
-{   my ($path, $args, $len) = @_;
+{   my ($path, $args, $len, $type, $nss, $action) = @_;
+
+    if($action eq 'WRITER' && $nss->doesExtend($type, $base64))
+    {   return sub
+          { defined $_[0]
+                or error __x"base64 data missing at {where}", where => $path;
+            my $size = _base64_length \$_[0];
+            return $_[0] if $size >= $len;
+            error __x"base64 data does not have minimal length {len}, but {has} at {where}"
+              , len => $len, has => $size, where => $path;
+          };
+    }
+
+    if($action eq 'WRITER' && $nss->doesExtend($type, $hex))
+    {   return sub
+          { defined $_[0]
+                or error __x"hex data missing at {where}", where => $path;
+            my $size = _hex_length \$_[0];
+            return $_[0] if $size >= $len;
+            error __x"hex data does not have minimal length {len}, but {has} at {where}"
+              , len => $len, has => $size, where => $path;
+          };
+    }
+
     sub { return $_[0] if defined $_[0] && length($_[0]) >=$len;
         error __x"string `{string}' does not have minimum length {len} at {where}"
           , string => $_[0], len => $len, where => $path;
@@ -234,7 +314,30 @@ sub _l_minLength($$$)
 }
 
 sub _s_maxLength($$$)
-{   my ($path, $args, $len) = @_;
+{   my ($path, $args, $len, $type, $nss, $action) = @_;
+
+    if($action eq 'WRITER' && $nss->doesExtend($type, $base64))
+    {   return sub
+          { defined $_[0]
+                or error __x"base64 data missing at {where}", where => $path;
+            my $size = _base64_length \$_[0];
+            return $_[0] if $size <= $len;
+            error __x"base64 data longer than maximum length {len}, but {has} at {where}"
+              , len => $len, has => $size, where => $path;
+          };
+    }
+
+    if($action eq 'WRITER' && $nss->doesExtend($type, $hex))
+    {   return sub
+          { defined $_[0]
+                or error __x"hex data missing at {where}", where => $path;
+            my $size = _hex_length \$_[0];
+            return $_[0] if $size >= $len;
+            error __x"hex data longer than maximum length {len}, but {has} at {where}"
+              , len => $len, has => $size, where => $path;
+          };
+    }
+
     sub { return $_[0] if defined $_[0] && length $_[0] <= $len;
         error __x"string `{string}' longer than maximum length {len} at {where}"
           , string => $_[0], len => $len, where => $path;

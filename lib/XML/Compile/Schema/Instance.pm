@@ -6,9 +6,7 @@ package XML::Compile::Schema::Instance;
 
 use Log::Report 'xml-compile', syntax => 'SHORT';
 use XML::Compile::Schema::Specs;
-use XML::Compile::Util qw/pack_type/;
-
-use Scalar::Util       qw/weaken/;
+use XML::Compile::Util qw/pack_type unpack_type/;
 
 my @defkinds = qw/element attribute simpleType complexType
                   attributeGroup group/;
@@ -72,7 +70,6 @@ sub init($)
 
     $self->{filename} = $args->{filename};
     $self->{source}   = $args->{source};
-
     $self->{$_}       = {} for @defkinds, 'sgs', 'import';
     $self->{include}  = [];
 
@@ -87,6 +84,7 @@ sub init($)
 =method schemaInstance
 =method source
 =method filename
+=method schema
 =cut
 
 sub targetNamespace { shift->{tns} }
@@ -94,6 +92,21 @@ sub schemaNamespace { shift->{xsd} }
 sub schemaInstance  { shift->{xsi} }
 sub source          { shift->{source} }
 sub filename        { shift->{filename} }
+sub schema          { shift->{schema} }
+
+=method tnses
+A schema can defined more than one target namespace, where recent
+schema spec changes provide a targetNamespace attribute.
+=cut
+
+sub tnses() {keys %{shift->{tnses}}}
+
+=method sgs
+Returns a HASH with the base-type as key and an ARRAY of types
+which extend it.
+=cut
+
+sub sgs() { shift->{sgs} }
 
 =method type URI
 Returns the type definition with the specified name.
@@ -106,15 +119,6 @@ Returns one global element definition.
 =cut
 
 sub element($) { $_[0]->{elements}{$_[1]} }
-
-=method id STRING
-Returns one global element, selected by ID.
-=cut
-
-sub id($) { $_[0]->{ids}{$_[1]} }
-
-=method ids
-Returns a list of all found ids.
 
 =method elements
 Returns a list of all globally defined element names.
@@ -136,7 +140,6 @@ Returns a list with all complexType names.
 
 =cut
 
-sub ids()             { keys %{shift->{ids}} }
 sub elements()        { keys %{shift->{element}} }
 sub attributes()      { keys %{shift->{attributes}} }
 sub attributeGroups() { keys %{shift->{attributeGroup}} }
@@ -149,30 +152,6 @@ Returns a list of all simpleTypes and complexTypes
 =cut
 
 sub types()           { ($_[0]->simpleTypes, $_[0]->complexTypes) }
-
-=method substitutionGroups
-Returns a list of all named substitutionGroups.
-=cut
-
-sub substitutionGroups() { keys %{shift->{sgs}} }
-
-=method substitutionGroupMembers ELEMENT
-The expanded ELEMENT name is used to collect a set of alternatives which
-are in this substitutionGroup (super-class like alternatives). 
-=cut
-
-sub substitutionGroupMembers($) { @{ $_[0]->{sgs}{ $_[1] } || [] }; }
-
-=method mergeSubstGroupsInto HASH
-=cut
-
-# Fast!
-sub mergeSubstGroupsInto($)
-{   my ($self, $h) = @_;
-    while( my($type, $members) = each %{$self->{sgs}})
-    {   push @{$h->{$type}}, @$members;
-    }
-}
 
 =section Index
 =cut
@@ -194,23 +173,22 @@ sub _collectTypes($$)
 
         $self->{xsi} = $def->{uri_xsi};
     }
-    my $tns = $self->{tns}
-       = $args->{target_namespace}
+    my $tns = $self->{tns} = $args->{target_namespace}
       || $schema->getAttribute('targetNamespace')
       || '';
 
-    my $efd = $self->{efd}
-       = $args->{element_form_default}
+    $self->{efd} = $args->{element_form_default}
       || $schema->getAttribute('elementFormDefault')
       || 'unqualified';
 
-    my $afd = $self->{afd}
-       = $args->{attribute_form_default}
+    $self->{afd} = $args->{attribute_form_default}
       || $schema->getAttribute('attributeFormDefault')
       || 'unqualified';
 
+    $self->{tnses} = {}; # added when used
     $self->{types} = {};
-    $self->{ids}   = {};
+
+    $self->{schema} = $schema;
 
   NODE:
     foreach my $node ($schema->childNodes)
@@ -221,7 +199,8 @@ sub _collectTypes($$)
             or error __x"schema element `{name}' not in schema namespace {ns} but {other}"
                  , name => $local, ns => $xsd, other => ($myns || '<none>');
 
-        next if $skip_toplevel{$local};
+        next
+            if $skip_toplevel{$local};
 
         if($local eq 'import')
         {   my $namespace = $node->getAttribute('namespace')      || $tns;
@@ -239,78 +218,26 @@ sub _collectTypes($$)
             next NODE;
         }
 
-        my $name  = $node->getAttribute('name');
-        my $ref;
-        unless(defined $name && length $name)
-        {   $ref = $node->getAttribute('ref')
-               or error __x"schema component {local} without name or ref at line {linenr}"
-                    , local => $local, linenr => $node->line_number;
-
-            ($name = $ref) =~ s/.*?\://;
-        }
-
-        my $nns   = $node->namespaceURI || '';
-        error __x"schema component `{name}' must be in namespace {ns}"
-          , name => $name, ns => $xsd
-              if $xsd && $nns ne $xsd;
-
-        my $id    = $schema->getAttribute('id');
-
-        if($node->getAttribute('targetNamespace'))
-        {   # actually: close to supported: cannot be found by index but is
-            # handled by Translate.  Very ugly idea to mix tns inside schema.
-            warning __x"targetNamespace attribute on `{name}' for declarations not supported", name => $name;
-        }
-
-#       my $ns    = $node->getAttribute('targetNamespace') || $tns;
-        my $ns    = $tns;
-        my $label = pack_type $ns, $name;
-
-        my $sg;
-        if(my $subst = $node->getAttribute('substitutionGroup'))
-        {    my ($sgpref, $sgname)
-              = index($subst, ':') >= 0 ? split(/\:/,$subst,2) : ('', $subst);
-             my $sgns = length $sgpref ? $node->lookupNamespaceURI($sgpref) : $tns;
-             defined $sgns
-                or error __x"no namespace for {what} in substitutionGroup {group}"
-                       , what => (length $sgpref ? "'$sgpref'" : 'target')
-                       , group => $sgname;
-             $sg = pack_type $sgns, $sgname;
-        }
-
-        my $abstract = $node->getAttribute('abstract') || 'false';
-        my $final    = $node->getAttribute('final')    || 'false';
-
-        my ($af, $ef) = ($afd, $efd);
-        if($local eq 'element')
-        {   if(my $f = $node->getAttribute('form')) { $ef = $f }
-        }
-        elsif($local eq 'attribute')
-        {   if(my $f = $node->getAttribute('form')) { $af = $f }
-        }
-
         unless($defkinds{$local})
-        {   mistake __x"ignoring unknown definition-type {local}", type => $local;
+        {   mistake __x"ignoring unknown definition class {class}"
+              , class => $local;
             next;
         }
 
-        my $info  = $self->{$local}{$label} =
-          { type => $local, id => $id, node => $node
-          , full => pack_type($ns, $name), ref => $ref, sg => $sg
-          , ns => $ns,  name => $name #, prefix => $prefix
-          , afd => $af, efd => $ef, schema => $self
-          , abstract => ($abstract eq 'true' || $abstract eq '1')
-          , final => ($final eq 'true' || $final eq '1')
-          };
-        weaken($info->{schema});
+        my $name  = $node->getAttribute('name')
+            or error __x"schema component {local} without name at line {linenr}"
+                 , local => $local, linenr => $node->line_number;
 
-        # Id's can also be set on nested items, but these are ignored
-        # for now...
-        $self->{ids}{"$ns#$id"} = $info
-           if defined $id;
+        my $tns   = $node->getAttribute('targetNamespace') || $tns;
+        my $type  = pack_type $tns, $name;
+        $self->{tnses}{$tns}++;
+        $self->{$local}{$type} = $node;
 
-        push @{$self->{sgs}{$sg}}, $info
-           if defined $sg;
+        if(my $sg = $node->getAttribute('substitutionGroup'))
+        {   my ($prefix, $l) = $sg =~ m/:/ ? split(/:/, $sg, 2) : ('',$sg);
+            my $base = pack_type $node->lookupNamespaceURI($prefix), $l;
+            push @{$self->{sgs}{$base}}, $type;
+        }
     }
 
     $self;
@@ -369,31 +296,62 @@ sub printIndex(;$)
     }
 
     my @kinds
-     = ! defined $args{kinds}      ? @defkinds
-     : ref $args{kinds} eq 'ARRAY' ? @{$args{kinds}}
-     :                               $args{kinds};
+      = ! defined $args{kinds}      ? @defkinds
+      : ref $args{kinds} eq 'ARRAY' ? @{$args{kinds}}
+      :                               $args{kinds};
 
-    my $list_abstract = exists $args{list_abstract} ? $args{list_abstract} : 1;
+    my $list_abstract
+      = exists $args{list_abstract} ? $args{list_abstract} : 1;
 
     foreach my $kind (@kinds)
     {   my $table = $self->{$kind};
         keys %$table or next;
         $fh->print("  definitions of ${kind}s:\n") if @kinds > 1;
-        foreach (sort {$a->{name} cmp $b->{name}} values %$table)
-        {   next if $_->{abstract} && ! $list_abstract;
-            my $abstract = $_->{abstract} ? ' [abstract]' : '';
-            my $final    = $_->{final}    ? ' [final]' : '';
-            $fh->print("    $_->{name}$abstract$final\n");
+
+        foreach (sort keys %$table)
+        {   my $info = $self->find($kind, $_);
+            my ($ns, $name) = unpack_type $_;
+            next if $info->{abstract} && ! $list_abstract;
+            my $abstract = $info->{abstract} ? ' [abstract]' : '';
+            my $final    = $info->{final}    ? ' [final]' : '';
+            $fh->print("    $name$abstract$final\n");
         }
     }
 }
 
-=method find KIND, LOCALNAME
-Returns the definition for the object of KIND, with LOCALNAME.
+=method find KIND, FULLNAME
+Returns the definition for the object of KIND, with FULLNAME.
 =example of find
- my $attr = $instance->find(attribute => 'myns#my_global_attr');
+  my $attr = $instance->find(attribute => '{myns}my_global_attr');
 =cut
 
-sub find($$) { $_[0]->{$_[1]}{$_[2]} }
+sub find($$)
+{    my ($self, $kind, $full) = @_;
+     my $node = $self->{$kind}{$full}
+         or return;
+
+     return $node    # translation of XML node into info is cached
+         if ref $node eq 'HASH';
+
+     my %info = (type => $kind, node => $node, full => $full);
+     @info{'ns', 'name'} = unpack_type $full;
+
+#    weaken($info->{schema});
+     $self->{$kind}{$full} = \%info;
+
+     my $abstract    = $node->getAttribute('abstract') || '';
+     $info{abstract} =  $abstract eq 'true' || $abstract eq '1';
+
+     my $final       = $node->getAttribute('final') || '';
+     $info{final}    =  $final eq 'true' || $final eq '1';
+
+     my $local = $node->localName;
+     if($local eq 'element')      { $info{efd} = $node->getAttribute('form') }
+     elsif($local eq 'attribute') { $info{afd} = $node->getAttribute('form') }
+     $info{efd} ||= $self->{efd};
+     $info{afd} ||= $self->{afd};
+
+     \%info;
+}
 
 1;

@@ -70,10 +70,10 @@ XML::Compile::Schema - Compile a schema into CODE
  my $doc    = XML::LibXML::Document->new('1.0', 'UTF-8');
  my $write  = $schema->compile(WRITER => '{myns}mytype');
  my $xml    = $write->($doc, $hash);
- my $result = $doc->setDocumentElement($xml);
+ $doc->setDocumentElement($xml);
 
  # show result
- print $xml->toString;
+ print $doc->toString;
 
  # to create the type nicely
  use XML::Compile::Util qw/pack_type/;
@@ -1093,6 +1093,16 @@ M<XML::Compile::Schema::Instance::printIndex()>.
 sub printIndex(@)
 {   my $self = shift;
     $self->namespaces->printIndex(@_);
+}
+
+=method doesExtend EXTTYPE, BASETYPE
+Returns true when the EXTTYPE extends the BASETYPE. See
+M<XML::Compile::Schema::Namespaces::doesExtend()>
+=cut
+
+sub doesExtend($$)
+{   my $self = shift;
+    $self->namespaces->doesExtend(@_);
 }
 
 =chapter DETAILS

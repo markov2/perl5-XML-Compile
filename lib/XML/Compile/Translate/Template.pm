@@ -478,7 +478,7 @@ sub makeSubstgroup
 {   my ($self, $path, $type, @do) = @_;
 
     sub {
-        my ($example_tag, $example_nest, %tags);
+        my (@example_tags, $example_nest, %tags);
         my $group = $do[1][0];
 
         while(@do)
@@ -493,9 +493,11 @@ sub makeSubstgroup
             if($processed->{occur} && $processed->{occur} eq 'ABSTRACT')
             {   $show .= ' (abstract)';
             }
-            elsif(!$example_tag)
-            {   $example_tag  = $label;
-                $example_nest = $processed->{kind} eq 'simple'
+            else
+            {   # some complication to always produce the same tag for
+                # regression tests... Instance uses a HASH...
+                push @example_tags, $label;
+                $example_nest ||= $processed->{kind} eq 'simple'
                     ? ($processed->{example} || '...') : '{...}';
             }
         
@@ -506,6 +508,7 @@ sub makeSubstgroup
         my @lines = map sprintf("  %-${longest}s %s", $_, $tags{$_}),
             sort keys %tags;
 
+        my $example_tag = (sort @example_tags)[0];
         my $example = $example_tag ? "{ $example_tag => $example_nest }"
           : "undef  # only abstract types known";
 
@@ -696,7 +699,8 @@ sub _perlAny($$)
         @sub or next;
 
         # last line is code and gets comma
-        $sub[-1] =~ s/\,?\s*$/,/ if $sub[-1] !~ m/\#\s/;
+        $sub[-1] =~ s/\,?\s*$/,/
+            if $sub[-1] !~ m/\#\s/;
 
         if(ref $ast ne 'BLOCK')
         {   s/^(.)/$args->{indent}$1/ for @sub;
@@ -713,7 +717,7 @@ sub _perlAny($$)
     if(ref $ast eq 'REP-BLOCK')
     {  # repeated block
        @subs or @subs = '';
-       $subs[0]  =~ s/^  /{ /;
+       $subs[0] =~ s/^  /{ / or $subs[0] =~ s/^\s*$/{/;
        if($subs[-1] =~ m/\#\s/) { push @subs, "}," }
        else { $subs[-1] =~ s/$/ },/ }
     }
@@ -741,13 +745,13 @@ sub _perlAny($$)
         {   s/^(.)/  $1/ for @subs;
             $subs[0]  =~ s/^[ ]{0,3}/[ {/;
             if($subs[-1] =~ m/\#\s/) { push @subs, "}, ], " }
-            else {$subs[-1] =~ s/$/ }, ], / }
+            else {$subs[-1] .= ' }, ], ' }
             push @lines, "$tag =>", @subs;
         }
         else
         {   $subs[0]  =~ s/^  /{ /;
             if($subs[-1] =~ m/\#\s/) { push @subs, "}, " }
-            else {$subs[-1] =~ s/$/ },/ }
+            else {$subs[-1] .= ' },' }
             push @lines, "$tag =>", @subs;
         }
     }

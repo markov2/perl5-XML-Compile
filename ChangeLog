@@ -5,7 +5,6 @@ Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
 To be resolved:
- - length facet on base64/hex encoding about binary length
  - handle XML::LibXML::Error objects
  - useSchema() relation to ::Cache::declare()?
  - proposed new schema features:
@@ -20,6 +19,40 @@ To be resolved:
    affect the whole code and most tests.
  - errors on types should show dynamic nested location in structure,
    not path in schema.
+
+version 1.19: Mon Oct 25 00:06:25 CEST 2010
+
+	Fixes:
+
+	- template: missing '{' in some cases [Patrick Powell]
+
+	- unsignedInt max value has 10 digits, not 9. Repair validation
+	  limit.  rt.cpan.org#62281 [Aleksey Mashanov]
+
+	- fix pod problem in ::FAQ, spotted by [Patrick Powell]
+
+	- added missing built-in type dateTimeStamp.
+
+	- writer: implemented/fixed length validation of base64Binary and
+	  hexBinary.
+
+	- implemented/fixed enumeration validation of a QName type
+	  rt.cpan.org#62237 [Aleksey Mashanov]
+
+	Improvements:
+
+	- ::Instance does not look for 'ref' attributes, because that
+	  cannot be used on top-level elements and types.
+
+	- ::Instance only collects info about type lazily, which speeds-up
+	  applications with huge schemas which are only partially used.
+	  In general it uses less memory.
+
+	- rewrote administration of substitutionGroups to access it faster.
+	  This may change the examples produced in template.
+
+	- new ::Namespaces::doesExtend() to walk inheritance, tested
+	  in t/02ext.t
 
 version 1.18: Thu Sep 30 17:00:29 CEST 2010
 

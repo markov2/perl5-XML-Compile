@@ -10,7 +10,7 @@ use TestTools;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 301;
+use Test::More tests => 348;
 
 set_compile_defaults
     elements_qualified => 'NONE';
@@ -125,6 +125,37 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
   </simpleType>
 </element>
 
+<!-- rt.cpan.org#62237, enumeration of qname -->
+<element name="test14">
+  <simpleType>
+    <restriction base="QName">
+      <enumeration value="me:DataEncodingUnknown"/>
+      <enumeration value="me:MustUnderstand"/>
+      <enumeration value="me:Receiver"/>
+      <enumeration value="me:Sender"/>
+      <enumeration value="me:VersionMismatch"/>
+    </restriction>
+  </simpleType>
+</element>
+
+<!-- from KML 2.2 -->
+<element name="test15" type="me:colorType" />
+<simpleType name="colorType">
+  <annotation>
+    <documentation><![CDATA[
+        
+        aabbggrr
+        
+        ffffffff: opaque white
+        ff000000: opaque black
+        
+        ]]></documentation>
+  </annotation>
+  <restriction base="hexBinary">
+    <length value="4"/>
+  </restriction>
+</simpleType>
+
 </schema>
 __SCHEMA__
 
@@ -194,18 +225,18 @@ $error = error_r($schema, test4 => <<__XML);
 <test4>noot</test4>
 __XML
 
-is($error, "string `noot' does not have required length 3 at {http://test-types}test4\#facet");
+is($error, "string `noot' does not have required length 3 but 4 at {http://test-types}test4\#facet");
 
 $error = error_w($schema, test4 => 'noot');
-is($error, "string `noot' does not have required length 3 at {http://test-types}test4\#facet");
+is($error, "string `noot' does not have required length 3 but 4 at {http://test-types}test4\#facet");
 
 $error = error_r($schema, test4 => <<__XML);
 <test4>ik</test4>
 __XML
-is($error, "string `ik' does not have required length 3 at {http://test-types}test4#facet");
+is($error, "string `ik' does not have required length 3 but 2 at {http://test-types}test4#facet");
 
 $error = error_w($schema, test4 => "ik");
-is($error,  "string `ik' does not have required length 3 at {http://test-types}test4#facet");
+is($error,  "string `ik' does not have required length 3 but 2 at {http://test-types}test4#facet");
 
 test_rw($schema, "test5" => <<__XML, "\ \ \t\n\tmies \t");
 <test5>\ \ \t
@@ -268,19 +299,12 @@ is($error, 'decimal too long, got 5 digits max 4 at {http://test-types}test9#fac
 ### test10 (same bug reported by Gert Doering)
 
 test_rw($schema, test10 => '<test10>0</test10>', 0);
-
 test_rw($schema, test10 => '<test10>1.2</test10>', 1.2);
-
 test_rw($schema, test10 => '<test10>1.23</test10>', 1.23);
-
 test_rw($schema, test10 => '<test10>12.3</test10>', 12.3);
-
 test_rw($schema, test10 => '<test10>1.234</test10>', 1.234);
-
 test_rw($schema, test10 => '<test10>12.34</test10>', 12.34);
-
 test_rw($schema, test10 => '<test10>123.4</test10>', 123.4);
-
 test_rw($schema, test10 => '<test10>1234</test10>', 1234);
 
 ### test11 (from bug reported by Allan Wind)
@@ -305,13 +329,33 @@ like($error, qr/^string \`42' does not match pattern /);
 
 ### test13 length on base64
 
-exit 0;
-
-#! not working
 test_rw($schema, test13 => '<test13>YWJjZGU=</test13>', 'abcde');
 
-$error = error_r($schema, test13 => '<test13>YWJjZGU=</test13>');
-is($error, '');
+$error = error_r($schema, test13 => '<test13>YWJjYWJjZGU=</test13>');
+is($error, "string `abcabcde' does not have required length 5 but 8 at {http://test-types}test13#facet");
 
-$error = error_w($schema, test13 => 'abcde');
-is($error, '');
+$error = error_w($schema, test13 => 'abcdef');
+is($error, "base64 data does not have required length 5, but 6 at {http://test-types}test13#facet");
+
+### test15 length of hexBinary
+
+test_rw($schema, test15 => '<test15>deadbeef</test15>', pack('N', 0xdeadbeef));
+
+$error = error_r($schema, test15 => '<test15>345678</test15>');
+is($error, "string `4Vx' does not have required length 4 but 3 at {http://test-types}test15#facet");
+
+$error = error_w($schema, test15 => 'abc');
+is($error, "hex data does not have required length 4, but 3 at {http://test-types}test15#facet");
+
+$error = error_w($schema, test15 => 'anything');
+is($error, "hex data does not have required length 4, but 8 at {http://test-types}test15#facet");
+
+### test14 enumeration of qnames [Aleksey Mashanov]
+
+set_compile_defaults
+    include_namespaces    => 1
+  , use_default_namespace => 0
+  , prefixes => [ a => $TestNS ];
+
+test_rw($schema, test14 => qq{<a:test14 xmlns:a="$TestNS">a:Sender</a:test14>}
+  , "{$TestNS}Sender");

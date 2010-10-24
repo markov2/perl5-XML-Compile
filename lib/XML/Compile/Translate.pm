@@ -495,11 +495,11 @@ sub simpleRestriction($$)
     my $node  = $tree->node;
     my $where = $tree->path . '#sres';
 
-    my $base;
-    if(my $basename  = $node->getAttribute('base'))
-    {   my $typename = $self->rel2abs($where, $node, $basename);
-        $base        = $self->blocked($where, simpleType => $typename)
-                    || $self->typeByName($tree, $typename);
+    my ($base, $typename);
+    if(my $basename = $node->getAttribute('base'))
+    {   $typename = $self->rel2abs($where, $node, $basename);
+        $base     = $self->blocked($where, simpleType => $typename)
+                 || $self->typeByName($tree, $typename);
     }
     else
     {   my $simple   = $tree->firstChild
@@ -518,7 +518,8 @@ sub simpleRestriction($$)
         or error __x"simple-restriction is not a simpleType at {where}"
                , where => $where, _class => 'schema';
 
-    my $do = $self->applySimpleFacets($tree, $st, $in_list || $base->{is_list});
+    my $do = $self->applySimpleFacets($tree, $st
+      , $in_list || $base->{is_list}, $typename);
 
     $tree->currentChild
         and error __x"elements left at tail at {where}"
@@ -527,13 +528,16 @@ sub simpleRestriction($$)
     +{ st => $do };
 }
 
-my @facets_early = qw/whiteSpace pattern enumeration/;
-my @facets_late  = qw/length minLength maxLength
-  totalDigits maxScale minScale maxInclusive
-  maxExclusive minInclusive minExclusive fractionDigits/;
+my %facets_early = map +($_ => 1), qw/whiteSpace pattern enumeration/;
+#my %facets_late = map +($_ => 1), qw/totalDigits maxScale minScale
+#   maxInclusive maxExclusive minInclusive minExclusive fractionDigits
+#   length minLength maxLength/;
 
-sub applySimpleFacets($$$)
-{   my ($self, $tree, $st, $is_list) = @_;
+my $qname_type   = pack_type SCHEMA2001, 'QName';
+
+sub applySimpleFacets($$$$)
+{   my ($self, $tree, $st, $is_list, $type) = @_;
+    my $nss = $self->{nss};
 
     # partial
     # content: facet*
@@ -542,7 +546,7 @@ sub applySimpleFacets($$$)
     #   | minLength | maxLength | enumeration | whiteSpace | pattern
 
     my $where = $tree->path . '#facet';
-    my %facets;
+    my (%facets, $is_qname);
     for(my $child = $tree->currentChild; $child; $child = $tree->nextChild)
     {   my $facet = $child->localName;
         last if $facet =~ $attribute_defs;
@@ -552,7 +556,21 @@ sub applySimpleFacets($$$)
             or error __x"no value for facet `{facet}' at {where}"
                    , facet => $facet, where => $where, _class => 'schema';
 
-           if($facet eq 'enumeration') { push @{$facets{enumeration}}, $value }
+        if($facet eq 'enumeration')
+        {   $is_qname = $nss->doesExtend($type, $qname_type)
+                unless defined $is_qname;
+
+            if($is_qname)
+            {   # rewrite prefixed values into "{ns}local"
+                my ($prefix, $local)
+                    = $value =~ m/\:/ ? split(/\:/, $value, 2) : ('', $value);
+                my $ns = $child->lookupNamespaceURI($prefix);
+                $value = pack_type $ns, $local;
+                $self->_registerNSprefix($prefix, $ns, 1);
+            }
+
+            push @{$facets{enumeration}}, $value;
+        }
         elsif($facet eq 'pattern')     { push @{$facets{pattern}}, $value }
         elsif(!exists $facets{$facet}) { $facets{$facet} = $value }
         else
@@ -577,14 +595,14 @@ sub applySimpleFacets($$$)
     }
 
     my (@early, @late);
-    foreach my $facet (@facets_early)
-    {   my $limit = $facets{$facet} or next;
-        push @early, builtin_facet($where, $self, $facet, $limit, $is_list);
-    }
+    my $action = $self->actsAs('WRITER') ? 'WRITER' : 'READER';
+    foreach my $facet (keys %facets)
+    {   my $h = builtin_facet($where, $self, $facet
+          , $facets{$facet}, $is_list, $type, $nss, $action) or next;
 
-    foreach my $facet (@facets_late)
-    {   my $limit = $facets{$facet} or next;
-        push @late, builtin_facet($where, $self, $facet, $limit, $is_list);
+        if($facets_early{$facet})
+             { push @early, $h }
+        else { push @late,  $h }
     }
 
       $is_list
@@ -613,7 +631,6 @@ sub element($)
 
     my $abstract = $node->getAttribute('abstract') || 'false';
     $abstract = 'false' if $self->{abstract_types} eq 'ACCEPT';
-#return if $self->isTrue($abstract);
 
     # Handle re-usable fragments, fight against combinatorial explosions
 
@@ -901,25 +918,14 @@ sub particleBlock($)
     ($label => $self->$call($tree->path, @pairs));
 }
 
-sub findSgMembers($)
-{   my ($self, $type) = @_;
-    my @subgrps;
-    foreach my $s ($self->namespaces->findSgMembers($type))
-    {   push @subgrps, $s, $self->findSgMembers($s->{full});
-    }
-
-#warn "SUBGRPS for $type\n  ", join "\n  ", map {$_->{full}} @subgrps;
-    @subgrps;
-}
-
 sub particleElementRef($)
 {   my ($self, $tree) = @_;
 
     my $node  = $tree->node;
     my $name  = $node->getAttribute('name'); # toplevel always has a name
     my $type  = pack_type $self->{tns}, $name;
-    my @sgs   = $self->findSgMembers($type);
-    @sgs or return $self->particleElement($tree); # simple element
+    my @sgs   = $self->namespaces->findSgMembers($node->localName, $type);
+    @sgs or return $self->particleElement($tree); # not-extended element
 
     my ($label, $do) = $self->particleElement($tree);
     $label or return;
@@ -1441,7 +1447,7 @@ sub simpleContentRestriction($$)
         or error __x"not a simpleType in simpleContent/restriction at {where}"
              , where => $where, _class => 'schema';
 
-    $type->{st} = $self->applySimpleFacets($tree, $st, 0);
+    $type->{st} = $self->applySimpleFacets($tree, $st, 0, $type);
 
     $self->extendAttrs($type, {$self->attributeList($tree)});
 

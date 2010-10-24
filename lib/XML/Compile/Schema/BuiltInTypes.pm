@@ -68,6 +68,7 @@ sub _replace  { $_[0] =~ s/[\t\r\n]/ /g; $_[0]}
 sub _collapse { local $_ = $_[0]; s/[\t\r\n]+/ /g; s/^ +//; s/ +$//; $_}
 
 =function anySimpleType
+=function anyAtomicType
 =function anyType
 Both any*Type built-ins can contain any kind of data.  Perl decides how
 to represent the passed values.
@@ -75,13 +76,26 @@ to represent the passed values.
 
 # format not useful, because xsi:type not supported
 $builtin_types{anySimpleType} =
+ { example => 'anySimple'
+ , parse   => sub {shift}
+ , extends => 'anyType'
+ };
+
 $builtin_types{anyType} =
  { example => 'anything'
  , parse   => sub {shift}
+ , extends => undef         # the root type
+ };
+
+$builtin_types{anyAtomicType} =
+ { example => 'anyAtomic'
+ , parse   => sub {shift}
+ , extends => 'anySimpleType'
  };
 
 =function error
 =cut
+
 $builtin_types{error}   = {example => '[some error structure]'};
 
 =section Ungrouped types
@@ -101,6 +115,7 @@ $builtin_types{boolean} =
                   : $_[0] ? 1 : 0 }
  , check   => sub { $_[0] =~ m/^\s*(?:false|true|0|1)\s*$/i }
  , example => 'true'
+ , extends => 'anyAtomicType'
  };
 
 =function pattern
@@ -135,6 +150,7 @@ $builtin_types{integer} =
  { parse   => \&bigint
  , check   => sub { $_[0] =~ m/^\s*[-+]?\s*\d[\s\d]*$/ }
  , example => 42
+ , extends => 'decimal'
  };
 
 =function negativeInteger
@@ -144,6 +160,7 @@ $builtin_types{negativeInteger} =
  { parse   => \&bigint
  , check   => sub { $_[0] =~ m/^\s*\-\s*\d[\s\d]*$/ }
  , example => '-1'
+ , extends => 'nonPositiveInteger'
  };
 
 =function nonNegativeInteger
@@ -153,6 +170,7 @@ $builtin_types{nonNegativeInteger} =
  { parse   => \&bigint
  , check   => sub { $_[0] =~ m/^\s*(?:\+\s*)?\d[\s\d]*$/ }
  , example => '17'
+ , extends => 'integer'
  };
 
 =function positiveInteger
@@ -162,6 +180,7 @@ $builtin_types{positiveInteger} =
  { parse   => \&bigint
  , check   => sub { $_[0] =~ m/^\s*(?:\+\s*)?\d[\s\d]*$/ && $_[0] =~ m/[1-9]/ }
  , example => '+3'
+ , extends => 'nonNegativeInteger'
  };
 
 =function nonPositiveInteger
@@ -172,6 +191,7 @@ $builtin_types{nonPositiveInteger} =
  , check   => sub { $_[0] =~ m/^\s*(?:\-\s*)?\d[\s\d]*$/
                  || $_[0] =~ m/^\s*(?:\+\s*)0[0\s]*$/ }
  , example => '-42'
+ , extends => 'integer'
  };
 
 =function long
@@ -183,6 +203,7 @@ $builtin_types{long} =
  , check   =>
      sub { $_[0] =~ m/^\s*[-+]?\s*\d[\s\d]*$/ && ($_[0] =~ tr/0-9//) < 20 }
  , example => '-100'
+ , extends => 'integer'
  };
 
 =function unsignedLong
@@ -193,6 +214,7 @@ $builtin_types{unsignedLong} =
  { parse   => \&bigint
  , check   => sub {$_[0] =~ m/^\s*\+?\s*\d[\s\d]*$/ && ($_[0] =~ tr/0-9//) < 21}
  , example => '100'
+ , extends => 'nonNegativeInteger'
  };
 
 =function unsignedInt
@@ -201,8 +223,9 @@ Just too long to fit in Perl's ints.
 
 $builtin_types{unsignedInt} =
  { parse   => \&bigint
- , check   => sub {$_[0] =~ m/^\s*\+?\s*\d[\s\d]*$/ && ($_[0] =~ tr/0-9//) <10}
+ , check   => sub {$_[0] =~ m/^\s*\+?\s*\d[\s\d]*$/ && ($_[0] =~ tr/0-9//) <=10}
  , example => '42'
+ , extends => 'unsignedLong'
  };
 
 # Used when 'sloppy_integers' was set: the size of the values
@@ -246,6 +269,7 @@ $builtin_types{int} =
  , format  => \&int2str
  , check   => sub {$_[0] =~ m/^\s*[+-]?\d+\s*$/}
  , example => '42'
+ , extends => 'long'
  };
 
 =function short
@@ -258,6 +282,7 @@ $builtin_types{short} =
  , check   =>
     sub { $_[0] =~ m/^\s*[+-]?\d+\s*$/ && $_[0] >= -32768 && $_[0] <= 32767 }
  , example => '-7'
+ , extends => 'int'
  };
 
 =function unsigned Short
@@ -270,6 +295,7 @@ $builtin_types{unsignedShort} =
  , check  =>
     sub { $_[0] =~ m/^\s*[+-]?\d+\s*$/ && $_[0] >= 0 && $_[0] <= 65535 }
  , example => '7'
+ , extends => 'unsignedInt'
  };
 
 =function byte
@@ -281,6 +307,7 @@ $builtin_types{byte} =
  , format  => \&int2str
  , check   => sub {$_[0] =~ m/^\s*[+-]?\d+\s*$/ && $_[0] >= -128 && $_[0] <=127}
  , example => '-2'
+ , extends => 'short'
  };
 
 =function unsignedByte
@@ -292,6 +319,7 @@ $builtin_types{unsignedByte} =
  , format  => \&int2str
  , check   => sub {$_[0] =~ m/^\s*[+-]?\d+\s*$/ && $_[0] >= 0 && $_[0] <= 255}
  , example => '2'
+ , extends => 'unsignedShort'
  };
 
 =section Floating-point
@@ -305,8 +333,9 @@ object here.
 
 $builtin_types{decimal} =
  { parse   => sub {$_[0] =~ s/\s+//g; Math::BigFloat->new($_[0]) }
- , check   => sub {$_[0] =~ m#^(\+|\-)?([0-9]+(\.[0-9]*)?|\.[0-9]+)$#}
+ , check   => sub {$_[0] =~ m/^(\+|\-)?([0-9]+(\.[0-9]*)?|\.[0-9]+)$/}
  , example => '3.1415'
+ , extends => 'anyAtomicType'
  };
 
 =function precissionDecimal
@@ -361,6 +390,7 @@ $builtin_types{double} =
  , format  => \&num2str
  , check   => \&numcheck
  , example => '3.1415'
+ , extends => 'anyAtomicType'
  };
 
 $builtin_types{sloppy_float} =
@@ -369,6 +399,7 @@ $builtin_types{sloppy_float} =
       $@ ? undef : 1;
     }
  , example => '3.1415'
+ , extends => 'anyAtomicType'
  };
 
 =section Encoding
@@ -383,6 +414,7 @@ $builtin_types{base64Binary} =
  , format  => sub { eval { encode_base64 $_[0] } }
  , check   => sub { !$@ }
  , example => 'VGVzdA=='
+ , extends => 'anyAtomicType'
  };
 
 =function hexBinary
@@ -397,6 +429,7 @@ $builtin_types{hexBinary} =
  , check   =>
      sub { $_[0] !~ m/[^0-9a-fA-F\s]/ && (($_[0] =~ tr/0-9a-fA-F//) %2)==0}
  , example => 'F00F'
+ , extends => 'anyAtomicType'
  };
 
 =section Dates
@@ -427,6 +460,7 @@ $builtin_types{date} =
  , format  => sub { $_[0] =~ /\D/ ? $_[0] : strftime("%Y-%m-%d", gmtime $_[0])}
  , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $date }
  , example => '2006-10-06'
+ , extends => 'anyAtomicType'
  };
 
 =function time
@@ -442,29 +476,51 @@ $builtin_types{time} =
       strftime "%T$subsec", gmtime $_[0] }
  , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $time }
  , example => '11:12:13'
+ , extends => 'anyAtomicType'
  };
 
 =function dateTime
-A moment, represented as "date T time tz", where date is C<YYYY-MM-DD>,
-time is C<HH:MM:SS>, and time-zone tz is either C<-HH:mm>, C<+HH:mm>,
+A moment, represented as "date T time tz?", where date is C<YYYY-MM-DD>,
+time is C<HH:MM:SS>, and the time-zone tz is either C<-HH:mm>, C<+HH:mm>,
 or C<Z> for UTC.  The time-zone is optional, but can better be used
-because the default is not defined in the standard.
+because the default is not defined in the standard. For that reason,
+the C<dateTimeStamp> got introduced, which requires the timezone.
 
 When a decimal value is passed, it is interpreted as C<time> value in UTC,
-and will be formatted as required.  When reading, the date string will
+and will be formatted as required. When reading, the date string will
 not be parsed.
 =cut
 
-my $dateTime = qr/^ $yearFrag \- $monthFrag \- $dayFrag
-                    T $timeFrag $timezoneFrag? $/x;
+my $dateTime
+  = qr/^ $yearFrag \- $monthFrag \- $dayFrag T $timeFrag $timezoneFrag? $/x;
+my $dateTimeStamp
+  = qr/^ $yearFrag \- $monthFrag \- $dayFrag T $timeFrag $timezoneFrag $/x;
+
+sub _dt_format
+{   return $_[0] if $_[0] =~ /[^0-9.]/;  # already formated
+    my $subsec = $_[0] =~ /(\.\d+)/ ? $1 : '';
+    strftime "%Y-%m-%dT%H:%M:%S${subsec}Z", gmtime $_[0];
+}
 
 $builtin_types{dateTime} =
  { parse   => \&_collapse
- , format  => sub { return $_[0] if $_[0] =~ /[^0-9.]/;
-       my $subsec = $_[0] =~ /(\.\d+)/ ? $1 : '';
-       strftime "%Y-%m-%dT%H:%M:%S${subsec}Z", gmtime $_[0] }
+ , format  => \&_dt_format
  , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $dateTime }
  , example => '2006-10-06T00:23:02Z'
+ , extends => 'anyAtomicType'
+ };
+
+=function dateTimeStamp
+Like C<dateTime>, but with required timezone which means that it is
+better defined. All other handling is the same.
+=cut
+
+$builtin_types{dateTimeStamp} =
+ { parse   => \&_collapse
+ , format  => \&_dt_format
+ , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $dateTimeStamp }
+ , example => '2006-10-06T00:23:02Z'
+ , extends => 'dateTime'
  };
 
 =function gDay
@@ -476,6 +532,7 @@ $builtin_types{gDay} =
  { parse   => \&_collapse
  , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $gDay }
  , example => '---12+09:00'
+ , extends => 'anyAtomicType'
  };
 
 =function gMonth
@@ -487,6 +544,7 @@ $builtin_types{gMonth} =
  { parse   => \&_collapse
  , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $gMonth }
  , example => '--09+07:00'
+ , extends => 'anyAtomicType'
  };
 
 =function gMonthDay
@@ -498,6 +556,7 @@ $builtin_types{gMonthDay} =
  { parse   => \&_collapse
  , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $gMonthDay }
  , example => '--09-12+07:00'
+ , extends => 'anyAtomicType'
  };
 
 =function gYear
@@ -509,6 +568,7 @@ $builtin_types{gYear} =
  { parse   => \&_collapse
  , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $gYear }
  , example => '2006+07:00'
+ , extends => 'anyAtomicType'
  };
 
 =function gYearMonth
@@ -520,6 +580,7 @@ $builtin_types{gYearMonth} =
  { parse   => \&_collapse
  , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $gYearMonth }
  , example => '2006-11+07:00'
+ , extends => 'anyAtomicType'
  };
 
 =section Duration
@@ -550,6 +611,7 @@ $builtin_types{dayTimeDuration} =
  , check  => sub { my $val = $_[0]; $val =~ s/\s+//g; $val =~
      m/^\-?P(?:\d+D)?(?:T(?:\d+H)?(?:\d+M)?(?:\d+(?:\.\d+)?S)?)?$/ }
  , example => 'P2DT3H5M10S'
+ , extends => 'duration'
  };
 
 =function yearMonthDuration
@@ -562,6 +624,7 @@ $builtin_types{yearMonthDuration} =
  , check  => sub { my $val = $_[0]; $val =~ s/\s+//g; $val =~
      m/^\-?P(?:\d+Y)?(?:\d+M)?$/ }
  , example => 'P40Y5M'
+ , extends => 'duration'
  };
 
 =section Strings
@@ -572,6 +635,7 @@ $builtin_types{yearMonthDuration} =
 
 $builtin_types{string} =
  { example => 'example'
+ , extends => 'anyAtomicType'
  };
 
 =function normalizedString
@@ -583,6 +647,7 @@ string are ignored.
 $builtin_types{normalizedString} =
  { parse   => \&_replace
  , example => 'example'
+ , extends => 'string'
  };
 
 =function language
@@ -594,6 +659,7 @@ $builtin_types{language} =
  , check   => sub { my $v = $_[0]; $v =~ s/\s+//g; $v =~
        m/^[a-zA-Z]{1,8}(?:\-[a-zA-Z0-9]{1,8})*$/ }
  , example => 'nl-NL'
+ , extends => 'token'
  };
 
 =function ID, IDREF, IDREFS
@@ -616,12 +682,14 @@ $builtin_types{ID} =
  { parse   => \&_collapse
  , check   => \&_ncname
  , example => 'id_'.$ids++
+ , extends => 'NCName'
  };
 
 $builtin_types{IDREF} =
  { parse   => \&_collapse
  , check   => \&_ncname
  , example => 'id-ref'
+ , extends => 'NCName'
  };
 
 =function NCName, ENTITY, ENTITIES
@@ -629,10 +697,17 @@ A name which contains no colons (a non-colonized name).
 =cut
 
 $builtin_types{NCName} =
-$builtin_types{ENTITY} =
  { parse   => \&_collapse
  , check   => \&_ncname
  , example => 'label'
+ , extends => 'Name'
+ };
+
+$builtin_types{ENTITY} =
+ { parse   => \&_collapse
+ , check   => \&_ncname
+ , example => 'entity'
+ , extends => 'NCName'
  };
 
 $builtin_types{IDREFS} =
@@ -642,6 +717,7 @@ $builtin_types{ENTITIES} =
  , check   => sub { $_[0] !~ m/\:/ }
  , example => 'labels'
  , is_list => 1
+ , extends => 'anySimpleType'
  };
 
 =function Name
@@ -650,6 +726,7 @@ $builtin_types{ENTITIES} =
 $builtin_types{Name} =
  { parse   => \&_collapse
  , example => 'name'
+ , extends => 'token'
  };
 
 =function token, NMTOKEN, NMTOKENS
@@ -658,12 +735,14 @@ $builtin_types{Name} =
 $builtin_types{token} =
  { parse   => \&_collapse
  , example => 'token'
+ , extends => 'normalizedString'
  };
 
 # check required!  \c
 $builtin_types{NMTOKEN} =
  { parse   => sub { $_[0] =~ s/\s+//g; $_[0] }
  , example => 'nmtoken'
+ , extends => 'token'
  };
 
 $builtin_types{NMTOKENS} =
@@ -671,6 +750,7 @@ $builtin_types{NMTOKENS} =
  , format  => sub { my $v = shift; ref $v eq 'ARRAY' ? join(' ',@$v) : $v }
  , example => 'nmtokens'
  , is_list => 1
+ , extends => 'anySimpleType'
  };
 
 =section URI
@@ -689,6 +769,7 @@ be translated into an URI object: it may not be used that way.
 $builtin_types{anyURI} =
   { parse   => \&_collapse
   , example => 'http://example.com'
+  , extends => 'anyAtomicType'
   };
 
 =function QName
@@ -726,13 +807,17 @@ $builtin_types{QName} =
           length $def->{prefix} ? "$def->{prefix}:$local" : $local;
         }
  , example => 'myns:local'
+ , extends => 'anyAtomicType'
  };
 
 =function NOTATION
 NOT IMPLEMENTED, so treated as string.
 =cut
 
-$builtin_types{NOTATION} = {};
+$builtin_types{NOTATION} =
+ {
+   extends => 'anyAtomicType'
+ };
 
 =section only in 1999 and 2000/10 schemas
 

@@ -8,8 +8,6 @@ On this page, a wild collection of questions are answered.  If you have
 contributions either in question or as answer, then please contribute
 via the mailinglist.
 
-=head1 FREQUENTLY ASKED QUESTIONS
-
 =head2 The data structure
 
 =head3 what do the cho_, seq_ and all_ start of labels mean?
@@ -84,14 +82,14 @@ the intergrity of that external resource.  Therefore, use options:
      , element_form_default => 'qualified'
      );
 
-You may also provide all these options with M<new()> directly.
+You may also provide all these options with C<new()> directly.
 
   my $schema = XML::Compile::Schema->new("schema.xsd"
      , target_namespace     => 'http://my-namespace'
      , element_form_default => 'qualified'
      );
 
-If you use the M<XML::Compile::Cache> object, which extends ::Schema, then
+If you use the L<XML::Compile::Cache> object, which extends ::Schema, then
 you have a nice C<printIndex> method which shows you what has been read.
 
 =head3 schema location
@@ -144,7 +142,7 @@ or
 
 =head3 fixing schemas
 
-Many schema's are broken.  M<XML::Compile> is not a good tool to figure-out
+Many schema's are broken.  L<XML::Compile> is not a good tool to figure-out
 what is wrong with the schema.  Have you tried C<xmllint>?  Sometimes, you
 get sufficient help adding to the top of your script:
 

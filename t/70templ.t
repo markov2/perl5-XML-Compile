@@ -131,7 +131,7 @@ is($out, <<__TEST1__);
   # choice of t1_g, t1_h, t1_i
   # occurs 1 <= # <= 3 times
   cho_t1_g => 
-  [
+  [ {
       # is a x0:test3
       t1_g =>
       { # sequence of t3_a, t3_b
