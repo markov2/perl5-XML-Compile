@@ -20,6 +20,23 @@ To be resolved:
  - errors on types should show dynamic nested location in structure,
    not path in schema.
 
+version 1.20: Wed Dec 22 16:34:24 CET 2010
+
+	Changes:
+
+	- ::Schema::compile(include_namespaces) with a personal filter will
+	  now be called for all known namespaces, not only the used
+	  namespaces. (Needed to reseolve qname problems)
+
+	Improvements:
+
+	- base64Binary length facet implemented with new
+	  MIME::Base64::decoded_base64_length()
+
+	- disable t/55facet_list.t tests for old libxml2 versions,
+	  because the used regexp is broken in those releases, causing
+	  daily mails from cpantesters.
+
 version 1.19: Mon Oct 25 00:06:25 CEST 2010
 
 	Fixes:

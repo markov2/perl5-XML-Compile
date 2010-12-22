@@ -131,12 +131,11 @@ sub makeElementWrapper
 sub makeWrapperNs
 {   my ($self, $path, $processor, $index, $filter) = @_;
     my @entries;
-    $filter = sub {1} if ref $filter ne 'CODE';
+    $filter = sub {$_[2]} if ref $filter ne 'CODE'; # only the used
 
     foreach my $entry (sort {$a->{prefix} cmp $b->{prefix}} values %$index)
     {   # ANY components are frustrating this
-        $entry->{used} or next;
-        $filter->($entry->{uri}, $entry->{prefix}) or next;
+        $filter->($entry->{uri}, $entry->{prefix}, $entry->{used}) or next;
         push @entries, [ $entry->{uri}, $entry->{prefix} ];
         $entry->{used} = 0;
     }

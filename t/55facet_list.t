@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 # test facets on list elements
 
+
 use warnings;
 use strict;
 
@@ -10,7 +11,19 @@ use TestTools;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 60;
+use Test::More;
+use XML::LibXML;
+
+BEGIN
+ {  
+     # old libxml2 versions break on regex 123\\s+(\\d+\\s)*456
+     # there are so many bugs in old libxml2 releases!
+     my $xml2_version = XML::LibXML::LIBXML_DOTTED_VERSION();
+     $xml2_version lt '2.7'
+         and plan skip_all => "Your libxml2 is too old (version $xml2_version)";
+
+     plan tests => 60;
+ }
 
 set_compile_defaults
     elements_qualified => 'NONE'

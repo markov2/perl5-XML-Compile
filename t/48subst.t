@@ -11,6 +11,7 @@ use XML::Compile::Schema;
 use XML::Compile::Tester;
 
 use Test::More tests => 57;
+use Log::Report 'try';
 
 set_compile_defaults
     elements_qualified => 'NONE';
@@ -49,12 +50,12 @@ __SCHEMA
 
 ok(defined $schema);
 
-eval { test_rw($schema, test1 => <<__XML, undef) };
+try { test_rw($schema, test1 => <<__XML, undef) };
 <test1><t1>42</t1><t2>43</t2><t3>44</t3></test1>
 __XML
 
 ok($@, 'compile-time error');
-my $error = $@;
+my $error = $@->wasFatal;
 is($error, "error: data for element or block starting with `head' missing at {$TestNS}test1\n");
 
 $schema->importDefinitions( <<__EXTRA );
@@ -106,7 +107,7 @@ test_rw($schema, test1 => <<__XML, \%t2);
 __XML
 
 # abstract within substitutionGroup
-$error = error_r($schema, test1 => <<__XML);
+$error = error_r $schema, test1 => <<__XML;
 <test1><t1>10</t1><head>11</head><t3>12</t3></test1>
 __XML
 is($error, "abstract element `head' used at {$TestNS}test1/head");

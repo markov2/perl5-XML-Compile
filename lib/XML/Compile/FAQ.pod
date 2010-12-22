@@ -8,6 +8,8 @@ On this page, a wild collection of questions are answered.  If you have
 contributions either in question or as answer, then please contribute
 via the mailinglist.
 
+See also M<XML::Compile::SOAP::FAQ>.
+
 =head2 The data structure
 
 =head3 what do the cho_, seq_ and all_ start of labels mean?

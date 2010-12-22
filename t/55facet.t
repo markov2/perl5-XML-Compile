@@ -9,8 +9,9 @@ use TestTools;
 
 use XML::Compile::Schema;
 use XML::Compile::Tester;
+use XML::Compile::Util qw/pack_type/;
 
-use Test::More tests => 348;
+use Test::More tests => 366;
 
 set_compile_defaults
     elements_qualified => 'NONE';
@@ -155,6 +156,24 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
     <length value="4"/>
   </restriction>
 </simpleType>
+
+<!-- rt.cpan.org#63464, combined totalDigits and fracDigits -->
+<element name="test16">
+  <simpleType>
+    <restriction base="decimal">
+      <fractionDigits value="2" />
+    </restriction>
+  </simpleType>
+</element>
+
+<element name="test17">
+  <simpleType>
+    <restriction base="decimal">
+      <totalDigits value="5" />
+      <fractionDigits value="2" />
+    </restriction>
+  </simpleType>
+</element>
 
 </schema>
 __SCHEMA__
@@ -359,3 +378,30 @@ set_compile_defaults
 
 test_rw($schema, test14 => qq{<a:test14 xmlns:a="$TestNS">a:Sender</a:test14>}
   , "{$TestNS}Sender");
+
+### test16 fracDigits
+
+# max 2 digits
+my $t16 = pack_type $TestNS, 'test16';
+my $r16 = reader_create $schema, "frac 2r", $t16;
+is($r16->(qq{<test16 xmlns="$TestNS">2.14</test16>}), "2.14");
+is($r16->(qq{<test16 xmlns="$TestNS">3.1</test16>}), "3.1");
+
+# this actually should cause an error!
+is($r16->(qq{<test16 xmlns="$TestNS">3.14152</test16>}), "3.14");
+
+my $w16 = writer_create $schema, 'frac 2w', $t16;
+my $x16 = writer_test $w16, '3.141526';
+compare_xml($x16, qq{<a:test16 xmlns:a="$TestNS">3.14</a:test16>});
+
+### test17, totalFracDigits [mimon-cz]
+
+my $t17 = pack_type $TestNS, 'test17';
+my $r17 = reader_create $schema, "total 5, frac 2r", $t17;
+is($r17->(qq{<test17 xmlns="$TestNS">2.14</test17>}), "2.14");
+is($r17->(qq{<test17 xmlns="$TestNS">3.1</test17>}), "3.1");
+is($r17->(qq{<test17 xmlns="$TestNS">3.14152</test17>}), "3.14");
+
+my $w17 = writer_create $schema, 'total 5, frac 2w', $t17;
+my $x17 = writer_test $w17, '3.141526';
+compare_xml($x17, qq{<a:test17 xmlns:a="$TestNS">3.14</a:test17>});

@@ -285,7 +285,7 @@ $builtin_types{short} =
  , extends => 'int'
  };
 
-=function unsigned Short
+=function unsignedShort
 unsigned 16-bits value.
 =cut
 
@@ -326,9 +326,8 @@ $builtin_types{unsignedByte} =
 
 =function decimal
 Decimals are painful: they can be very large, much larger than Perl's
-internal floats.  The value is therefore kept as string.
-Use M<Math::BigFloat> when you need calculations.  You can also pass such
-object here.
+internal floats.  Therefore, we need to use M<Math::BigFloat> which are
+slow but nearly seamlessly invisible in the application.
 =cut
 
 $builtin_types{decimal} =

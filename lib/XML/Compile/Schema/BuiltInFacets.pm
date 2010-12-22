@@ -11,6 +11,7 @@ use Math::BigInt;
 use Math::BigFloat;
 use XML::LibXML;  # for ::RegExp
 use XML::Compile::Util qw/SCHEMA2001 pack_type/;
+use MIME::Base64       qw/decoded_base64_length/;
 
 use constant DBL_MAX_DIG => 15;
 use constant DBL_MAX_EXP => 307;
@@ -57,6 +58,7 @@ my %facets_simple =
  , pattern         => \&_pattern
  , totalDigits     => \&_s_totalDigits
  , whiteSpace      => \&_s_whiteSpace
+ , _totalFracDigits=> \&_s_totalFracDigits
  );
 
 my %facets_list =
@@ -184,11 +186,12 @@ sub _enumeration($$$$$$)
     {   # quite tricky to get ns involved here..., so validation
         # only partial
         my %enum = map { s/.*\}//; ($_ => 1) } @$enums;
-        return sub { my $x = $_[0]; $x =~ s/.*\://;
-              return $_[0] if exists $enum{$x};
-              error __x"invalid enumerate `{string}' at {where}"
-                 , string => $_[0], where => $path;
-            };
+        return sub
+          { my $x = $_[0]; $x =~ s/.*\://;
+            return $_[0] if exists $enum{$x};
+            error __x"invalid enumerate `{string}' at {where}"
+              , string => $_[0], where => $path;
+          };
     }
 
     my %enum = map { ($_ => 1) } @$enums;
@@ -199,32 +202,51 @@ sub _enumeration($$$$$$)
 }
 
 sub _s_totalDigits($$$)
-{   my ($path, undef, $nr) = @_;
-    sub { return $_[0] if $nr >= ($_[0] =~ tr/0-9//);
-        my $val = $_[0];
-        return sprintf "%.${nr}f", $val
-            if $val =~ m/^[+-]?0*(\d)[.eE]/ && length($1) < $nr;
+{   my ($path, undef, $total) = @_;
+
+    # this accidentally also works correctly for NaN +INF -INF
+    sub
+      { my $v = $_[0];
+        $v =~ s/[eE].*//;
+        $v =~ s/^[+-]?0*//;
+        return $_[0] if $total >= ($v =~ tr/0-9//);
 
         error __x"decimal too long, got {length} digits max {max} at {where}"
-          , length => ($val =~ tr/0-9//), max => $nr, where => $path;
-    };
+          , length => ($v =~ tr/0-9//), max => $total, where => $path;
+      };
 }
 
 sub _s_fractionDigits($$$)
-{   my $nr = $_[2];
-    sub { sprintf "%.${nr}f", $_[0] };
+{   my $frac = $_[2];
+    # can be result from Math::BigFloat, so too long to use %f  But rounding
+    # is very hard to implement. If you need this accuracy, then format your
+    # value yourself!
+    sub
+      { my $v = $_[0];
+        $v =~ s/(\.[0-9]{$frac}).*/$1/;
+        $v;
+      };
+}
+
+sub _s_totalFracDigits($$$)
+{   my ($path, undef, $dig) = @_;
+    my ($total, $frac) = @$dig;
+    sub
+      { my $w = $_[0];    # frac is dwimming in shortening
+        $w =~ s/(\.[0-9]{$frac}).*/$1/;
+
+        my $v = $w;   # total is checking length
+        $v =~ s/[eE].*//;
+        $v =~ s/^[+-]?0*//;
+
+        return $w if $total >= ($v =~ tr/0-9//);
+        error __x"decimal too long, got {length} digits max {max} at {where}"
+          , length => ($v =~ tr/0-9//), max => $total, where => $path;
+      };
 }
 
 my $base64 = pack_type SCHEMA2001, 'base64Binary';
 my $hex    = pack_type SCHEMA2001, 'hexBinary';
-
-sub _base64_length($)
-{   my $ref  = shift;
-
-    # too expensive :(
-    my $enc = $$ref =~ tr/A-Za-z0-9+=//;
-    ($enc >> 2) * 3 - ($$ref =~ tr/=//);
-}
 
 sub _hex_length($)
 {   my $ref  = shift;
@@ -241,7 +263,7 @@ sub _s_length($$$$$$)
         return sub
           { defined $_[0]
                 or error __x"base64 data missing at {where}", where => $path;
-            my $size = _base64_length \$_[0];
+            my $size = decoded_base64_length $_[0];
             return $_[0] if $size == $len;
             error __x"base64 data does not have required length {len}, but {has} at {where}"
               , len => $len, has => $size, where => $path;
@@ -281,7 +303,7 @@ sub _s_minLength($$$)
     {   return sub
           { defined $_[0]
                 or error __x"base64 data missing at {where}", where => $path;
-            my $size = _base64_length \$_[0];
+            my $size = decoded_base64_length $_[0];
             return $_[0] if $size >= $len;
             error __x"base64 data does not have minimal length {len}, but {has} at {where}"
               , len => $len, has => $size, where => $path;
@@ -320,7 +342,7 @@ sub _s_maxLength($$$)
     {   return sub
           { defined $_[0]
                 or error __x"base64 data missing at {where}", where => $path;
-            my $size = _base64_length \$_[0];
+            my $size = decoded_base64_length $_[0];
             return $_[0] if $size <= $len;
             error __x"base64 data longer than maximum length {len}, but {has} at {where}"
               , len => $len, has => $size, where => $path;

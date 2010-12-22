@@ -566,7 +566,8 @@ definition can be added the production rule produces an attribute.
 
 When a CODE reference is passed, it will be called for each namespace
 to decide whether it should be included or not. When true, it will
-we added.
+we added. The CODE is called with a namespace, its prefix, and the
+number of times it was used for that schema element translator.
 
 =option  namespace_reset BOOLEAN
 =default namespace_reset <false>

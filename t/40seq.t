@@ -10,6 +10,7 @@ use XML::Compile::Schema;
 use XML::Compile::Tester;
 
 use Test::More tests => 230;
+use Log::Report 'try';
 
 set_compile_defaults
     elements_qualified => 'NONE';
@@ -465,13 +466,13 @@ __XML
 
 ### test 14
 
-eval { error_r($schema, test14 => '') };
-is($@, "error: complexType contains particles, simpleContent or complexContent, not `element' at {http://test-types}test14\n");
+try { error_r($schema, test14 => '') };
+is($@->wasFatal, "error: complexType contains particles, simpleContent or complexContent, not `element' at {http://test-types}test14\n");
 
 ### test 15
 
-eval { error_r($schema, test15 => '') };
-is($@, "error: complexContent needs extension or restriction, not `element' at {http://test-types}test15\n");
+try { error_r($schema, test15 => '') };
+is($@->wasFatal, "error: complexContent needs extension or restriction, not `element' at {http://test-types}test15\n");
 
 ### test 16
 
