@@ -467,12 +467,14 @@ __XML
 ### test 14
 
 try { error_r($schema, test14 => '') };
-is($@->wasFatal, "error: complexType contains particles, simpleContent or complexContent, not `element' at {http://test-types}test14\n");
+my $e14 = $@->wasFatal;
+is("$e14", "error: complexType contains particles, simpleContent or complexContent, not `element' at {http://test-types}test14\n");
 
 ### test 15
 
 try { error_r($schema, test15 => '') };
-is($@->wasFatal, "error: complexContent needs extension or restriction, not `element' at {http://test-types}test15\n");
+my $e15 = $@->wasFatal;
+is("$e15", "error: complexContent needs extension or restriction, not `element' at {http://test-types}test15\n");
 
 ### test 16
 

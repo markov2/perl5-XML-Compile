@@ -56,7 +56,7 @@ __XML
 
 ok($@, 'compile-time error');
 my $error = $@->wasFatal;
-is($error, "error: data for element or block starting with `head' missing at {$TestNS}test1\n");
+is("$error", "error: data for element or block starting with `head' missing at {$TestNS}test1\n");
 
 $schema->importDefinitions( <<__EXTRA );
 <!-- alternatives in same namespace -->

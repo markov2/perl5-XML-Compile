@@ -1098,7 +1098,7 @@ sub printIndex(@)
 
 =method doesExtend EXTTYPE, BASETYPE
 Returns true when the EXTTYPE extends the BASETYPE. See
-M<XML::Compile::Schema::Namespaces::doesExtend()>
+M<XML::Compile::Schema::NameSpaces::doesExtend()>
 =cut
 
 sub doesExtend($$)

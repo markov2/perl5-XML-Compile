@@ -20,6 +20,12 @@ To be resolved:
  - errors on types should show dynamic nested location in structure,
    not path in schema.
 
+version 1.21: Fri Dec 24 10:20:15 CET 2010
+
+	Fixes:
+
+	- some tests fail with new versions of Test::More
+
 version 1.20: Wed Dec 22 16:34:24 CET 2010
 
 	Changes:
