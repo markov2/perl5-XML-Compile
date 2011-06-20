@@ -291,12 +291,15 @@ sub topLevel($$)
             # use unqualified schemas anyway!!!
             $node->removeAttribute('form');   # when in schema
             $node->setAttribute(form => 'qualified');
-            delete $self->{elements_qualified};
             $elems_qual = 0;
             $remove_form_attribute = 1;
         }
     }
     else {$elems_qual = $qual}
+
+    delete $self->{elements_qualified}
+        if $self->{elements_qualified}
+        && $self->{elements_qualified} eq 'TOP';
 
     local $self->{elems_qual} = $elems_qual;
     local $self->{tns}        = $top->{ns};

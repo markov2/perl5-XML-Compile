@@ -74,13 +74,13 @@ __END__
 
 =head1 NAME
 
-xml2example - convert XML schema knowledge into Perl or XML examples
+schema2example - convert XML schema knowledge into Perl or XML examples
 
 =head1 SYNOPSIS
 
- xml2example xml-file schema-file(s)  >outfile
+ schema2example xml-file schema-file(s)  >outfile
 
- xml2example -x xml-file -s schema-file(s) -o outfile
+ schema2example -x xml-file -s schema-file(s) -o outfile
 
 =head1 DESCRIPTION
 

@@ -55,7 +55,7 @@ the content has.
 
 One of the more noticable problems with schemas is the specification of
 the namespaces to be used for the schema.  In older schema's, like many
-important protocols, there was no way to specify wether elements should
+important protocols, there was no way to specify whether elements should
 be used qualified or not.  Some schema's lack the target namespace
 declaration.  Those fields did not exist in earlier versions of the
 "2001" spec; it was defined in the documentation.

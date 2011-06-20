@@ -6,7 +6,7 @@ use strict;
 use warnings;
 no warnings 'once';
 
-use Log::Report 'xml-compile', syntax => 'SHORT';
+use Log::Report   qw/xml-compile/;
 use List::Util    qw/first/;
 use Scalar::Util  qw/blessed/;
 use XML::Compile::Util qw/pack_type unpack_type type_of_node SCHEMA2001i
@@ -639,11 +639,15 @@ sub makeMixedElement
     }
 
     sub { my ($doc, $data) = @_;
+          defined $data or return;
+
           return $doc->importNode($data)
               if UNIVERSAL::isa($data, 'XML::LibXML::Element');
 
           my $copy = UNIVERSAL::isa($data, 'HASH') ? {%$data} : {_ => $data};
           my $content = delete $copy->{_};
+          defined $content or return;
+
           UNIVERSAL::isa($content, 'XML::LibXML::Node')
               or $content = $doc->createTextNode($content);
           my $node = $doc->importNode($content);
@@ -942,7 +946,6 @@ sub makeAnyElement
     my %no  = map { ($_ => 1) } @{$no  || []};
 
     $handler ||= 'SKIP_ALL';
-
     bless
     sub { my ($doc, $values) = @_;
           my @res;

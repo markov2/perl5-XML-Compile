@@ -4,11 +4,13 @@ use strict;
 
 package XML::Compile;
 
-use Log::Report 'xml-compile', syntax => 'SHORT';
+use Log::Report 'xml-compile';
 use XML::LibXML;
 use XML::Compile::Util qw/:constants type_of_node/;
 
-use File::Spec     qw();
+use File::Spec  qw();
+
+my $parser;
 
 __PACKAGE__->knownNamespace
  ( &XMLNS       => '1998-namespace.xsd'
@@ -123,6 +125,12 @@ Where to find schema's.  This can be specified with the
 environment variable C<SCHEMA_DIRECTORIES> or with this option.
 See M<addSchemaDirs()> for a detailed explanation.
 
+=option  parser_options HASH|ARRAY
+=default parser_options <many>
+See M<XML::LibXML::Parser> for a list of available options which can be
+used to create an XML parser (the new method). The default will set you
+in a secure mode.  See M<initParser()>.
+
 =cut
 
 sub new($@)
@@ -137,10 +145,15 @@ sub new($@)
 
 sub init($)
 {   my ($self, $args) = @_;
+
+    my $popts = $args->{parser_options} || [];
+    $self->initParser(ref $popts eq 'HASH' ? %$popts : @$popts);
+
     $self->addSchemaDirs($args->{schema_dirs});
     $self;
 }
 
+#-------------------
 =section Accessors
 
 =ci_method addSchemaDirs DIRECTORIES|FILENAME
@@ -196,7 +209,27 @@ sub addSchemaDirs(@)
 
 =section Compilers
 
-=c_method dataToXML NODE|REF-XML-STRING|XML-STRING|FILENAME|FILEHANDLE|KNOWN
+=ci_method initParser OPTIONS
+Create a new parser, an M<XML::LibXML::Parser> object. By default, the
+parsing is set in a safe mode, avoiding exploits. You may explicitly
+overrule it, especially if you need to process entities.
+=cut
+
+sub initParser(@)
+{   my $thing = shift;
+    $parser = XML::LibXML->new
+      ( line_numbers    => 1
+      , no_network      => 1
+      , expand_xinclude => 0
+      , expand_entities => 1                                                  
+      , load_ext_dtd    => 0
+      , ext_ent_handler =>
+           sub { alert __x"parsing external entities disabled"; '' }
+      , @_
+      );
+}
+
+=ci_method dataToXML NODE|REF-XML-STRING|XML-STRING|FILENAME|FILEHANDLE|KNOWN
 Collect XML data, from a wide variety of sources.  In SCALAR context,
 an M<XML::LibXML::Element> or M<XML::LibXML::Document> is returned.
 In LIST context, pairs of additional information follow the scalar result.
@@ -225,14 +258,11 @@ open a file with an explicit character-set.
   my $xml = XML::Compile->dataToXML('/etc/config.xml');
 =cut
 
-my $parser = XML::LibXML->new;
-$parser->line_numbers(1);
-$parser->no_network(1);
-
 sub dataToXML($)
 {   my ($thing, $raw) = @_;
-    defined $raw
-        or return;
+    defined $raw or return;
+
+    $parser ||= $thing->initParser;
 
     my ($xml, %details);
     if(ref $raw && UNIVERSAL::isa($raw, 'XML::LibXML::Node'))

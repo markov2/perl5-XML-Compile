@@ -111,7 +111,8 @@ to the specs.
 The CODE reference which is returned can be called with anything
 accepted by M<dataToXML()>.
 
-=example create an XML reader
+Example: create an XML reader
+
  my $msgin  = $rules->compile(READER => '{myns}mytype');
  # or  ...  = $rules->compile(READER => pack_type('myns', 'mytype'));
  my $xml    = $parser->parse("some-xml.xml");
@@ -129,7 +130,8 @@ The writer produces schema compliant XML, based on a Perl HASH.  To get
 the data encoding correctly, you are required to pass a document object
 in which the XML nodes may get a place later.
 
-=example create an XML writer
+Create an XML writer
+
  my $doc    = XML::LibXML::Document->new('1.0', 'UTF-8');
  my $write  = $schema->compile(WRITER => '{myns}mytype');
  my $xml    = $write->($doc, $hash);
@@ -1332,8 +1334,7 @@ An error is produced when the number of elements found is less than
 C<minOccurs> (defaults to 1) or more than C<maxOccurs> (defaults to 1),
 unless M<compile(check_occurs)> is C<false>.
 
-=example elements with maxOccurs larger than 1
-In the schema:
+Example elements with maxOccurs larger than 1. In the schema:
 
  <element name="a" type="int" maxOccurs="unbounded" />
  <element name="b" type="int" />

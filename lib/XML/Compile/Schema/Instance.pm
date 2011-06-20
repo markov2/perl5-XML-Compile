@@ -350,7 +350,6 @@ sub find($$)
      elsif($local eq 'attribute') { $info{afd} = $node->getAttribute('form') }
      $info{efd} ||= $self->{efd};
      $info{afd} ||= $self->{afd};
-
      \%info;
 }
 
