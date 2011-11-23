@@ -4,7 +4,7 @@ use base 'XML::Compile::Translate';
 
 use strict;
 use warnings;
-no warnings 'once';
+no warnings 'once', 'recursion';
 
 use XML::Compile::Util
   qw/odd_elements even_elements SCHEMA2001i pack_type unpack_type/;
@@ -409,7 +409,8 @@ sub makeFacets
         : $k eq 'minInclusive' ? "value >= $v"
         : $k eq 'minExclusive' ? "value >  $v"
         : $k eq 'fractionDigits' ? "faction digits is $v"
-        : "restriction $k = $v";
+        : $k eq 'whiteSpace'   ? "white-space $v"
+        : "restriction? $k = $v";
     }
 
     my %facet = (facets => \@comment, $st->());
@@ -826,9 +827,8 @@ sub toXML($$%)
 
     my $header = $doc->createComment( <<_HEADER . '    ' );
  BE WARNED: in most cases, the example below cannot be used without
-    -- interpretation.  The comments will guide you.
-    -- Produced by $pkg version $VERSION
-    --          on $now
+  interpretation. The comments will guide you.
+  Produced by $pkg version $VERSION on $now
 _HEADER
 
     unless($args{skip_header})

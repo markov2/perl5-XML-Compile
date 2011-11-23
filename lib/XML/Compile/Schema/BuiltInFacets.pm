@@ -1,5 +1,6 @@
 use warnings;
 use strict;
+no warnings 'recursion';
 
 package XML::Compile::Schema::BuiltInFacets;
 use base 'Exporter';
@@ -283,7 +284,7 @@ sub _s_length($$$$$$)
     }
 
     sub { return $_[0] if defined $_[0] && length($_[0])==$len;
-        error __x"string `{string}' does not have required length {len} but {size} at {where}"
+      error __x"string `{string}' does not have required length {len} but {size} at {where}"
           , string => $_[0], len => $len, size => length($_[0]), where => $path;
     };
 }

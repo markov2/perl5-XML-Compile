@@ -1,5 +1,6 @@
 use warnings;
 use strict;
+no warnings 'recursion';
 
 package XML::Compile::Schema::BuiltInTypes;
 use base 'Exporter';

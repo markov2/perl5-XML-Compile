@@ -36,7 +36,7 @@ defined $xml_input
 
 $format = uc $format;
 die "ERROR: format must be either 'PERL' or 'XML'\n"
-   if $format ne 'PERL' && $format ne 'XML';
+    if $format ne 'PERL' && $format ne 'XML';
 
 my $parser = XML::LibXML->new;
 

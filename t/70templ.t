@@ -191,7 +191,7 @@ $out = templ_xml($schema, "{$TestNS}test1", show => 'ALL', skip_header => 1
  , use_default_namespace => 1, include_namespaces => 1);
 
 is($out, <<__TEST1c__);
-<test1 xmlns="http://test-types" xsi:type="x0:unnamed complex">
+<test1 xmlns="http://test-types" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="x0:unnamed complex">
   <!-- sequence of t1_a, t1_b, t1_c, t1_d, cho_t1_g -->
   <t1_a xsi:type="xs:int">42</t1_a>
   <t1_b xsi:type="xs:int">42</t1_b>

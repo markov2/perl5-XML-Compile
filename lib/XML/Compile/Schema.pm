@@ -865,9 +865,9 @@ Skip the comment header from the output.
 sub template($@)
 {   my ($self, $action, $type, %args) = @_;
 
-    my $to_perl
-      = $action eq 'PERL' ? 1
-      : $action eq 'XML'  ? 0
+    my ($to_perl, $to_xml)
+      = $action eq 'PERL' ? (1, 0)
+      : $action eq 'XML'  ? (0, 1)
       : error __x"template output is either in XML or PERL layout, not '{action}'"
         , action => $action;
 
@@ -876,11 +876,10 @@ sub template($@)
       : exists $args{show} ? $args{show} # pre-0.79 option name 
       : 'ALL';
 
-    $show = 'struct,type,occur,facets' if $show eq 'ALL';
-    $show = '' if $show eq 'NONE';
-    my @comment = map { ("show_$_" => 1) } split m/\,/, $show;
-
-    my $nss = $self->namespaces;
+    $show    = 'struct,type,occur,facets' if $show eq 'ALL';
+    $show    = '' if $show eq 'NONE';
+    my %show = map {("show_$_" => 1)} split m/\,/, $show;
+    my $nss  = $self->namespaces;
 
     my $indent              = $args{indent} || "  ";
     $args{check_occurs}     = 1;
@@ -893,7 +892,7 @@ sub template($@)
 
     # it could be used to add extra comment lines
     error __x"typemaps not implemented for XML template examples"
-        if $action eq 'XML' && defined $args{typemap} && keys %{$args{typemap}};
+        if $to_xml && defined $args{typemap} && keys %{$args{typemap}};
 
     my @rewrite = $self->_key_rewrite(delete $args{key_rewrite});
     my @blocked = $self->_block_nss(delete $args{block_namespace});
@@ -904,8 +903,11 @@ sub template($@)
       , !$args{use_default_namespace}
       );
 
-    $table->{&SCHEMA2001}  ||= {prefix => 'xs',  uri => SCHEMA2001,  used => 0};
-    $table->{&SCHEMA2001i} ||= {prefix => 'xsi', uri => SCHEMA2001i, used => 0};
+    my $used = $to_xml && $show{show_type};
+    $table->{&SCHEMA2001}
+       ||= +{prefix => 'xs',  uri => SCHEMA2001,  used => $used};
+    $table->{&SCHEMA2001i}
+       ||= +{prefix => 'xsi', uri => SCHEMA2001i, used => $used};
 
     my $transl  = XML::Compile::Translate->new
      ( 'TEMPLATE'
@@ -925,13 +927,13 @@ sub template($@)
 #use Data::Dumper; $Data::Dumper::Indent = 1; warn Dumper $ast;
 
     if($to_perl)
-    {   return $transl->toPerl($ast, @comment
-           , indent => $indent, skip_header => $args{skip_header})
+    {   return $transl->toPerl($ast, %show, indent => $indent
+          , skip_header => $args{skip_header})
     }
 
     # to_xml
     my $doc  = XML::LibXML::Document->new('1.1', 'UTF-8');
-    my $node = $transl->toXML($doc,$ast, @comment
+    my $node = $transl->toXML($doc, $ast, %show
       , indent => $indent, skip_header => $args{skip_header});
     $node->toString(1);
 }

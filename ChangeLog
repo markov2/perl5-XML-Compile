@@ -20,6 +20,26 @@ To be resolved:
  - errors on types should show dynamic nested location in structure,
    not path in schema.
 
+version 1.23: Wed Nov 23 09:44:07 CET 2011
+
+	Improvements:
+
+	- writer: show more of the string in failed union match.
+
+	- added 'no warnings recursion' to the translators.
+	  [Brian Phillips]
+
+	- added extra tests for union of date and dateTime
+
+	- template: change display of facet whitespace.
+
+	- template: do not use comments in XML which contain '--'
+	  rt.cpan.org#72616 [Piotr Roszatycki]
+
+	- template: add xs and xsi declarations to XML example when
+	  show_type is in effect.
+	  rt.cpan.org#72616 [Piotr Roszatycki]
+
 version 1.22: Mon Jun 20 14:25:14 CEST 2011
 
 	Fixes:

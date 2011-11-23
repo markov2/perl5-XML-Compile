@@ -4,7 +4,7 @@ use base 'XML::Compile::Translate';
 
 use strict;
 use warnings;
-no warnings 'once';
+no warnings 'once', 'recursion';
 
 use Log::Report   qw/xml-compile/;
 use List::Util    qw/first/;
@@ -774,7 +774,7 @@ sub makeUnion
           defined $value or return undef;
           for(@types) {my $v = try { $_->($doc, $value) }; $@ or return $v }
 
-          substr $value, 10, -1, '...' if length($value) > 13;
+          substr $value, 20, -5, '...' if length($value) > 50;
           error __x"no match for `{text}' in union at {path}"
              , text => $value, path => $path;
         };

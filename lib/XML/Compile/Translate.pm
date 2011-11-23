@@ -1,5 +1,6 @@
 use warnings;
 use strict;
+no warnings 'recursion';  # trees can be quite deep
 
 package XML::Compile::Translate;
 
@@ -1484,7 +1485,7 @@ sub complexContent($$)
 
     $tree     = $tree->descend;
     $node     = $tree->node;
-    my $base  = $node->getAttribute('base');
+    my $base  = $node->getAttribute('base') || $self->anyType($node);
     my $type  = {};
     my $where = $tree->path . '#cce';
 
