@@ -20,6 +20,19 @@ To be resolved:
  - errors on types should show dynamic nested location in structure,
    not path in schema.
 
+version 1.24: Wed Dec 28 12:23:13 CET 2011
+
+	Fixes:
+
+	- hexBinary should use capitals.
+	  rt.cpan.org #73130 [Piotr Roszatycki]
+
+	Improvements:
+
+	- doc-fix use of addHook [Michael Ludwig]
+
+	- fixes to the documentation system.
+
 version 1.23: Wed Nov 23 09:44:07 CET 2011
 
 	Improvements:

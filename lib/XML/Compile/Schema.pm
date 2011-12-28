@@ -1737,7 +1737,7 @@ hook parameters, and HOOK a HASH with such HOOKDATA):
  $schema->addHooks(HOOK, HOOK, ...);
 
  my $wsdl   = XML::Compile::WSDL->new(...);
- $wsdl->schemas->addHook(HOOKDATA | HOOK);
+ $wsdl->addHook(HOOKDATA | HOOK);
 
 B<local> hooks are only used for one reader or writer.  They are
 evaluated before the global hooks.

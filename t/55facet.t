@@ -358,7 +358,7 @@ is($error, "base64 data does not have required length 5, but 6 at {http://test-t
 
 ### test15 length of hexBinary
 
-test_rw($schema, test15 => '<test15>deadbeef</test15>', pack('N', 0xdeadbeef));
+test_rw($schema, test15 => '<test15>DEADBEEF</test15>', pack('N', 0xdeadbeef));
 
 $error = error_r($schema, test15 => '<test15>345678</test15>');
 is($error, "string `4Vx' does not have required length 4 but 3 at {http://test-types}test15#facet");
