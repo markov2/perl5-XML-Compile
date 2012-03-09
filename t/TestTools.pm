@@ -65,7 +65,7 @@ sub test_rw($$$$;$$)
     my $tree   = writer_test $writer, $msg;
     my $untouched = eq_deeply $msg, $wasmsg;
 
-    ok($untouched, 'not tempored with written structure');
+    ok($untouched, 'not tempered with written structure');
     $untouched or warn Dumper $msg, $wasmsg;
 
     compare_xml($tree, $expect || $xml);

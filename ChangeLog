@@ -20,6 +20,29 @@ To be resolved:
  - errors on types should show dynamic nested location in structure,
    not path in schema.
 
+version 1.25: Fri Mar  9 21:34:36 CET 2012
+
+	Fixes:
+
+	- fixeds compiling of simpleContent with facets
+	  rt.cpan.org#75235 [Piers Cawley]
+
+	Improvements:
+
+	- better check for NCName.
+
+	- warn for automatic (base64) formatting in ::BuildInTypes
+	  [Michael Ludwig]
+
+	- permit base-type in list of xsi_type alternatives (although
+	  still not required in that list)
+
+	- xsi_type table now can have 'AUTO' to replace the explicit
+	  alternatives list.  May be slow, but it DWIMs.
+
+	- when "integer" type values stay small, we do not use Math::BigInt
+	  anymore.  Less need for sloppy_integer.
+
 version 1.24: Wed Dec 28 12:23:13 CET 2011
 
 	Fixes:

@@ -79,7 +79,7 @@ test_rw($schema, test4 => '<test4>A bc D</test4>', [ qw/A bc D/ ]);
 ### Integers
 ###
 
-test_rw($schema, test5 => '<test5>432000</test5>', Math::BigInt->new(432000)); 
+test_rw($schema, test5 => '<test5>4320239</test5>', 4320239); 
 
 ###
 ### Base64Binary

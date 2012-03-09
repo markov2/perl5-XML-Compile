@@ -12,7 +12,7 @@ use XML::Compile::Tester;
 use XML::Compile::Util 'SCHEMA2001i';
 my $schema2001i = SCHEMA2001i;
 
-use Test::More tests => 10;
+use Test::More tests => 18;
 #use Log::Report mode => 3;
 
 my %xsi_types = ("{$TestNS}f_t1" => [ "{$TestNS}f_t2" ] );
@@ -91,3 +91,21 @@ is($out, <<'__TEMPL');
   # occurs any number of times
   f_a3 => [ { XSI_TYPE => 'x0:f_t1', %data }, ], }
 __TEMPL
+
+
+#
+### test auto-detection of xsi-elements
+#
+
+set_compile_defaults
+    include_namespaces => 1
+  , xsi_type => {"{$TestNS}f_t1" => 'AUTO'};
+
+test_rw($schema, "f_test" => <<__XML, \%f1);
+<f_test xmlns="$TestNS" xmlns:xsi="$schema2001i">
+    <f_a3  f_a1="18" xsi:type="f_t2">
+        <f_a2>4</f_a2>
+    </f_a3>
+    <f_a3 f_a1="19" xsi:type="f_t1"/>
+</f_test>
+__XML

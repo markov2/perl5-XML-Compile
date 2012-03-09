@@ -18,7 +18,7 @@ BEGIN {
    {   plan skip_all => "Math::BigInt not installed";
    }
 
-   plan tests => 74;
+   plan tests => 66;
 }
 
 # Will fail when perl's longs get larger than 64bit
@@ -48,7 +48,7 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <element name="test3">
   <complexType>
     <sequence>
-      <element name="t3a" type="integer" default="10" />
+      <element name="t3a" type="integer" default="$some_big2" />
       <element name="t3b" type="int"     default="11" />
     </sequence>
   </complexType>
@@ -57,7 +57,7 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <element name="test4">
   <complexType>
     <sequence>
-      <element name="t4" type="integer" fixed="79" />
+      <element name="t4" type="integer" fixed="$some_big2" />
     </sequence>
   </complexType>
 </element>
@@ -75,7 +75,7 @@ set_compile_defaults
 ### Integers
 ##
 
-test_rw($schema, "test1" => <<__XML, Math::BigInt->new(12));
+test_rw($schema, "test1" => <<__XML, 12);
 <test1>12</test1>
 __XML
 
@@ -83,7 +83,7 @@ test_rw($schema, "test1" => <<__XML, Math::BigInt->new($some_big1));
 <test1>$some_big1</test1>
 __XML
 
-test_rw($schema, "test2" => <<__XML, Math::BigInt->new(42));
+test_rw($schema, "test2" => <<__XML, 42);
 <test2>42</test2>
 __XML
 
@@ -106,33 +106,25 @@ is($error, 'too large inclusive 243587092790745290879, max 12432156239876121237 
 ## Big defaults
 #
 
-my %t31 = (t3a => Math::BigInt->new(12), t3b => 13);
+my %t31 = (t3a => Math::BigInt->new($some_big1), t3b => 13);
 test_rw($schema, "test3" => <<__XML, \%t31);
-<test3><t3a>12</t3a><t3b>13</t3b></test3>
+<test3><t3a>$some_big1</t3a><t3b>13</t3b></test3>
 __XML
 
-my %t32 = (t3a => 14, t3b => Math::BigInt->new(15));
-my %t33 = (t3a => Math::BigInt->new(14), t3b => 15);
-test_rw($schema, test3 => <<__XML, \%t33, <<__XML, \%t32);
-<test3><t3a>14</t3a><t3b>15</t3b></test3>
-__XML
-<test3><t3a>14</t3a><t3b>15</t3b></test3>
-__XML
-
-my %t34 = (t3a => Math::BigInt->new(10), t3b => 11);
-test_rw($schema, test3 => <<__XML, \%t34, <<__XML, {t3b => 16});
+my %t34 = (t3a => Math::BigInt->new($some_big2), t3b => 11);
+test_rw($schema, test3 => <<__XML, \%t34, <<__XML, {t3b => 11});
 <test3 />
 __XML
-<test3><t3b>16</t3b></test3>
+<test3><t3b>11</t3b></test3>
 __XML
 
 #
 ## Big fixed
 #
 
-my $bi4 = Math::BigInt->new(79);
+my $bi4 = Math::BigInt->new($some_big2);
 test_rw($schema, test4 => <<__XML, {t4 => $bi4}, <<__XML, {t4 => $bi4});
-<test4><t4>79</t4></test4>
+<test4><t4>$some_big2</t4></test4>
 __XML
-<test4><t4>79</t4></test4>
+<test4><t4>$some_big2</t4></test4>
 __XML

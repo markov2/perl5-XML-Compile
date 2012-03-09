@@ -214,6 +214,41 @@ sub doesExtend($$)
     $base eq $supertype ? 1 : $self->doesExtend($supertype, $base);
 }
 
+=method findTypeExtensions TYPE
+This method can be quite expensive, with large and nested schemas.
+=cut
+
+sub findTypeExtensions($)
+{   my ($self, $type) = @_;
+
+    my %ext;
+    if($self->find(simpleType => $type))
+    {   $self->doesExtend($_, $type) && $ext{$_}++
+            for map $_->simpleTypes, $self->allSchemas;
+    }
+    elsif($self->find(complexType => $type))
+    {   $self->doesExtend($_, $type) && $ext{$_}++
+            for map $_->complexTypes, $self->allSchemas;
+    }
+    else
+    {   error __x"cannot find base-type {type} for extensions", type => $type;
+    }
+    sort keys %ext;
+}
+
+sub autoexpand_xsi_type($)
+{   my ($self, $xi) = @_;
+    $xi or return;
+    foreach my $type (keys %$xi)
+    {   $xi->{$type} eq 'AUTO' or next;
+        my @ext = $self->findTypeExtensions($type);
+        $xi->{$type} = \@ext;
+
+        trace "discovered xsi:type choices for $type:\n  "
+          . join("\n  ", @ext);
+    }
+}
+
 =method findSgMembers CLASS, TYPE
 Lookup the substitutionGroup alternatives for a specific element, which
 is an TYPE (element full name) of form C< {uri}name > or as seperate

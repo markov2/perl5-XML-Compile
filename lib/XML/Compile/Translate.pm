@@ -756,7 +756,9 @@ sub element($)
         # Ugly xsi:type switch needed
         my %alt = ($comptype => $do3);
         foreach my $alttype (@{$self->{xsi_type}{$comptype}})
-        {   my ($ns, $local) = unpack_type $alttype;
+        {   next if $alttype eq $comptype;
+
+            my ($ns, $local) = unpack_type $alttype;
             my $prefix  = $node->lookupNamespacePrefix($ns);
             defined $prefix
                 or $prefix = $self->_registerNSprefix(undef, $ns, 1);
@@ -777,7 +779,6 @@ sub element($)
 
             $alt{$alttype} = $self->element($tree->descend($altnode));
         }
-
         $do4 = $self->makeXsiTypeSwitch($where, $name, $comptype, \%alt);
     }
 
@@ -1431,16 +1432,16 @@ sub simpleContentRestriction($$)
     my $node  = $tree->node;
     my $where = $tree->path . '#cres';
 
-    my $type;
+    my ($type, $typename);
     my $first = $tree->currentLocal || '';
     if($first eq 'simpleType')
     {   $type = $self->simpleType($tree->descend);
         $tree->nextChild;
     }
     elsif(my $basename  = $node->getAttribute('base'))
-    {   my $typename = $self->rel2abs($where, $node, $basename);
-        $type        = $self->blocked($where, simpleType => $type)
-                    || $self->typeByName($tree, $typename);
+    {   $typename = $self->rel2abs($where, $node, $basename);
+        $type     = $self->blocked($where, simpleType => $type)
+                 || $self->typeByName($tree, $typename);
     }
     else
     {   error __x"no base in complex-restriction, so simpleType required at {where}"
@@ -1451,7 +1452,7 @@ sub simpleContentRestriction($$)
         or error __x"not a simpleType in simpleContent/restriction at {where}"
              , where => $where, _class => 'schema';
 
-    $type->{st} = $self->applySimpleFacets($tree, $st, 0, $type);
+    $type->{st} = $self->applySimpleFacets($tree, $st, 0, $typename);
 
     $self->extendAttrs($type, {$self->attributeList($tree)});
 

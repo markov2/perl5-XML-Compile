@@ -73,7 +73,7 @@ XML::Compile::Schema - Compile a schema into CODE
  $doc->setDocumentElement($xml);
 
  # show result
- print $doc->toString;
+ print $doc->toString(1);
 
  # to create the type nicely
  use XML::Compile::Util qw/pack_type/;
@@ -83,6 +83,9 @@ XML::Compile::Schema - Compile a schema into CODE
  # using a compiled routines cache
  use XML::Compile::Cache;   # seperate distribution
  my $schema = XML::Compile::Cache->new(...);
+
+ # Show which data-structure is expected
+ print $schema->template(PERL => $type);
 
  # Error handling tricks with Log::Report
  use Log::Report mode => 'DEBUG';  # enable debugging
@@ -698,7 +701,10 @@ See M<blockNamespace()>.
 
 =option  xsi_type HASH
 =default xsi_type {}
-See L</Handling xsi:type>
+See L</Handling xsi:type>.  The HASH maps types as mentioned in the schema,
+to extensions of those types which are addressed via the horrible C<xsi:type>
+construct.  When you specify C<AUTO> as value, the translator tries to
+auto-detect. This may be slow and may produce incomplete results.
 
 =cut
 
@@ -761,6 +767,9 @@ sub compile($$@)
     # Option rename in 0.88
     $args{any_element}    ||= delete $args{anyElement};
     $args{any_attribute}  ||= delete $args{anyAttribute};
+
+    $self->namespaces->autoexpand_xsi_type($args{xsi_type})
+        if $args{xsi_type};
 
     my $transl = XML::Compile::Translate->new
      ( $action
@@ -1934,8 +1943,7 @@ which often is not named in the schema.
 
 =section Handling xsi:type
 
-[new in release 1.10]
-The C<xsi:type> is an old-fashioned mechanism, and should be avoided!
+[1.10] The C<xsi:type> is an old-fashioned mechanism, and should be avoided!
 In this case, the schema does tell you that a certain element has
 a certrain type, but at run-time(!) that is changed. When an XML
 element has a C<xsi:type> attribute, it tells you simply to have an
@@ -1946,16 +1954,16 @@ will work.
 To make C<xsi:type> work at run-time, you have to pass a table of
 which types you expect at compile-time.  Example:
 
-   my %xsi_type_table =
-     ( $base_type1 => [ $ext1_of_type1, $ext2_of_type2 ]
-     , $base_type2 => [ $ext1_of_type2 ]
-     );
+  my %xsi_type_table =
+    ( $base_type1 => [ $ext1_of_type1, $ext2_of_type2 ]
+    , $base_type2 => [ $ext1_of_type2 ]
+    );
 
-   my $r = $schema->compile(READER => $type
-     , xsi_type => \%xsi_type_table
-     );
+  my $r = $schema->compile(READER => $type
+    , xsi_type => \%xsi_type_table
+    );
 
-When your schema is an M<XML::Compile::Cache> (requires version 0.93),
+When your schema is an M<XML::Compile::Cache> (version at least 0.93),
 your types look like C<prefix:local>.  With a plain M<XML::Compile::Schema>,
 they will look like C<{namespace}local>, typically produced with
 M<XML::Compile::Util::pack_type()>.
@@ -1964,6 +1972,15 @@ When used in a reader, the resulting data-set will contain a C<XSI_TYPE>
 key inbetween the facts which were taken from the element. With the
 writer, you have to provide such an C<XSI_TYPE> value or the element's
 base type will be used (and no C<xsi:type> attribute created).
+
+[1.25] then the value is not an ARRAY, but only the keyword C<AUTO>,
+the parser will try to auto-detect all types which are valid alternatives.
+This currently only works for non-builtin types.  The auto-detection might
+be slow and (because many schemas are broken) not produce a complete list.
+When debugging is enabled ("use Log::Report mode => 3;") you will see to
+which list this AUTO gets expanded.
+
+  xsi_type => { $base_type => 'AUTO' }   # requires X::C v1.25
 
 =section Key rewrite
 

@@ -16,6 +16,12 @@ use Math::BigFloat;
 use MIME::Base64;
 
 use XML::Compile::Util qw/pack_type unpack_type/;
+use POSIX              qw/floor log10/;
+
+use Config '%Config';
+my $iv_bits   = $Config{ivsize} * 8 -1;
+my $iv_digits = floor($iv_bits * log10(2));
+my $fits_iv   = qr/^[+-]?[0-9]{1,$iv_digits}$/;
 
 =chapter NAME
 
@@ -32,9 +38,9 @@ Different schema specifications specify different available types,
 but there is a lot over overlap.  The M<XML::Compile::Schema::Specs>
 module defines the availability, but here the types are implemented.
 
-This implementation certainly does not try to be minimal in size: using
-the restriction rules and inheritance structure defined in the schema
-specification would be too slow.
+This implementation certainly does not try to be minimal in size:
+following the letter of the restriction rules and inheritance structure
+defined by the W3C schema specification would be too slow.
 
 =chapter FUNCTIONS
 
@@ -43,7 +49,13 @@ by the translator.  At that moment, they will be placed in the
 kind-of opcode tree which will process the data at run-time.
 You B<cannot call> these functions yourself.
 
-=section Any
+XML::Compile will automatically format the value for you.  For instance,
+a float supplied to a field defined as type Integer will be converted
+to an integer. Data supplied to a field of type base64Binary will be
+encoded as Base64 for you: you shouldn't do the conversion yourself,
+you'll get double encoding!
+
+section Any
 
 =cut
 
@@ -141,10 +153,14 @@ digits.
 =cut
 
 sub bigint
-{   $_[0] =~ s/\s+//g;
-    my $v = Math::BigInt->new($_[0]);
-    error __x"Value `{val}' is not a (big) integer", val => $v if $v->is_nan;
-    $v;
+{   my $v = shift;
+    $v =~ s/\s+//g;
+    return $v if $v =~ $fits_iv;
+
+    my $big = Math::BigInt->new($v);
+    error __x"Value `{val}' is not a (big) integer", val => $big
+        if $big->is_nan;
+    $big;
 }
 
 $builtin_types{integer} =
@@ -340,7 +356,7 @@ $builtin_types{decimal} =
 
 =function precissionDecimal
 Floating point value that closely corresponds to the floating-point
-decimal datatypes described by IEEE/ANSI754.
+decimal datatypes described by IEEE/ANSI-754.
 
 =function float
 A small floating-point value "m x 2**e" where m is an integer whose absolute
@@ -668,14 +684,11 @@ A label, reference to a label, or set of references.
 PARTIAL IMPLEMENTATION: the validity of used characters is not checked.
 =cut
 
-sub _valid_ncname($)
+#  NCName matches pattern [\i-[:]][\c-[:]]*
+sub _ncname($)
 {  (my $name = $_[0]) =~ s/\s//;
    $name =~ m/^[a-zA-Z_](?:[\w.-]*)$/;
 }
-
-# better checks needed
-#  NCName matches pattern [\i-[:]][\c-[:]]*
-sub _ncname($) {sub { $_[0] !~ m/\:/ }}
 
 my $ids = 0;
 $builtin_types{ID} =
