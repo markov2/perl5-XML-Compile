@@ -568,27 +568,34 @@ sub makeElementFixed
         };
 }
 
-sub makeElementNillable
-{   my ($self, $path, $ns, $childname, $do) = @_;
-
-    # some people cannot read the specs.
-    my $inas = $self->{interpret_nillable_as_optional};
-
+sub makeNillableSimple
+{   my ($self, $path, $childname, $do) = @_;
     sub { my $tree = shift;
-          my $value;
-          if(defined $tree && $tree->nodeType eq $childname)
-          {   my $nil = $tree->node->getAttributeNS(SCHEMA2001i, 'nil') || '';
-              $value = ($nil eq 'true' || $nil eq '1') ? 'NIL' : $do->($tree);
-          }
-          elsif($inas) { return ($childname => undef) }  # explicit undef
-          else { $value = $do->(undef) }
+          defined $tree && $tree->nodeType eq $childname
+              or return $do->(undef);
 
-          defined $value ? ($childname => $value) : ();
+          my $nil = $tree->node->getAttributeNS(SCHEMA2001i, 'nil') || '';
+          ($nil eq 'true' || $nil eq '1') ? 'NIL' : $do->($tree);
         };
 }
 
+sub makeNillableComplex
+{   my ($self, $path, $childname, $do, $tag) = @_;
+    my ($t, $run) = @$do;
+
+    my $r = sub
+      { my $tree = shift;
+        defined $tree && $tree->nodeType eq $childname
+            or return $run->(undef);
+
+        my $nil = $tree->node->getAttributeNS(SCHEMA2001i, 'nil') || '';
+        ($nil eq 'true' || $nil eq '1') ? (_ => 'NIL') : $run->($tree);
+      };
+    [ $tag => $r ];
+}
+
 sub makeElementAbstract
-{   my ($self, $path, $ns, $childname, $do) = @_;
+{   my ($self, $path, $ns, $childname, $do, $tag) = @_;
     sub { my $tree = shift or return ();
           $tree->nodeType eq $childname or return ();
 
@@ -654,10 +661,10 @@ sub makeTaggedElement
 
     sub { my $tree   = shift or return ();
           my $simple = $st->($tree);
+          ref $tree or return ($tag => {_ => $simple});
           my $node   = $tree->node;
           my @pairs  = map {$_->($node)} @attrs;
           defined $simple or @pairs or return ();
-          defined $simple or $simple = 'undef';
           ($tag => {_ => $simple, @pairs});
         };
 }
@@ -1442,7 +1449,7 @@ differently.  This section is about how the reader handles typemaps.
 Usually, an XML type will be mapped on a Perl class.  The Perl class
 implements the C<fromXML> method as constructor.
 
- $schema->typemap($sometype => 'My::Perl::Class');
+ $schema->addTypemaps($sometype => 'My::Perl::Class');
 
  package My::Perl::Class;
  ...

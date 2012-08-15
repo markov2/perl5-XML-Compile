@@ -20,11 +20,36 @@ To be resolved:
  - errors on types should show dynamic nested location in structure,
    not path in schema.
 
+version 1.26: Thu Aug 16 00:07:44 CEST 2012
+
+	Changes:
+
+	- there was no way to encode or decode attributes to NILled
+	  elements.  The fix implies that the reader will not return
+	  a simple "NIL" anymore for tagged and complex elements,
+	  but { _ => 'NIL' }   Reported by [Ivan Šimoník]
+
+	Fixes:
+
+	- fix use of default in "tagged" simple.
+	  Reported by [Philip Garrett]
+
+	- documentation mistake in Translate::Reader, declare typemaps
+	  with addTypemaps(), not typemap().  Reported by [Ivan Šimoník]
+
+	Improvements:
+
+	- template: nillable much clearer presented
+
+	- added some test for use of CDATA as node text.
+
+	- add $schema->template(TREE => ...)
+
 version 1.25: Fri Mar  9 21:34:36 CET 2012
 
 	Fixes:
 
-	- fixeds compiling of simpleContent with facets
+	- fix compiling of simpleContent with facets.
 	  rt.cpan.org#75235 [Piers Cawley]
 
 	Improvements:

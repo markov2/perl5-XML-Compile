@@ -235,14 +235,6 @@ sub makeElementFixed
         };
 }
 
-sub makeElementNillable
-{   my ($self, $path, $ns, $childname, $do) = @_;
-    sub { my $h = $do->();
-          $h->{occur} = "is nillable";
-          $h;
-        };
-}
-
 sub makeElementAbstract
 {   my ($self, $path, $ns, $childname, $do) = @_;
 #   sub { () };
@@ -253,6 +245,25 @@ sub makeElementAbstract
        $h;
     };
 }
+
+sub makeNillableSimple
+{   my ($self, $path, $childname, $do) = @_;
+    sub { ( $do->(@_), struct => "is nillable, hence value or 'NIL'" ) };
+}
+
+sub makeNillableComplex
+{   my ($self, $path, $childname, $do, $tag) = @_;
+    my ($t, $run) = @$do;
+
+    my $r = sub
+      { my $h = $run->(@_);
+        $h->{_NAME} = $childname;
+        push @{$h->{struct}}, "is nillable, so may be +{_ => 'NIL', %attrs}";
+        $h;
+      };
+    [ $tag => $r ];
+}
+
 
 sub makeComplexElement
 {   my ($self, $path, $tag, $elems, $attrs, $any_attr, $type) = @_;
@@ -301,14 +312,15 @@ sub makeTaggedElement
 {   my ($self, $path, $tag, $st, $attrs, $attrs_any, $type) = @_;
     my @parts = (odd_elements(@$attrs), @$attrs_any);
 
-    my %content =
-     ( tag     => '_'
-     , struct  => 'string content of the container'
-     , example => 'Hello, World!' 
-     );
-
     sub { my @attrs  = map {$_->()} @parts;
-          my $simple = $st->() || '';
+          my %simple = $st->();
+          my %content =
+            ( tag => '_'
+            , struct  => ['string content of the container']
+            );
+          push @{$content{struct}}, $simple{struct} if $simple{struct};
+          $content{example} = $simple{example} || 'Hello, World!';
+          $content{_TYPE}   = $simple{_TYPE}   if $simple{_TYPE};
 
           +{ kind    => 'tagged'
            , struct  => "$tag is simple value with attributes"

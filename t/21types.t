@@ -10,7 +10,7 @@ use XML::Compile::Schema;
 use XML::Compile::Tester;
 use Math::BigFloat;
 
-use Test::More tests => 151;
+use Test::More tests => 162;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema xmlns="$SchemaNS"
@@ -25,6 +25,7 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <element name="test7" type="dateTime" />
 <element name="test8" type="duration" />
 <element name="test9" type="hexBinary" />
+<element name="testA" type="string" />
 
 </schema>
 __SCHEMA__
@@ -107,3 +108,23 @@ test_rw($schema, test8 => "<test8>$e</test8>", $e);
 
 my $f = pack "N", 0x12345678;
 test_rw($schema, test9 => "<test9>12345678</test9>", $f); 
+
+###
+### string
+###
+
+test_rw($schema, testA => "<testA>abc</testA>", 'abc'); 
+
+my $r1 = reader_create $schema, "CDATA reader" => "{$TestNS}testA";
+my $cd = '<testA><![CDATA[abc]]></testA>';
+
+my $r1a = $r1->($cd);
+cmp_ok($r1a, 'eq', 'abc');
+
+my $cdata = XML::LibXML::CDATASection->new('abc'); 
+is('<![CDATA[abc]]>', $cdata->toString(1));
+
+#XXX MO 20120815: XML::LibXML crashed on cleanup of double refs to CDATA
+# object (as done in clone of test_rw).  Other XML::LibXML objects do not
+# crash on this.
+#test_rw($schema, testA => $cd, 'abc', $cd, $cdata);

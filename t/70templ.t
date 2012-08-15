@@ -9,7 +9,8 @@ use TestTools;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 6;
+use Test::More    tests => 7;
+use Test::Deep    qw/cmp_deeply/;
 
 set_compile_defaults
     elements_qualified => 'NONE';
@@ -294,3 +295,10 @@ is($out, <<__TEST3__);
   # is a xs:int
   a3_a => 42, }
 __TEST3__
+
+my $tree = templ_tree($schema, "{$TestNS}test3");
+#use Data::Dumper;
+#$Data::Dumper::Indent    = 1;
+#$Data::Dumper::Quotekeys = 0;
+#warn Dumper $tree;
+isa_ok($tree, 'HASH');

@@ -45,18 +45,17 @@ Three serious WARNINGS:
 
 =over 4
 
-=item .
+=item *
 The focus is on B<data-centric XML>, which means that mixed elements
 are not handler automatically: you need to work with XML::LibXML nodes
 yourself, on these spots.
 
-=item .
-The B<schema itself is not strictly validated>, still a large number of
-compile-time errors can be reported.  On the other hand, the processed
-B<data is strictly validated> against the schema: both input and output
-will follow the specs closely (unless disabled).
+=item *
+The B<data is not strictly validated>, still a large number of
+compile-time errors can be reported.  Values are checked quite thoroughly.
+Structure as well.
 
-=item .
+=item *
 Imports and includes, as used in the schemas, are NOT performed
 automaticly.  Schema's and such are NOT collected from internet
 dynamically; you have to call M<XML::Compile::Schema::importDefinitions()>

@@ -10,7 +10,7 @@ use TestTools;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 89;
+use Test::More tests => 91;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
@@ -58,6 +58,16 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
     <attribute name="a4c" type="int" />
     <attribute name="a4d" type="int" default="73" />
   </complexType>
+</element>
+
+<element name="test5" default="U">
+ <complexType>
+  <simpleContent>
+   <extension base="string">
+    <attribute name="a5" use="required" />
+   </extension>
+  </simpleContent>
+ </complexType>
 </element>
 
 </schema>
@@ -200,3 +210,11 @@ compare_xml($x4c, <<__XML);
    <e4e>47</e4e>
 </test4>
 __XML
+
+# Philip Garrett  2012-03-12
+my $r5c = reader_create $schema, 'reader default', "{$TestNS}test5";
+my $h5c = $r5c->( <<__XML );
+<test5 a5="abc">F</test5>
+__XML
+is_deeply($h5c, {_ => 'F', a5 => 'abc'} );
+

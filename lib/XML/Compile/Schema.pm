@@ -158,6 +158,13 @@ like the output by Data::Dumper), which can be used as template
 for creating messages.  The output contains documentation, and is
 usually much clearer than the schema itself.
 
+=item C<< $schema->template('TREE', ...) >> creates a parse tree
+
+To be able to produce Perl-text and XML examples, the templater
+generates an abstract tree from the schema.  That tree is returned
+here.  Be warned that the structure is not fixed over releases:
+add regression tests for this to your project.
+
 =back
 
 Be warned that the B<schema is not validated>; you can develop schemas
@@ -826,17 +833,21 @@ _DIRTY_TRICK
      $self->compile($action, $elem, %args);
 }
 
-=method template 'XML'|'PERL', ELEMENT, OPTIONS
+=method template 'XML'|'PERL'|'TREE', ELEMENT, OPTIONS
 
 Schema's can be horribly complex and unreadible.  Therefore, this template
-method can be called to create an example which demonstrates how data of
-the specified ELEMENT as XML or Perl is organized in practice.
+method can be called to create an example which demonstrates how data
+of the specified ELEMENT shown as XML or Perl is organized in practice.
 
-Some OPTIONS are explained in M<XML::Compile::Translate>.
-There are some extra OPTIONS defined for the final output process.
+The 'TREE' template returns the intermediate parse tree, which gets
+formatted into the XML or Perl example.  This is not a very stable
+interface: it may change without much notice.
+
+Some OPTIONS are explained in M<XML::Compile::Translate>.  There are
+some extra OPTIONS defined for the final output process.
 
 The templates produced are B<not always correct>.  Please contribute
-improvements.
+improvements: read and understand the comments in the text.
 
 =option  elements_qualified 'ALL'|'TOP'|'NONE'|BOOLEAN
 =default elements_qualified <undef>
@@ -877,6 +888,7 @@ sub template($@)
     my ($to_perl, $to_xml)
       = $action eq 'PERL' ? (1, 0)
       : $action eq 'XML'  ? (0, 1)
+      : $action eq 'TREE' ? (0, 0)
       : error __x"template output is either in XML or PERL layout, not '{action}'"
         , action => $action;
 
@@ -940,11 +952,15 @@ sub template($@)
           , skip_header => $args{skip_header})
     }
 
-    # to_xml
-    my $doc  = XML::LibXML::Document->new('1.1', 'UTF-8');
-    my $node = $transl->toXML($doc, $ast, %show
-      , indent => $indent, skip_header => $args{skip_header});
-    $node->toString(1);
+    if($to_xml)
+    {   my $doc  = XML::LibXML::Document->new('1.1', 'UTF-8');
+        my $node = $transl->toXML($doc, $ast, %show
+          , indent => $indent, skip_header => $args{skip_header});
+        return $node->toString(1);
+    }
+
+    # return tree
+    $ast;
 }
 
 #------------------------------------------
@@ -1324,12 +1340,10 @@ times.
 =over 4
 
 =item usual case
-
 The default behavior for an element (in a sequence container) is to
 appear exactly once.  When missing, this is an error.
 
 =item maxOccurs larger than 1
-
 In this case, the element or particle block can appear multiple times.
 Multiple values are kept in an ARRAY within the HASH.  Non-schema based
 XML modules do not return a single value as an ARRAY, which makes that
@@ -1359,26 +1373,21 @@ In the Perl representation:
  a => [12, 13], b => 14
 
 =item value is C<NIL>
-
 When an element is nillable, that is explicitly represented as a C<NIL>
 constant string.
 
 =item use="optional" or minOccurs="0"
-
 The element may be skipped.  When found it is a single value.
 
 =item use="forbidden"
-
 When the element is found, an error is produced.
 
 =item default="value"
-
 When the XML does not contain the element, the default value is
 used... but only if this element's container exists.  This has
 no effect on the writer.
 
 =item fixed="value"
-
 Produce an error when the value is not present or different (after
 the white-space rules where applied).
 

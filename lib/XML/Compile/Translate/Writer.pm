@@ -449,9 +449,8 @@ sub makeElementFixed
     };
 }
 
-sub makeElementNillable
-{   my ($self, $path, $ns, $childname, $do, $value, $tag) = @_;
-    my $inas    = $self->{interpret_nillable_as_optional};
+sub makeNillableSimple
+{   my ($self, $path, $childname, $do, $tag) = @_;
 
     $self->_registerNSprefix(xsi => SCHEMA2001i, 0);
     my $nilattr = $self->makeTagQualified($path, undef, 'nil', SCHEMA2001i);
@@ -460,15 +459,34 @@ sub makeElementNillable
     {   my ($doc, $value) = @_;
         defined $value  or return;
         $value eq 'NIL' or return $do->($doc, $value);
-
-        return $doc->createTextNode('')
-            if $inas;
-
-        my $node = $doc->createElement($tag);
-
-        $node->setAttribute($nilattr => 'true');
-        $node;
+        $doc->createAttribute($nilattr => 'true');
     };
+}
+
+
+sub makeNillableComplex
+{   my ($self, $path, $childname, $elem, $tag) = @_;
+    my ($name, $do) = @$elem;
+
+    $self->_registerNSprefix(xsi => SCHEMA2001i, 0);
+    my $nilattr = $self->makeTagQualified($path, undef, 'nil', SCHEMA2001i);
+
+    my $r = sub
+      { my ($doc, $value) = @_;
+        defined $value or return;
+
+        if(ref $value eq 'HASH')
+        {   exists $value->{_} && $value->{_} eq 'NIL' 
+                or return $do->($doc, $value);
+            delete $value->{_};  # HASH gets processed for attributes
+        }
+        elsif($value ne 'NIL')
+        {   return $do->($doc, $value);
+        }
+
+        $doc->createAttribute($nilattr => 'true');
+      };
+    [ $name => $r ];
 }
 
 sub makeElementDefault
