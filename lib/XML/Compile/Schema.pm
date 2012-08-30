@@ -775,8 +775,12 @@ sub compile($$@)
     $args{any_element}    ||= delete $args{anyElement};
     $args{any_attribute}  ||= delete $args{anyAttribute};
 
-    $self->namespaces->autoexpand_xsi_type($args{xsi_type})
-        if $args{xsi_type};
+    if(my $xi = $args{xsi_type})
+    {   my $nss = $self->namespaces;
+        foreach (keys %$xi)
+        {   $xi->{$_} = $nss->autoexpand_xsi_type($_) if $xi->{$_} eq 'AUTO';
+        }
+    }
 
     my $transl = XML::Compile::Translate->new
      ( $action
@@ -1282,17 +1286,26 @@ In this case, the single value container may have attributes.  The number
 of attributes can be endless, and the value is only one.  This value
 has no name, and therefore gets a predefined name C<_>.
 
+When passed to the writer, you may specify a single value (not the whole
+HASH) when no attributes are used.
+
 =example typical simpleContent example
 
 In XML, this looks like this:
 
  <test2 question="everything">42</test2>
 
-As a HASH, this looks like
+As a HASH, this shows as
 
  test2 => { _ => 42
           , question => 'everything'
           }
+
+When specified in the writer, when no attributes are need, you can use
+either form:
+
+  test3 => { _ => 7 }
+  test3 => 7
 
 =subsection complexType and complexType/complexContent
 

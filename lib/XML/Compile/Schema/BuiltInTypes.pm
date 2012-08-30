@@ -165,7 +165,7 @@ sub bigint
 
 $builtin_types{integer} =
  { parse   => \&bigint
- , check   => sub { $_[0] =~ m/^\s*[-+]?\s*\d[\s\d]*$/ }
+ , check   => sub { $_[0] =~ m/^\s*[-+]?\s*[0-9][\s0-9]*$/ }
  , example => 42
  , extends => 'decimal'
  };
@@ -175,7 +175,7 @@ $builtin_types{integer} =
 
 $builtin_types{negativeInteger} =
  { parse   => \&bigint
- , check   => sub { $_[0] =~ m/^\s*\-\s*\d[\s\d]*$/ }
+ , check   => sub { $_[0] =~ m/^\s*\-\s*[0-9][\s0-9]*$/ }
  , example => '-1'
  , extends => 'nonPositiveInteger'
  };
@@ -185,7 +185,7 @@ $builtin_types{negativeInteger} =
 
 $builtin_types{nonNegativeInteger} =
  { parse   => \&bigint
- , check   => sub { $_[0] =~ m/^\s*(?:\+\s*)?\d[\s\d]*$/ }
+ , check   => sub { $_[0] =~ m/^\s*(?:\+\s*)?[0-9][\s0-9]*$/ }
  , example => '17'
  , extends => 'integer'
  };
@@ -195,7 +195,7 @@ $builtin_types{nonNegativeInteger} =
 
 $builtin_types{positiveInteger} =
  { parse   => \&bigint
- , check   => sub { $_[0] =~ m/^\s*(?:\+\s*)?\d[\s\d]*$/ && $_[0] =~ m/[1-9]/ }
+ , check   => sub { $_[0] =~ m/^\s*(?:\+\s*)?[0-9][\s0-9]*$/ && $_[0] =~ m/[1-9]/ }
  , example => '+3'
  , extends => 'nonNegativeInteger'
  };
@@ -205,7 +205,7 @@ $builtin_types{positiveInteger} =
 
 $builtin_types{nonPositiveInteger} =
  { parse   => \&bigint
- , check   => sub { $_[0] =~ m/^\s*(?:\-\s*)?\d[\s\d]*$/
+ , check   => sub { $_[0] =~ m/^\s*(?:\-\s*)?[0-9][\s0-9]*$/
                  || $_[0] =~ m/^\s*(?:\+\s*)0[0\s]*$/ }
  , example => '-42'
  , extends => 'integer'
@@ -218,7 +218,7 @@ A little bit shorter than an integer, but still up-to 19 digits.
 $builtin_types{long} =
  { parse   => \&bigint
  , check   =>
-     sub { $_[0] =~ m/^\s*[-+]?\s*\d[\s\d]*$/ && ($_[0] =~ tr/0-9//) < 20 }
+     sub { $_[0] =~ m/^\s*[-+]?\s*[0-9][\s0-9]*$/ && ($_[0] =~ tr/0-9//) < 20 }
  , example => '-100'
  , extends => 'integer'
  };
@@ -229,7 +229,7 @@ Value up-to 20 digits.
 
 $builtin_types{unsignedLong} =
  { parse   => \&bigint
- , check   => sub {$_[0] =~ m/^\s*\+?\s*\d[\s\d]*$/ && ($_[0] =~ tr/0-9//) < 21}
+ , check   => sub {$_[0] =~ m/^\s*\+?\s*[0-9][\s0-9]*$/ && ($_[0] =~ tr/0-9//) < 21}
  , example => '100'
  , extends => 'nonNegativeInteger'
  };
@@ -240,7 +240,7 @@ Just too long to fit in Perl's ints.
 
 $builtin_types{unsignedInt} =
  { parse   => \&bigint
- , check   => sub {$_[0] =~ m/^\s*\+?\s*\d[\s\d]*$/ && ($_[0] =~ tr/0-9//) <=10}
+ , check   => sub {$_[0] =~ m/^\s*\+?\s*[0-9][\s0-9]*$/ && ($_[0] =~ tr/0-9//) <=10}
  , example => '42'
  , extends => 'unsignedLong'
  };
@@ -251,28 +251,28 @@ $builtin_types{unsignedInt} =
 $builtin_types{non_pos_int} =
  { parse   => \&str2int
  , format  => \&int2str
- , check   => sub {$_[0] =~ m/^\s*[+-]?\s*\d[\d\s]*$/ && $_[0] <= 0}
+ , check   => sub {$_[0] =~ m/^\s*[+-]?\s*[0-9][0-9\s]*$/ && $_[0] <= 0}
  , example => '-12'
  };
 
 $builtin_types{positive_int} =
  { parse   => \&str2int
  , format  => \&int2str
- , check   => sub {$_[0] =~ m/^\s*(?:\+\s*)?\d[\d\s]*$/ }
+ , check   => sub {$_[0] =~ m/^\s*(?:\+\s*)?[0-9][0-9\s]*$/ }
  , example => '+42'
  };
 
 $builtin_types{negative_int} =
  { parse   => \&str2int
  , format  => \&int2str
- , check   => sub {$_[0] =~ m/^\s*\-\s*\d[\d\s]*$/ }
+ , check   => sub {$_[0] =~ m/^\s*\-\s*[0-9][0-9\s]*$/ }
  , example => '-12'
  };
 
 $builtin_types{unsigned_int} =
  { parse   => \&str2int
  , format  => \&int2str
- , check   => sub {$_[0] =~ m/^\s*(?:\+\s*)?\d[\d\s]*$/ && $_[0] >= 0}
+ , check   => sub {$_[0] =~ m/^\s*(?:\+\s*)?[0-9][0-9\s]*$/ && $_[0] >= 0}
  , example => '42'
  };
 
@@ -284,7 +284,7 @@ $builtin_types{unsigned_int} =
 $builtin_types{int} =
  { parse   => \&str2int
  , format  => \&int2str
- , check   => sub {$_[0] =~ m/^\s*[+-]?\d+\s*$/}
+ , check   => sub {$_[0] =~ m/^\s*[+-]?[0-9]+\s*$/}
  , example => '42'
  , extends => 'long'
  };
@@ -297,7 +297,7 @@ $builtin_types{short} =
  { parse   => \&str2int
  , format  => \&int2str
  , check   =>
-    sub { $_[0] =~ m/^\s*[+-]?\d+\s*$/ && $_[0] >= -32768 && $_[0] <= 32767 }
+    sub { $_[0] =~ m/^\s*[+-]?[0-9]+\s*$/ && $_[0] >= -32768 && $_[0] <= 32767 }
  , example => '-7'
  , extends => 'int'
  };
@@ -310,7 +310,7 @@ $builtin_types{unsignedShort} =
  { parse  => \&str2int
  , format => \&int2str
  , check  =>
-    sub { $_[0] =~ m/^\s*[+-]?\d+\s*$/ && $_[0] >= 0 && $_[0] <= 65535 }
+    sub { $_[0] =~ m/^\s*[+-]?[0-9]+\s*$/ && $_[0] >= 0 && $_[0] <= 65535 }
  , example => '7'
  , extends => 'unsignedInt'
  };
@@ -322,7 +322,7 @@ Signed 8-bits value.
 $builtin_types{byte} =
  { parse   => \&str2int
  , format  => \&int2str
- , check   => sub {$_[0] =~ m/^\s*[+-]?\d+\s*$/ && $_[0] >= -128 && $_[0] <=127}
+ , check   => sub {$_[0] =~ m/^\s*[+-]?[0-9]+\s*$/ && $_[0] >= -128 && $_[0] <=127}
  , example => '-2'
  , extends => 'short'
  };
@@ -334,7 +334,7 @@ Unsigned 8-bits value.
 $builtin_types{unsignedByte} =
  { parse   => \&str2int
  , format  => \&int2str
- , check   => sub {$_[0] =~ m/^\s*[+-]?\d+\s*$/ && $_[0] >= 0 && $_[0] <= 255}
+ , check   => sub {$_[0] =~ m/^\s*[+-]?[0-9]+\s*$/ && $_[0] >= 0 && $_[0] <= 255}
  , example => '2'
  , extends => 'unsignedShort'
  };
@@ -457,14 +457,14 @@ and will be formatted as required.  When reading, the date string will
 not be parsed.
 =cut
 
-my $yearFrag     = qr/ \-? (?: [1-9]\d{3,} | 0\d\d\d ) /x;
+my $yearFrag     = qr/ \-? (?: [1-9][0-9]{3,} | 0[0-9][0-9][0-9] ) /x;
 my $monthFrag    = qr/ 0[1-9] | 1[0-2] /x;
-my $dayFrag      = qr/ 0[1-9] | [12]\d | 3[01] /x;
-my $hourFrag     = qr/ [01]\d | 2[0-3] /x;
-my $minuteFrag   = qr/ [0-5]\d /x;
-my $secondFrag   = qr/ [0-5]\d (?: \.\d+)? /x;
-my $endOfDayFrag = qr/24\:00\:00 (?: \.\d+)? /x;
-my $timezoneFrag = qr/Z | [+-] (?: 0\d | 1[0-4] ) \: $minuteFrag/x;
+my $dayFrag      = qr/ 0[1-9] | [12][0-9] | 3[01] /x;
+my $hourFrag     = qr/ [01][0-9] | 2[0-3] /x;
+my $minuteFrag   = qr/ [0-5][0-9] /x;
+my $secondFrag   = qr/ [0-5][0-9] (?: \.[0-9]+)? /x;
+my $endOfDayFrag = qr/24\:00\:00 (?: \.[0-9]+)? /x;
+my $timezoneFrag = qr/Z | [+-] (?: 0[0-9] | 1[0-4] ) \: $minuteFrag/x;
 my $timeFrag     = qr/ (?: $hourFrag \: $minuteFrag \: $secondFrag )
                      | $endOfDayFrag
                      /x;
@@ -488,7 +488,7 @@ my $time = qr /^ $timeFrag $timezoneFrag? $/x;
 $builtin_types{time} =
  { parse   => \&_collapse
  , format  => sub { return $_[0] if $_[0] =~ /[^0-9.]/;
-      my $subsec = $_[0] =~ /(\.\d+)/ ? $1 : '';
+      my $subsec = $_[0] =~ /(\.[0-9]+)/ ? $1 : '';
       strftime "%T$subsec", gmtime $_[0] }
  , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $time }
  , example => '11:12:13'
@@ -514,7 +514,7 @@ my $dateTimeStamp
 
 sub _dt_format
 {   return $_[0] if $_[0] =~ /[^0-9.]/;  # already formated
-    my $subsec = $_[0] =~ /(\.\d+)/ ? $1 : '';
+    my $subsec = $_[0] =~ /(\.[0-9]+)/ ? $1 : '';
     strftime "%Y-%m-%dT%H:%M:%S${subsec}Z", gmtime $_[0];
 }
 
@@ -610,8 +610,8 @@ All other C<n[YMDHMS]> are optional.
 $builtin_types{duration} =
  { parse   => \&_collapse
  , check   => sub { my $val = $_[0]; $val =~ s/\s+//g;
-      $val =~ m/^\-?P(?:\d+Y)?(?:\d+M)?(?:\d+D)?
-          (?:T(?:\d+H)?(?:\d+M)?(?:\d+(?:\.\d+)?S)?)?$/x }
+      $val =~ m/^\-?P(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+D)?
+          (?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+(?:\.[0-9]+)?S)?)?$/x }
 
  , example => 'P9M2DT3H5M'
  };
@@ -625,7 +625,7 @@ All other C<n[DHMS]> are optional.
 $builtin_types{dayTimeDuration} =
  { parse  => \&_collapse
  , check  => sub { my $val = $_[0]; $val =~ s/\s+//g; $val =~
-     m/^\-?P(?:\d+D)?(?:T(?:\d+H)?(?:\d+M)?(?:\d+(?:\.\d+)?S)?)?$/ }
+     m/^\-?P(?:[0-9]+D)?(?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+(?:\.[0-9]+)?S)?)?$/ }
  , example => 'P2DT3H5M10S'
  , extends => 'duration'
  };
@@ -638,7 +638,7 @@ The C<P> is obligatory, the C<n[YM]> are optional.
 $builtin_types{yearMonthDuration} =
  { parse  => \&_collapse
  , check  => sub { my $val = $_[0]; $val =~ s/\s+//g; $val =~
-     m/^\-?P(?:\d+Y)?(?:\d+M)?$/ }
+     m/^\-?P(?:[0-9]+Y)?(?:[0-9]+M)?$/ }
  , example => 'P40Y5M'
  , extends => 'duration'
  };

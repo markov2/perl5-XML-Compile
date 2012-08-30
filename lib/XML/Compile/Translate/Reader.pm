@@ -582,6 +582,7 @@ sub makeNillableSimple
 sub makeNillableComplex
 {   my ($self, $path, $childname, $do, $tag) = @_;
     my ($t, $run) = @$do;
+    $run ||= sub {()};
 
     my $r = sub
       { my $tree = shift;

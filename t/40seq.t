@@ -9,8 +9,11 @@ use TestTools;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 230;
+use Test::More tests => 262;
 use Log::Report 'try';
+
+use XML::Compile::Util  qw/SCHEMA2001i/;
+my $xsi    = SCHEMA2001i;
 
 set_compile_defaults
     elements_qualified => 'NONE';
@@ -227,6 +230,12 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
     </sequence>
   </complexType>
 </element>
+
+<!-- bug-report by G. Stewart -->
+<element name="test21a"><complexType/></element>
+<complexType name="test21b" />
+<element name="test21b" type="me:test21b" />
+<element name="test21c" type="me:test21b" nillable="true" />
 
 </schema>
 __SCHEMA__
@@ -521,3 +530,15 @@ is($error, "data for element or block starting with `c' missing at {http://test-
 
 $error = error_w($schema, test20 => {a => 7, b => 8});
 is($error, "required value for element `c' missing at {http://test-types}test20");
+
+### test 21
+
+test_rw($schema, test21a => '<test21a/>', {});
+test_rw($schema, test21b => '<test21b/>', {});
+test_rw($schema, test21c => '<test21c/>', {});
+
+set_compile_defaults include_namespaces => 1
+  , elements_qualified => 'NONE';
+test_rw($schema, test21c => <<__XML, {_ => 'NIL'});
+<test21c xmlns:xsi="$xsi" xsi:nil="true"/>
+__XML

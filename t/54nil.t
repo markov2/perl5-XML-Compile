@@ -16,8 +16,8 @@ my $xsi    = SCHEMA2001i;
 
 my $schema = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
-        xmlns="$SchemaNS"
-        xmlns:me="$TestNS">
+   xmlns="$SchemaNS"
+   xmlns:me="$TestNS">
 
 <element name="test1">
   <complexType>

@@ -20,6 +20,24 @@ To be resolved:
  - errors on types should show dynamic nested location in structure,
    not path in schema.
 
+version 1.27: Fri Aug 31 00:26:13 CEST 2012
+
+	Fixes:
+
+	- Nillable in combination with empty complexTypes.
+	  Reported by [Graeme Stewart]
+
+	Improvements:
+
+	- use [0-9], not \d in regexes for types.
+
+	- writer: added explanation and example for complexType/singleContent
+	  use with single value, not HASH.  Suggested by
+	  rt.cpan.org#79270 [Karen Etheridge]
+
+	- change implementation of XML::Compile::Schema::Namespaces
+	  autoexpand_xsi_type()
+
 version 1.26: Thu Aug 16 00:07:44 CEST 2012
 
 	Changes:

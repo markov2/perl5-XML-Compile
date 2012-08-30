@@ -721,7 +721,7 @@ sub element($)
       :                            'makeSimpleElement';
 
     my $r = $self->$elem_handler
-      ($where, $tag, ($st||$elems), $attrs, $attrs_any, $comptype);
+       ($where, $tag, ($st||$elems), $attrs, $attrs_any, $comptype);
 
     # Add defaults and stuff
     my $default  = $node->getAttributeNode('default');
@@ -1299,7 +1299,7 @@ sub complexType($)
         if $self->{mixed_elements} eq 'STRUCTURAL';
 
     my $first = $tree->firstChild
-        or return {mixed => $mixed};
+        or return {elems => [], mixed => $mixed};
 
     my $name  = $first->localName;
     return $self->complexBody($tree, $mixed)
