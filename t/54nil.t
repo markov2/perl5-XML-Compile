@@ -340,8 +340,8 @@ is($out1, <<'__TEMPL', 'template test1');
   # is a xs:int
   e1 => 42,
 
-  # is nillable, hence value or 'NIL'
   # is a xs:int
+  # is nillable, hence value or NIL
   e2 => 42,
 
   # is a xs:int
@@ -358,10 +358,10 @@ is($out3, <<'__TEMPL', 'template test4');
 { # sequence of e4
 
   # is a x0:t4
+  # is nillable, as: e4 => NIL
   # occurs 0 <= # <= 12 times
   e4 =>
   [ { # sequence of e4a, e4b
-      # is nillable, so may be +{_ => 'NIL', %attrs}
 
       # is a xs:int
       e4a => 42,
@@ -378,15 +378,15 @@ is($out2, <<'__TEMPL', 'template start');
 # is an unnamed complex
 { # sequence of dtStart
 
-  # dtStart is simple value with attributes
   # is an unnamed complex
+  # dtStart is simple value with attributes
   dtStart =>
   { # is a xs:string
     # attribute myAttr is required
     myAttr => "example",
 
-    # string content of the container
-    # is nillable, hence value or 'NIL'
     # is a xs:dateTime
+    # string content of the container
+    # is nillable, hence value or NIL
     _ => "2006-10-06T00:23:02Z", }, }
 __TEMPL

@@ -10,7 +10,7 @@ use TestTools;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 49;
+use Test::More tests => 50;
 
 set_compile_defaults
     elements_qualified => 'NONE';
@@ -121,4 +121,35 @@ __XML
 test_rw($schema, test6 => '<test6/>', {});
 
 test_rw($schema, test6 => '<test6><e6/></test6>', {e6 => [ {} ]} );
+
+# attempt to reproduce bug rt.cpan.org#79986, reported by Karen Etheridge
+my $out = templ_perl $schema, "{$TestNS}test1", skip_header => 1;
+is($out, <<__EXPECT, 'templ of extension');
+# Describing complex x0:test1
+#     {http://test-types}test1
+
+# is a x0:t2
+{ # sequence of t1_a, t1_b
+
+  # is a xs:int
+  t1_a => 42,
+
+  # is a xs:int
+  t1_b => 42,
+
+  # sequence of t2_a
+
+  # is a xs:int
+  t2_a => 42,
+
+  # is a xs:int
+  a1_a => 42,
+
+  # is a xs:int
+  # attribute a1_b is required
+  a1_b => 42,
+
+  # is a xs:int
+  a2_a => 42, }
+__EXPECT
 

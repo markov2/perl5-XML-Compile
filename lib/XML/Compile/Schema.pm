@@ -803,13 +803,17 @@ sub _namespaceTable($;$$)
         if ref $table eq 'ARRAY';
 
     $table->{$_}    = { uri => $_, prefix => $table->{$_} }
-        for grep {ref $table->{$_} ne 'HASH'} keys %$table;
+        for grep ref $table->{$_} ne 'HASH', keys %$table;
 
-    do { $_->{used} = 0 for values %$table }
-        if $reset_count;
+    if($reset_count)
+    {   $_->{used} = 0 for values %$table;
+    }
 
     $table->{''}    = {uri => '', prefix => '', used => 0}
-        if $block_default && !grep {$_->{prefix} eq ''} values %$table;
+        if $block_default && !grep $_->{prefix} eq '', values %$table;
+
+    # very strong preference for 'xsi'
+    $table->{&SCHEMA2001i} = {uri => SCHEMA2001i, prefix => 'xsi', used => 0};
 
     $table;
 }

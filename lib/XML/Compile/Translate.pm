@@ -709,11 +709,6 @@ sub element($)
     my $is_simple = defined $st;
     my $nillable  = $self->isTrue($node->getAttribute('nillable') || 'false');
 
-    if(!$nillable) {}
-    elsif($is_simple)
-         { $st    = $self->makeNillableSimple($where, $nodetype, $st,  $tag) }
-    else { $elems = $self->makeNillableComplex($where,$nodetype,$elems,$tag) }
-
     my $elem_handler
       = $comps->{mixed}          ? 'makeMixedElement'
       : ! $is_simple             ? 'makeComplexElement' # other complexType
@@ -721,7 +716,7 @@ sub element($)
       :                            'makeSimpleElement';
 
     my $r = $self->$elem_handler
-       ($where, $tag, ($st||$elems), $attrs, $attrs_any, $comptype);
+       ( $where, $tag, ($st||$elems), $attrs, $attrs_any, $comptype, $nillable);
 
     # Add defaults and stuff
     my $default  = $node->getAttributeNode('default');
@@ -1053,6 +1048,12 @@ sub prefixed($)
     my $pn = $self->{prefixes}{$ns} or return;
     $pn->{used}++;
     length $pn->{prefix} ? "$pn->{prefix}:$local" : $local;
+}
+
+sub namespaceForPrefix($)
+{   my ($self, $prefix) = @_;   # only rarely used
+    my $match = first {$_->{prefix} eq $prefix} values %{$self->{prefixes}};
+    $match ? $match->{uri} : undef;
 }
 
 sub attributeOne($)
@@ -1478,6 +1479,7 @@ sub complexContent($$)
     # attributes: id, mixed = boolean
     # content: annotation?, (restriction | extension)
 
+my $path = $tree->path;
     my $node = $tree->node;
     if(my $m = $node->getAttribute('mixed'))
     {   $mixed = $self->isTrue($m)

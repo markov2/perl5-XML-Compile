@@ -568,33 +568,6 @@ sub makeElementFixed
         };
 }
 
-sub makeNillableSimple
-{   my ($self, $path, $childname, $do) = @_;
-    sub { my $tree = shift;
-          defined $tree && $tree->nodeType eq $childname
-              or return $do->(undef);
-
-          my $nil = $tree->node->getAttributeNS(SCHEMA2001i, 'nil') || '';
-          ($nil eq 'true' || $nil eq '1') ? 'NIL' : $do->($tree);
-        };
-}
-
-sub makeNillableComplex
-{   my ($self, $path, $childname, $do, $tag) = @_;
-    my ($t, $run) = @$do;
-    $run ||= sub {()};
-
-    my $r = sub
-      { my $tree = shift;
-        defined $tree && $tree->nodeType eq $childname
-            or return $run->(undef);
-
-        my $nil = $tree->node->getAttributeNS(SCHEMA2001i, 'nil') || '';
-        ($nil eq 'true' || $nil eq '1') ? (_ => 'NIL') : $run->($tree);
-      };
-    [ $tag => $r ];
-}
-
 sub makeElementAbstract
 {   my ($self, $path, $ns, $childname, $do, $tag) = @_;
     sub { my $tree = shift or return ();
@@ -610,18 +583,18 @@ sub makeElementAbstract
 #
 
 sub makeComplexElement
-{   my ($self, $path, $tag, $elems, $attrs, $attrs_any) = @_;
+{   my ($self, $path, $tag, $elems, $attrs, $attrs_any,undef,$is_nillable) = @_;
 #my @e = @$elems; my @a = @$attrs;
     my @elems = odd_elements @$elems;
     my @attrs = (odd_elements(@$attrs), @$attrs_any);
 
-    @elems > 1 || @attrs and return
-    sub { my $tree = shift or return ();
-          my $node = $tree->node;
-          my %complex
-           = ( (map {$_->($tree)} @elems)
-             , (map {$_->($node)} @attrs)
-             );
+    $is_nillable || @elems > 1 || @attrs and return
+    sub { my $tree    = shift or return ();
+          my $node    = $tree->node;
+          my %complex =
+            ( ($tree->nodeNil ? (_ => 'NIL') : (map $_->($tree), @elems))
+            , (map $_->($node), @attrs)
+            );
 
           defined $tree->currentChild
               and error __x"element `{name}' not processed at {path}"
@@ -649,7 +622,6 @@ sub makeComplexElement
                       , _class => 'misfit';
           ($tag => \%complex);
         };
-    
 }
 
 #
@@ -657,16 +629,15 @@ sub makeComplexElement
 #
 
 sub makeTaggedElement
-{   my ($self, $path, $tag, $st, $attrs, $attrs_any) = @_;
+{   my ($self, $path, $tag, $st, $attrs, $attrs_any,undef,$is_nillable) = @_;
     my @attrs = (odd_elements(@$attrs), @$attrs_any);
 
     sub { my $tree   = shift or return ();
-          my $simple = $st->($tree);
+          my $simple = $is_nillable && $tree->nodeNil ? 'NIL' : $st->($tree);
           ref $tree or return ($tag => {_ => $simple});
           my $node   = $tree->node;
           my @pairs  = map {$_->($node)} @attrs;
-          defined $simple or @pairs or return ();
-          ($tag => {_ => $simple, @pairs});
+          defined $simple || @pairs ?  ($tag => {_ => $simple, @pairs}) : ();
         };
 }
 
@@ -675,10 +646,11 @@ sub makeTaggedElement
 #
 
 sub makeMixedElement
-{   my ($self, $path, $tag, $elems, $attrs, $attrs_any) = @_;
+{   my ($self, $path, $tag, $elems, $attrs, $attrs_any,undef,$is_nillable) = @_;
     my @attrs = (odd_elements(@$attrs), @$attrs_any);
     my $mixed = $self->{mixed_elements}
          or panic "how to handle mixed?";
+$is_nillable and panic "nillable mixed not yet supported";
 
       ref $mixed eq 'CODE'
     ? sub { my $tree = shift or return;
@@ -722,10 +694,17 @@ sub makeMixedElement
 #
 
 sub makeSimpleElement
-{   my ($self, $path, $tag, $st) = @_;
-    sub { my $value = $st->(@_);
-          defined $value ? ($tag => $value) : ();
-        };
+{   my ( $self, $path, $tag, $st, undef, undef, $comptype, $is_nillable) = @_;
+
+      $is_nillable
+    ? sub { my $tree  = shift or return $st->(undef);
+            my $value = $tree->nodeNil ? 'NIL' : $st->($tree);
+            defined $value ? ($tag => $value) : ();
+          }
+    : sub { my $value = $st->(@_);
+            defined $value ? ($tag => $value) : ();
+          };
+
 }
 
 sub default_anytype_handler($$)
@@ -995,8 +974,8 @@ sub makeAnyElement
 {   my ($self, $path, $handler, $yes, $no, $process, $min, $max) = @_;
     $handler ||= 'SKIP_ALL';
 
-    my %yes = map { ($_ => 1) } @{$yes || []};
-    my %no  = map { ($_ => 1) } @{$no  || []};
+    my %yes = map +($_ => 1), @{$yes || []};
+    my %no  = map +($_ => 1), @{$no  || []};
 
     # Takes all, before filtering
     my $any = ($max eq 'unbounded' || $max > 1)
@@ -1022,11 +1001,9 @@ sub makeAnyElement
           %result;
       }
     : sub
-      {   my $tree  = shift or return ();
-          my $child = $tree->currentChild
-              or return ();
-
-          my $ns = $child->namespaceURI || '';
+      {   my $tree  = shift               or return ();
+          my $child = $tree->currentChild or return ();
+          my $ns    = $child->namespaceURI || '';
 
           (!keys %yes || $yes{$ns}) && !(keys %no && $no{$ns})
               or return ();

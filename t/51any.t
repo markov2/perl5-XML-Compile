@@ -11,7 +11,7 @@ use TestTools;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 77;
+use Test::More tests => 82;
 
 my $NS2 = "http://test2/ns";
 
@@ -183,7 +183,7 @@ is($x3b2->[0]->toString, '<for_el xmlns="http://x">26</for_el>');
 
 ok(!keys %$h3b);
 
-# writer
+# writer error
 
 my %h3c =
  (other_a => 10, other_e => 11
@@ -222,12 +222,33 @@ ok(!keys %$h4b);
 
 # writer
 
-my %h4c = (any_a => 10, any_e => 11
-  , $nat_at_type => $nat_at, $for_at_type => $for_at);
+my %h4c =
+  ( any_a => 10, any_e => 11
+  , $nat_at_type => $nat_at
+  , $for_at_type => $for_at);
 
 my $w4c = writer_create($schema, test4 => "{$TestNS}test4");
 my $h4c = writer_test($w4c, \%h4c);
 compare_xml($h4c, <<__XML);
+<test4 xmlns="http://test-types" any_a="10" nat_at="24" b:for_at="23">
+  <any_e>11</any_e>
+</test4>
+__XML
+
+set_compile_defaults
+    include_namespaces => 1
+  , prefixes => [ '' => $TestNS, b => 'http://x' ]
+  ;
+
+my %h4d =
+  ( any_a => 10, any_e => 11
+  , ':nat_at' => $nat_at
+  , 'b:for_at' => $for_at
+  );
+
+my $w4d = writer_create($schema, test4 => "{$TestNS}test4");
+my $h4d = writer_test($w4d, \%h4d);
+compare_xml($h4d, <<__XML);
 <test4 xmlns="http://test-types" any_a="10" nat_at="24" b:for_at="23">
   <any_e>11</any_e>
 </test4>

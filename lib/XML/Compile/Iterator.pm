@@ -3,7 +3,7 @@ use strict;
 
 package XML::Compile::Iterator;
 
-use XML::Compile::Util  qw/pack_type type_of_node/;
+use XML::Compile::Util  qw/pack_type type_of_node SCHEMA2001i/;
 use Log::Report 'xml-compile', syntax => 'SHORT';
 
 =chapter NAME
@@ -182,6 +182,16 @@ Returns the local name of the M<node()>, or the empty string.
 sub nodeLocal()
 {   my $node = shift->node or return '';
     $node->localName;
+}
+
+=method nodeNil
+Returns true if the current node has C<xsi:type="true">.
+=cut
+
+sub nodeNil()
+{   my $node = shift->node or return 0;
+    my $nil  = $node->getAttributeNS(SCHEMA2001i, 'nil') || '';
+    $nil eq 'true' || $nil eq '1';
 }
 
 =method textContent

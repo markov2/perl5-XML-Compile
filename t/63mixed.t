@@ -71,8 +71,8 @@ is($out, <<'__TEMPL');
 # Describing mixed x0:test1
 #     {http://test-types}test1
 
-# test1 has a mixed content
 # is an unnamed complex
+# test1 has a mixed content
 { # is a xs:string
   id => "example",
 

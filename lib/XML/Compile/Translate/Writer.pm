@@ -121,6 +121,7 @@ sub makeElementWrapper
         UNIVERSAL::isa($doc, 'XML::LibXML::Document')
             or error __x"first argument of call to writer must be an XML::LibXML::Document";
 
+
         my $top = $processor->(@_);
         $doc->indexElements;
         $top;
@@ -449,47 +450,6 @@ sub makeElementFixed
     };
 }
 
-sub makeNillableSimple
-{   my ($self, $path, $childname, $do, $tag) = @_;
-
-    $self->_registerNSprefix(xsi => SCHEMA2001i, 0);
-    my $nilattr = $self->makeTagQualified($path, undef, 'nil', SCHEMA2001i);
-
-    sub
-    {   my ($doc, $value) = @_;
-        defined $value  or return;
-        $value eq 'NIL' or return $do->($doc, $value);
-        $doc->createAttribute($nilattr => 'true');
-    };
-}
-
-
-sub makeNillableComplex
-{   my ($self, $path, $childname, $elems, $tag) = @_;
-    my ($name, $do) = @$elems;
-
-    $self->_registerNSprefix(xsi => SCHEMA2001i, 0);
-    my $nilattr = $self->makeTagQualified($path, undef, 'nil', SCHEMA2001i);
-
-    $do ||= sub { () };
-    my $r = sub
-      { my ($doc, $value) = @_;
-        defined $value or return;
-
-        if(ref $value eq 'HASH')
-        {   exists $value->{_} && $value->{_} eq 'NIL' 
-                or return $do->($doc, $value);
-            delete $value->{_};  # HASH gets processed for attributes
-        }
-        elsif($value ne 'NIL')
-        {   return $do->($doc, $value);
-        }
-
-        $doc->createAttribute($nilattr => 'true');
-      };
-    [ $name => $r ];
-}
-
 sub makeElementDefault
 {   my ($self, $path, $ns, $childname, $do, $default) = @_;
     my $mode = $self->{default_values};
@@ -518,18 +478,26 @@ sub makeElementAbstract
 # complexType/ComplexContent
 #
 
+sub nil($)
+{   my ($self, $path) = @_;
+    $self->makeTagQualified($path, undef, 'nil', SCHEMA2001i);
+}
+
 sub makeComplexElement
-{   my ($self, $path, $tag, $elems, $attrs, $any_attr) = @_;
-    my @elems = odd_elements @$elems;
-    my @attrs = @$attrs;
-    my $tags  = join ', ', grep defined
+{   my ($self, $path, $tag, $elems, $attrs, $any_attr,undef, $is_nillable) = @_;
+    my @elems   = odd_elements @$elems;
+    my @attrs   = @$attrs;
+    my $tags    = join ', ', grep defined
       , even_elements(@$elems), even_elements(@attrs);
-    my @anya  = @$any_attr;
-    my $iut   = $self->{ignore_unused_tags};
+    my @anya    = @$any_attr;
+    my $iut     = $self->{ignore_unused_tags};
+    my $nilattr = $is_nillable ? $self->nil($path) : undef;
 
     return
     sub
     {   my ($doc, $data) = @_;
+        $data = { _ => 'NIL' } if $data eq 'NIL';
+
         return $doc->importNode($data)
             if UNIVERSAL::isa($data, 'XML::LibXML::Element');
 
@@ -543,7 +511,11 @@ sub makeComplexElement
         }
 
         my $copy   = { %$data };  # do not destroy callers hash
-        my @childs = map {$_->($doc, $copy)} @elems;
+
+        my @childs = ($is_nillable && (delete $copy->{_} || '') eq 'NIL')
+          ? $doc->createAttribute($nilattr => 'true')
+          : map {$_->($doc, $copy)} @elems;
+
         for(my $i=0; $i<@attrs; $i+=2)
         {   push @childs, $attrs[$i+1]->($doc, delete $copy->{$attrs[$i]});
         }
@@ -587,9 +559,10 @@ sub makeComplexElement
 #
 
 sub makeTaggedElement
-{   my ($self, $path, $tag, $st, $attrs, $attrs_any) = @_;
-    my @attrs = @$attrs;
-    my @anya  = @$attrs_any;
+{   my ($self, $path, $tag, $st, $attrs, $attrs_any,undef, $is_nillable) = @_;
+    my @attrs   = @$attrs;
+    my @anya    = @$attrs_any;
+    my $nilattr = $is_nillable ? $self->nil($path) : undef;
 
     return sub {
         my ($doc, $data) = @_;
@@ -602,6 +575,9 @@ sub makeTaggedElement
         my ($node, @childs);
         if(UNIVERSAL::isa($content, 'XML::LibXML::Node'))
         {   $node = $doc->importNode($content);
+        }
+        elsif($is_nillable && $content eq 'NIL')
+        {   push @childs, $doc->createAttribute($nilattr => 'true');
         }
         elsif(defined $content)
         {   push @childs, $st->($doc, $content);
@@ -635,9 +611,10 @@ sub makeTaggedElement
 #
 
 sub makeMixedElement
-{   my ($self, $path, $tag, $elems, $attrs, $attrs_any) = @_;
-    my @attrs = @$attrs;
-    my @anya  = @$attrs_any;
+{   my ($self, $path, $tag, $elems, $attrs, $attrs_any,undef, $is_nillable) =@_;
+    my @attrs   = @$attrs;
+    my @anya    = @$attrs_any;
+    my $nilattr = $is_nillable ? $self->nil($path) : undef;
 
     my $mixed = $self->{mixed_elements};
     if($mixed eq 'ATTRIBUTES') { ; }
@@ -664,12 +641,17 @@ sub makeMixedElement
           return $doc->importNode($data)
               if UNIVERSAL::isa($data, 'XML::LibXML::Element');
 
-          my $copy = UNIVERSAL::isa($data, 'HASH') ? {%$data} : {_ => $data};
+          my $copy    = UNIVERSAL::isa($data, 'HASH') ? {%$data} : {_ => $data};
           my $content = delete $copy->{_};
           defined $content or return;
 
-          UNIVERSAL::isa($content, 'XML::LibXML::Node')
-              or $content = $doc->createTextNode($content);
+          if(UNIVERSAL::isa($content, 'XML::LibXML::Node')) {}
+          elsif($content eq 'NIL')
+          {   $content = $doc->createAttribute($nilattr => 'true')
+          }
+          else
+          {   $content = $doc->createTextNode($content);
+          }
           my $node = $doc->importNode($content);
 
           my @childs;
@@ -700,7 +682,8 @@ sub makeMixedElement
 #
 
 sub makeSimpleElement
-{   my ($self, $path, $tag, $st) = @_;
+{   my ($self, $path, $tag, $st, undef, undef, undef, $is_nillable) = @_;
+    my $nilattr = $is_nillable ? $self->nil($path) : undef;
 
     sub {
         my ($doc, $data) = @_;
@@ -709,7 +692,10 @@ sub makeSimpleElement
         $data = $data->{_}
             if ref $data eq 'HASH';
 
-        my $value = $st->($doc, $data);
+        my $value = ($is_nillable && $data eq 'NIL')
+          ? $doc->createAttribute($nilattr => 'true')
+          : $st->($doc, $data);
+
         defined $value
             or return ();
 
@@ -925,23 +911,31 @@ sub _splitAnyList($$$)
 
 sub makeAnyAttribute
 {   my ($self, $path, $handler, $yes, $no, $process) = @_;
-    my %yes = map { ($_ => 1) } @{$yes || []};
-    my %no  = map { ($_ => 1) } @{$no  || []};
+    my %yes = map +($_ => 1), @{$yes || []};
+    my %no  = map +($_ => 1), @{$no  || []};
 
     bless
     sub { my ($doc, $values) = @_;
 
           my @res;
-          foreach my $type (keys %$values)
-          {   my ($ns, $local) = unpack_type $type;
-              length $ns or substr($type, 0, 1) eq '{' or next;
-              my @elems;
+          foreach my $label (keys %$values)
+          {   my ($type, $ns, $local);
+              if(substr($label, 0, 1) eq '{')
+              {   ($ns, $local) = unpack_type $label;
+                  $type         = $label;
+              }
+              elsif(index($type, ':') >= 0)
+              {   (my $prefix, $local) = split ':', $label, 2;
+                  $ns    = $self->namespaceForPrefix($prefix);
+                  $type  = pack_type $ns, $local;
+              }
+              else {next}  # not fully qualified, not an 'any'
 
               $yes{$ns} or next if keys %yes;
               $no{$ns} and next if keys %no;
 
-              my ($attrs, $elems)
-                = $self->_splitAnyList($path, $type, delete $values->{$type});
+              my $value = delete $values->{$label} or next;
+              my ($attrs, $elems) = $self->_splitAnyList($path, $type, $value);
 
               $values->{$type} = $elems if @$elems;
               @$attrs or next;
@@ -962,25 +956,33 @@ sub makeAnyAttribute
 
 sub makeAnyElement
 {   my ($self, $path, $handler, $yes, $no, $process, $min, $max) = @_;
-    my %yes = map { ($_ => 1) } @{$yes || []};
-    my %no  = map { ($_ => 1) } @{$no  || []};
+    my %yes = map +($_ => 1), @{$yes || []};
+    my %no  = map +($_ => 1), @{$no  || []};
+    my $prefixes = $self->{prefixes};
 
     $handler ||= 'SKIP_ALL';
     bless
     sub { my ($doc, $values) = @_;
           my @res;
 
-          foreach my $type (keys %$values)
-          {   my ($ns, $local) = unpack_type $type;
-
-              # name-spaceless Perl, then not for any(Attribute)
-              length $ns or substr($type, 0, 1) eq '{' or next;
+          foreach my $label (keys %$values)
+          {   my ($type, $ns, $local);
+              if(substr($label, 0, 1) eq '{')
+              {   ($ns, $local) = unpack_type $label;
+                  $type         = $label;
+              }
+              elsif(index($label, ':') >= 0)
+              {   (my $prefix, $local) = split ':', $label, 2;
+                  $ns    = $self->namespaceForPrefix($prefix);
+                  $type  = pack_type $ns, $local;
+              }
+              else {next}  # not fully qualified, not an 'any'
 
               $yes{$ns} or next if keys %yes;
               $no{$ns} and next if keys %no;
 
-              my ($attrs, $elems)
-                 = $self->_splitAnyList($path, $type, delete $values->{$type});
+              my $value = delete $values->{$label} or next;
+              my ($attrs, $elems) = $self->_splitAnyList($path, $type, $value);
 
               $values->{$type} = $attrs if @$attrs;
               @$elems or next;
@@ -1149,6 +1151,7 @@ random order.
  my $h = { a => 12     # normal element or attribute
          , "{$somens}$sometype"        => $attr # anyAttribute
          , pack_type($somens, $mytype) => $attr # nicer
+         , "$prefix:$sometype"         => $attr # [1.28]
          };
 
 =section Mixed elements
