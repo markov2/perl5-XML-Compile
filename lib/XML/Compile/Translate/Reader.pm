@@ -1404,8 +1404,8 @@ M<XML::LibXML::Simple> to translate a part of your tree.  Simply
 
 =subsection hooks for post-processing, after the data is collected
 
-The data is collect, and passed as second argument after the XML node.
-The third argument is the path.  Be careful that the collected data
+Your code reference gets called with three parameters: the XML node,
+the data collected and the path.  Be careful that the collected data
 might be a SCALAR (for simpleType).  Return a HASH or a SCALAR.  C<undef>
 may work, unless it is the value of a required element you throw awy.
 

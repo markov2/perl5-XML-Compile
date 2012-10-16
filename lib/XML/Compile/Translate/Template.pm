@@ -587,12 +587,12 @@ sub makeHook($$$$$$)
 
     sub
     {   my $doc = XML::LibXML::Document->new;
-        for(@before) { $_->($doc, undef, $path) or return }
+        for(@before) { $_->($doc, $path, undef) or return }
 
-       my $xml = @replace ? $replace[0]->($doc, undef, $path, $tag,$r) : $r->();
+       my $xml = @replace ? $replace[0]->($doc, $path, $r) : $r->();
        defined $xml or return ();
 
-       for(@after) { $xml = $_->($doc, $xml, $path, undef) or return }
+       for(@after) { $xml = $_->($doc, $path, $xml) or return }
        $xml;
      }
 }
@@ -610,6 +610,7 @@ sub _decodeReplace($$)
     if($call eq 'COLLAPSE')
     {   return sub 
          {  my ($tag, $path, $do) = @_;
+panic "$tag, $path, $do\n" unless ref $do;
             my $h = $do->();
             $h->{elems} = [ { struct => [ 'content collapsed' ]
                             , kind   => 'collapsed' } ];

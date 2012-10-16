@@ -5,7 +5,7 @@ no warnings 'recursion';
 package XML::Compile::Schema::BuiltInTypes;
 use base 'Exporter';
 
-our @EXPORT = qw/%builtin_types/;
+our @EXPORT = qw/%builtin_types builtin_type_info/;
 
 our %builtin_types;
 
@@ -44,7 +44,19 @@ defined by the W3C schema specification would be too slow.
 
 =chapter FUNCTIONS
 
-The functions named in this chapter are all used at compile-time
+=section Real functions
+
+=function builtin_type_info TYPE
+Returns the configuration for TYPE, which is a HASH.  Be aware that
+the information in this HASH will change over time without too much
+notice.  Implement regression-tests in this if you use it!
+=cut
+
+sub builtin_type_info($) { $builtin_types{$_[0]} }
+
+=section The Types
+
+The functions named in this section are all used at compile-time
 by the translator.  At that moment, they will be placed in the
 kind-of opcode tree which will process the data at run-time.
 You B<cannot call> these functions yourself.
@@ -55,7 +67,7 @@ to an integer. Data supplied to a field of type base64Binary will be
 encoded as Base64 for you: you shouldn't do the conversion yourself,
 you'll get double encoding!
 
-section Any
+=subsection Any
 
 =cut
 
@@ -111,7 +123,7 @@ $builtin_types{anyAtomicType} =
 
 $builtin_types{error}   = {example => '[some error structure]'};
 
-=section Ungrouped types
+=subsection Ungrouped types
 
 =function boolean
 Contains C<true>, C<false>, C<1> (is true), or C<0> (is false).
@@ -138,7 +150,7 @@ $builtin_types{pattern} =
  { example => '*.exe'
  };
 
-=section Big Integers
+=subsection Big Integers
 
 Schema's define integer types which are derived from the C<decimal>
 type.  These values can grow enormously large, and therefore can only be
@@ -276,7 +288,7 @@ $builtin_types{unsigned_int} =
  , example => '42'
  };
 
-=section Integers
+=subsection Integers
 
 =function int
 =cut
@@ -339,7 +351,7 @@ $builtin_types{unsignedByte} =
  , extends => 'unsignedShort'
  };
 
-=section Floating-point
+=subsection Floating-point
 
 =function decimal
 Decimals are painful: they can be very large, much larger than Perl's
@@ -418,7 +430,7 @@ $builtin_types{sloppy_float} =
  , extends => 'anyAtomicType'
  };
 
-=section Encoding
+=subsection Encoding
 
 =function base64Binary
 In the hash, it will be kept as binary data.  In XML, it will be
@@ -448,7 +460,7 @@ $builtin_types{hexBinary} =
  , extends => 'anyAtomicType'
  };
 
-=section Dates
+=subsection Dates
 
 =function date
 A day, represented in localtime as C<YYYY-MM-DD> or C<YYYY-MM-DD[-+]HH:mm>.
@@ -599,7 +611,7 @@ $builtin_types{gYearMonth} =
  , extends => 'anyAtomicType'
  };
 
-=section Duration
+=subsection Duration
 
 =function duration
 Format C<-PnYnMnDTnHnMnS>, where optional starting C<-> means negative.
@@ -643,7 +655,7 @@ $builtin_types{yearMonthDuration} =
  , extends => 'duration'
  };
 
-=section Strings
+=subsection Strings
 
 =function string
 (Usually utf8) string.
@@ -766,7 +778,7 @@ $builtin_types{NMTOKENS} =
  , extends => 'anySimpleType'
  };
 
-=section URI
+=subsection URI
 
 =function anyURI
 You may pass a string or, for instance, an M<URI> object which will be
@@ -832,7 +844,7 @@ $builtin_types{NOTATION} =
    extends => 'anyAtomicType'
  };
 
-=section only in 1999 and 2000/10 schemas
+=subsection only in 1999 and 2000/10 schemas
 
 =function binary
 Perl strings can contain any byte, also nul-strings, so can

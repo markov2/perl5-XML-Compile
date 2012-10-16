@@ -1586,9 +1586,6 @@ sub findHooks($$$)
 {   my ($self, $path, $type, $node) = @_;
     # where is before, replace, after
 
-#warn $type;
-#use Data::Dumper;
-#warn Dumper $self->{hooks};
     my %hooks;
     foreach my $hook (@{$self->{hooks}})
     {   my $match;

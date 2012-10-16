@@ -21,6 +21,20 @@ To be resolved:
    not path in schema.
  - nillable support for mixed elements
 
+version 1.29: Tue Oct 16 16:27:13 CEST 2012
+
+	Fixes:
+
+	- template: fix understanding of predefined hook names.
+
+	- writer: sort any and anyAttribute elements before processing
+	  them, so the elements are in predictable order (required for
+	  regression tests)
+
+	Improvements:
+
+	- new function ::BuiltInTypes::builtin_type_info()
+
 version 1.28: Sat Oct  6 13:38:15 CEST 2012
 
 	Changes:
