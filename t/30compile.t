@@ -14,7 +14,8 @@ use Test::More tests => 14;
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
    xmlns="$SchemaNS"
-   xmlns:me="$TestNS">
+   xmlns:me="$TestNS"
+   elementFormDefault="qualified">
 
 <element name="test1" type="int" />
 
@@ -101,7 +102,7 @@ cmp_ok(ref($read_t3), 'eq', 'CODE');
 
 my $hash2 = $read_t3->( <<__XML );
 <me:test3 xmlns:me="$TestNS">
-  <test3_1>13</test3_1>
-  <test3_2>42</test3_2>
+  <me:test3_1>13</me:test3_1>
+  <me:test3_2>42</me:test3_2>
 </me:test3>
 __XML

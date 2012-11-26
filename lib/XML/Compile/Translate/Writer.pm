@@ -185,11 +185,13 @@ sub makeSequence($@)
 }
 
 sub makeChoice($@)
-{   my ($self, $path, %do) = @_;
-    my @specials;
-    foreach my $el (keys %do)
-    {   push @specials, delete $do{$el}
-            if ref $do{$el} eq 'BLOCK' || ref $do{$el} eq 'ANY';
+{   my ($self, $path) = (shift, shift);
+    my (%do, @specials);
+    while(@_)   # protect order of specials
+    {    my ($el, $do) = (shift, shift);
+         if(ref $do eq 'BLOCK' || ref $do eq 'ANY')
+              { push @specials, $do }
+         else { $do{$el} = $do }
     }
  
     if(!@specials && keys %do==1)

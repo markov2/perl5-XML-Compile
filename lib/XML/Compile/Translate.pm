@@ -274,12 +274,11 @@ sub topLevel($$)
                     : N__"cannot find element or attribute `{name}' at {where}"
                     ), name => $fullname, where => $path, _class => 'usage');
 
-    my $node = $top->{node};
-
+    my $node       = $top->{node};
     my $elems_qual = $top->{efd} eq 'qualified';
     my $qual
       = exists $self->{elements_qualified} ? ($self->{elements_qualified} || 0)
-      : $elems_qual ? 'ALL' : $top->{ns} ? 'TOP' : 'NONE';
+      : $elems_qual ? 'ALL' : $top->{ns}  ? 'TOP' : 'NONE';
 
     my $remove_form_attribute;
 

@@ -20,6 +20,15 @@ To be resolved:
  - errors on types should show dynamic nested location in structure,
    not path in schema.
  - nillable support for mixed elements
+ - typemaps on basic types
+
+version 1.30: Mon Nov 26 09:28:10 CET 2012
+
+	Fixes:
+
+	- produce predictable results for writer order of choice, when
+	  there are specials to fix tests in 5.17.5, where the HASH
+	  algorithm changed. [cpantesters]
 
 version 1.29: Tue Oct 16 16:27:13 CEST 2012
 

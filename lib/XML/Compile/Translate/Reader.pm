@@ -921,7 +921,6 @@ sub makeSubstgroup
 
           my $do   = $do{$type}
               or return;
-
           my @subst = $do->[1]($tree->descend);
           $tree->nextChild;
           @subst ? ($do->[0] => $subst[1]) : ();   # key-rewrite

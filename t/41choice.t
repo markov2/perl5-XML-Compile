@@ -265,13 +265,13 @@ is($error, "found 4 blocks for `cho_t6_a', must be between 1 and 3 inclusive at 
 
 ## the other group comes first, for writer
 test_rw($schema, test7 => <<__XML, {g7e1 => 12, g7e2 => 13}, <<__XML );
-<test7><g7e1>12</g7e1><g7e2>13</g7e2></test7>
-__XML
 <test7><g7e2>13</g7e2><g7e1>12</g7e1></test7>
 __XML
+<test7><g7e1>12</g7e1><g7e2>13</g7e2></test7>
+__XML
 
-test_rw($schema, test7 => <<__XML, {g7e1 => 15, g7e2 => 14} );
-<test7><g7e2>14</g7e2><g7e1>15</g7e1></test7>
+test_rw($schema, test7 => <<__XML, {g7e1 => 14, g7e2 => 15} );
+<test7><g7e1>14</g7e1><g7e2>15</g7e2></test7>
 __XML
 
 # test 8
