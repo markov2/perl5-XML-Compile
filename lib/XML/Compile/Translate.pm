@@ -286,7 +286,7 @@ sub topLevel($$)
     elsif($qual eq 'NONE') { $elems_qual = 0 }
     elsif($qual eq 'TOP')
     {   unless($elems_qual)
-        {   # explitly overrule the name-space qualification of the
+        {   # explicitly overrule the name-space qualification of the
             # top-level element, which is dirty but people shouldn't
             # use unqualified schemas anyway!!!
             $node->removeAttribute('form');   # when in schema
@@ -776,7 +776,6 @@ sub element($)
 
             my $altnodeid = $altnode->nodePath.'#'.$fullname;
             delete $self->{_created}{$altnodeid}; # clean nesting cache
-
             $alt{$alttype} = $self->element($tree->descend($altnode));
         }
         $do4 = $self->makeXsiTypeSwitch($where, $name, $comptype, \%alt);
@@ -1718,7 +1717,7 @@ not produce invalid data.
 
 Checking whether the number of occurrences for an item are between
 C<minOccurs> and C<maxOccurs> (implied for C<all>, C<sequence>, and
-C<choice> or explictly specified) takes time.  Of course, in cases
+C<choice> or explicitly specified) takes time.  Of course, in cases
 errors must be handled.  When this option is set to C<false>, 
 only distinction between single and array elements is made.
 
@@ -1758,7 +1757,7 @@ the schemas is still in-tact, but name-space collission may appear.
 Per schema, it can be specified whether the elements and attributes
 defined in-there need to be used qualified (with prefix) or not.
 This can cause horrible output when within an unqualified schema
-elements are used from an other schema which is qualified.
+elements are used from another schema which is qualified.
 
 The suggested solution in articles about the subject is to provide
 people with both a schema which is qualified as one which is not.
@@ -1802,7 +1801,7 @@ The HASH structure looks like this:
     , prefixes => \%namespaces
     );
 
-  # share the same namespace defs with an other component
+  # share the same namespace defs with another component
   my $other = $schema->compile
     ( WRITER => ...
     , prefixes => \%namespaces
@@ -1902,7 +1901,7 @@ be used.
   sub want_block($$$$) ( my ($type,$ns,$local,$path) = @_; undef}
   $schema->blockNamespace(\&want_block);
 
-It is very well posible that the blocking of some namespaces breaks the
+It is very well possible that the blocking of some namespaces breaks the
 validness of messages: when those elements are required but set to be
 ignored.  There is no way to detect this, on the moment.
 

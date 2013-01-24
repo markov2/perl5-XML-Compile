@@ -1024,7 +1024,9 @@ sub makeXsiTypeSwitch($$$$)
     foreach my $type (sort keys %$types)
     {   my ($ns, $local) = unpack_type $type;
         my $tag = $self->makeTagQualified($where, undef, $local, $ns);
-        $types{$type} = [ $tag, $types->{$type} ];
+
+        # register code under both prefixed and full type name
+        $types{$self->prefixed($type)} = $types{$type} = [$tag,$types->{$type}];
     }
 
     sub {

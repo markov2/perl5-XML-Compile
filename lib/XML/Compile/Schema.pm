@@ -81,7 +81,7 @@ XML::Compile::Schema - Compile a schema into CODE
  print $type;  # shows  {myns}mytype
 
  # using a compiled routines cache
- use XML::Compile::Cache;   # seperate distribution
+ use XML::Compile::Cache;   # separate distribution
  my $schema = XML::Compile::Cache->new(...);
 
  # Show which data-structure is expected
@@ -309,7 +309,7 @@ sub addTypemaps(@)
 
 =method addSchemas XML, OPTIONS
 Collect all the schemas defined in the XML data.  The XML parameter
-must be a M<XML::LibXML> node, therefore it is adviced to use
+must be a M<XML::LibXML> node, therefore it is advised to use
 M<importDefinitions()>, which has a much more flexible way to
 specify the data.
 
@@ -868,7 +868,7 @@ improvements: read and understand the comments in the text.
 
 =option  show_comments STRING|'ALL'|'NONE'
 =default show_comments C<ALL>
-A comma seperated list of tokens, which explain what kind of comments need
+A comma separated list of tokens, which explain what kind of comments need
 to be included in the output.  The available tokens are: C<struct>, C<type>,
 C<occur>, C<facets>.  A value of C<ALL> will select all available comments.
 The C<NONE> or empty string will exclude all comments.
@@ -1156,7 +1156,7 @@ Schemas may contains C<import> and C<include> statements, which
 specify other resources for definitions.  In the idea of the XML design
 team, those files should be retrieved automatically via an internet
 connection from the C<schemaLocation>.  However, this is a bad concept; in
-XML::Compile modules you will have to explictly provide filenames on local
+XML::Compile modules you will have to explicitly provide filenames on local
 disk using M<importDefinitions()> or M<XML::Compile::WSDL11::addWSDL()>.
 
 There are various reasons why I, the author of this module, think the
@@ -1995,9 +1995,14 @@ they will look like C<{namespace}local>, typically produced with
 M<XML::Compile::Util::pack_type()>.
 
 When used in a reader, the resulting data-set will contain a C<XSI_TYPE>
-key inbetween the facts which were taken from the element. With the
-writer, you have to provide such an C<XSI_TYPE> value or the element's
-base type will be used (and no C<xsi:type> attribute created).
+key inbetween the facts which were taken from the element.  The type is
+is long syntax C<"{$ns}$type">.  See M<XML::Compile::Util::unpack_type()>
+
+With the writer, you have to provide such an C<XSI_TYPE> value or the
+element's base type will be used (and no C<xsi:type> attribute created).
+This will probably cause warnings about unused tags.  The type can be
+provided in full (see M<XML::Compile::Util::pack_type()>) or [1.31]
+prefixed.
 
 [1.25] then the value is not an ARRAY, but only the keyword C<AUTO>,
 the parser will try to auto-detect all types which are valid alternatives.
@@ -2013,7 +2018,7 @@ which list this AUTO gets expanded.
 [improved with release 1.10]
 The standard practice is to use the localName of the XML elements as
 key in the Perl HASH; the key rewrite mechanism is used to change that,
-sometimes to seperate elements which have the same localName within
+sometimes to separate elements which have the same localName within
 different name-spaces, or when an element and an attribute share a name
 (key rewrite is applied to elements AND attributes) in other cases just
 for fun or convenience.

@@ -1049,9 +1049,13 @@ sub makeXsiTypeSwitch($$$$)
                 or error __x"specified xsi:type list for `{default}' does not contain `{got}'"
                      , default => $default_type, got => $type;
         }
-        else { ($alt, $code) = ($default_type, $types->{$default_type}) }
+        else
+        {   ($alt, $code) = ($default_type, $types->{$default_type});
+        }
 
         my ($t, $d) = $code->($tree);
+        defined $t or return ();
+
         $d = { _ => $d } if ref $d ne 'HASH';
         $d->{XSI_TYPE} ||= $alt;
         ($t, $d);
@@ -1456,7 +1460,7 @@ the XML structure:
 
 =subsection Typemap to Object
 
-An other option is to implement an object factory: one object which creates
+Another option is to implement an object factory: one object which creates
 other objects.  In this case, the C<$xmltype> parameter can come of use,
 to have one object spawning many different other objects.
 

@@ -12,7 +12,7 @@ use XML::Compile::Tester;
 use XML::Compile::Util 'SCHEMA2001i';
 my $schema2001i = SCHEMA2001i;
 
-use Test::More tests => 18;
+use Test::More tests => 26;
 #use Log::Report mode => 3;
 
 my %xsi_types = ("{$TestNS}f_t1" => [ "{$TestNS}f_t2" ] );
@@ -48,6 +48,15 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
   <complexType>
     <sequence>
       <element name="f_a3" type="me:f_t1" minOccurs="0" maxOccurs="unbounded"/>
+    </sequence>
+  </complexType>
+</element>
+
+<element name="f4">
+  <complexType>
+    <sequence>
+      <element name="f_e4" type="me:f_t1" minOccurs="0" maxOccurs="unbounded"/>
+      <element name="size" type="int" />
     </sequence>
   </complexType>
 </element>
@@ -109,3 +118,36 @@ test_rw($schema, "f_test" => <<__XML, \%f1);
     <f_a3 f_a1="19" xsi:type="f_t1"/>
 </f_test>
 __XML
+
+
+#
+### Bug reported by Lars Thegler, 2013-01-15
+#
+
+set_compile_defaults
+    include_namespaces => 1
+  , xsi_type => {"{$TestNS}f_t1" => 'AUTO'};
+
+my %f2 =
+(f_e4 =>
+  [ { XSI_TYPE => "{$TestNS}f_t2"
+    , f_a1 => 20,
+    , f_a2 => 21
+    }
+  , { XSI_TYPE => "{$TestNS}f_t1"
+    , f_a1 => 22
+    }
+  ]
+ , size => 23
+ );
+
+test_rw($schema, "f4" => <<__XML, \%f2);
+<f4 xmlns="$TestNS" xmlns:xsi="$schema2001i">
+    <f_e4  f_a1="20" xsi:type="f_t2">
+        <f_a2>21</f_a2>
+    </f_e4>
+    <f_e4 f_a1="22" xsi:type="f_t1"/>
+    <size>23</size>
+</f4>
+__XML
+

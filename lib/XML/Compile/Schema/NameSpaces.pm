@@ -103,7 +103,7 @@ sub use($)
 
 =method schemas URI
 We need the name-space; when it is lacking then import must help, but that
-must be called explictly.
+must be called explicitly.
 =cut
 
 sub schemas($) { $_[0]->namespace($_[1]) }
@@ -120,7 +120,7 @@ sub allSchemas()
 =method find KIND, ADDRESS|(URI,NAME), OPTIONS
 Lookup the definition for the specified KIND of definition: the name
 of a global element, global attribute, attributeGroup or model group.
-The ADDRESS is constructed as C< {uri}name > or as seperate URI and NAME.
+The ADDRESS is constructed as C< {uri}name > or as separate URI and NAME.
 
 =option  include_used BOOLEAN
 =default include_used <true>
@@ -245,7 +245,7 @@ sub autoexpand_xsi_type($)
 
 =method findSgMembers CLASS, TYPE
 Lookup the substitutionGroup alternatives for a specific element, which
-is an TYPE (element full name) of form C< {uri}name > or as seperate
+is an TYPE (element full name) of form C< {uri}name > or as separate
 URI and NAME.  Returned is an ARRAY of HASHes, each describing one type
 (as returned by M<find()>)
 =cut
@@ -265,7 +265,7 @@ sub findSgMembers($$)
 
 =method findID ADDRESS|(URI,ID)
 Lookup the definition for the specified id, which is constructed as
-C< uri#id > or as seperate URI and ID.
+C< uri#id > or as separate URI and ID.
 =cut
 
 sub findID($;$)

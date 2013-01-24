@@ -110,7 +110,7 @@ schema components have to be provided explicitly.
 
 The type of the root element, required if the XML is not namespaceo
 qualified, although the schema is.  If not specified, the root element
-is automatically inspected.
+is automaticly inspected.
 
 The TYPE notation is C<{namespace}localname>.  Be warned to use quoting
 on the UNIX command-line, because curly braces have a special meaning
@@ -122,7 +122,7 @@ By default, the output is to stdout.
 
 =item --show STRING
 
-A comma seperated list of comment components which should be included,
+A comma separated list of comment components which should be included,
 by default C<ALL>.  An empty string or C<NONE> will exclude all comments.
 The STRING can also be a comma separated combination of C<struct>, C<type>,
 C<occur>, and C<facets>.

@@ -24,13 +24,13 @@ The main user for this object currently is M<XML::Compile::Translate>.
 =section Constructors
 
 =c_method new NODE, PATH, FILTER,
-The NODE is a M<XML::LibXML::Node> object, of which the direct childs
+The NODE is a M<XML::LibXML::Node> object, of which the direct children
 are inspected.
 
 The FILTER a CODE reference which is called for each child node.
-The only paramter is the parent NODE, and then it must return
+The only parameter is the parent NODE, and then it must return
 either true or false.  In case of true, the node is selected.
-The FILTERS is applied to all childs of the NODE once, when the
+The FILTERS is applied to all children of the NODE once, when the
 first child is requested by the program.
 =cut
 
@@ -79,7 +79,7 @@ sub descend(;$$$)
 =section Attributes
 
 =method node
-Returns the M<XML::LibXML::Node> node of which the childs are walked
+Returns the M<XML::LibXML::Node> node of which the children are walked
 through.
 =cut
 

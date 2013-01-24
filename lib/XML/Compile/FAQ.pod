@@ -53,7 +53,7 @@ the content has.
 
 =head3 qualified elements
 
-One of the more noticable problems with schemas is the specification of
+One of the more noticeable problems with schemas is the specification of
 the namespaces to be used for the schema.  In older schema's, like many
 important protocols, there was no way to specify whether elements should
 be used qualified or not.  Some schema's lack the target namespace
@@ -166,7 +166,7 @@ Of course, you can also use an external file for this.
 =head3 Example
 
 This is a piece of code actually used.  It shows various complications
-when an external schema is "loaded" "dynamically" into an other schema.
+when an external schema is "loaded" "dynamically" into another schema.
 
   # In the top of your script
   my $schema_dir = '/usr/share/schemas';
