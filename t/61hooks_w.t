@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 # hooks in ::Translate::Writer
 
 use warnings;

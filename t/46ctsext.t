@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 # test complex type simpleContent extensions
 
 use warnings;

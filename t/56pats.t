@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 # patterns are still poorly supported.
 
 use warnings;

@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 #
 # Run some general tests around the generation of elements.  We will
 # test seperate components in more detail in other scripts.

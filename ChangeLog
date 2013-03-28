@@ -22,6 +22,17 @@ To be resolved:
  - nillable support for mixed elements
  - typemaps on basic types
 
+version 1.32: Thu Mar 28 11:13:33 CET 2013
+
+	Fixes:
+	- templates must detect recursion and reuse based on type, not
+	  label. [Max Maischein]
+
+	Improvements:
+	- support facets on dateTime types, needed by [Andrew Campbell]
+	- add xml2yaml option --mixed
+	  rt.cpan.org#83274 [Slaven Rezic]
+
 version 1.31: Thu Jan 24 15:33:04 CET 2013
 
 	Fixes:

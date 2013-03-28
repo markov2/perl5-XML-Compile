@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 # test any and anyAttribute
 # any with list of url's is not yet tested.
 

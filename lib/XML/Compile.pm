@@ -57,7 +57,7 @@ Structure as well.
 
 =item *
 Imports and includes, as used in the schemas, are NOT performed
-automaticly.  Schema's and such are NOT collected from internet
+automatically.  Schema's and such are NOT collected from internet
 dynamically; you have to call M<XML::Compile::Schema::importDefinitions()>
 explicitly with filenames of locally stored copies. Includes do only
 work if they have a targetNamespace defined, which is the same as that

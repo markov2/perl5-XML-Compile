@@ -9,14 +9,16 @@ use Getopt::Long         qw/GetOptions :config gnu_compat bundling/;
 use YAML                 qw/Dump/;
 
 my ($xml_input, $root_type, @schemas, $bigints, $bigfloats, $yaml_out);
+my $mixed  = 'TEXTUAL';
 
 GetOptions
-   "bigints|bi|b!" => \$bigints
- , "bigfloats|bf"  => \$bigfloats
- , "output|o=s"    => \$yaml_out
- , "schema|s=s"    => \@schemas
- , "type|t=s"      => \$root_type
- , "xml|x=s"       => \$xml_input
+   'bigints|bi|b!' => \$bigints
+ , 'bigfloats|bf'  => \$bigfloats
+ , 'output|o=s'    => \$yaml_out
+ , 'schema|s=s'    => \@schemas
+ , 'type|t=s'      => \$root_type
+ , 'xml|x=s'       => \$xml_input
+ , 'mixed=s'       => \$mixed
    or exit 1;
 
 $xml_input = '-' if @schemas && !defined $xml_input;
@@ -42,18 +44,19 @@ my $msg    = $xml_input eq '-'
            ? $parser->parse_fh(\*STDIN)
            : $parser->parse_file($xml_input);
 
-my $top = $msg->documentElement;
+my $top    = $msg->documentElement;
 $root_type ||= type_of_node $top;
 
 my $schema = XML::Compile::Schema->new( \@schemas );
 
-my $read = $schema->compile
-  ( READER => $root_type
+my $read   = $schema->compile
+  ( READER          => $root_type
   , sloppy_integers => !$bigints
   , sloppy_floats   => !$bigfloats
+  , mixed_elements  => $mixed
   );
 
-my $data = Dump $read->($top);
+my $data   = Dump $read->($top);
 
 if($yaml_out eq '-')
 {   print $data;
@@ -109,6 +112,12 @@ schema components have to be provided explicitly.
 By default, the translation is a little sloppy: Integer types are defined
 to support at least 18 digits in XML.  However, this is usually unneccesary
 large and unreadible in YAML.
+
+=item --mixed HOW
+
+[1.32] How to treat mixed elements.  The default is TEXTUAL.  Other values
+are C<ATTRIBUTES>, C<XML_STRING>, and C<STRUCTURAL>.  More details
+about mixed_elements in XML::Compile::Translate::Reader.
 
 =item --type|-t TYPE
 

@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 # Try different calling convensions (::Tester is only using one)
 # A few options are not formally tested; hopefully in the future.
 

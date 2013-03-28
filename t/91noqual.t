@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 # Test schemas unqualified schemas with target-namespace
 
 use warnings;

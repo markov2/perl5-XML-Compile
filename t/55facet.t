@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 # test facets
 
 use warnings;
@@ -11,7 +11,7 @@ use XML::Compile::Schema;
 use XML::Compile::Tester;
 use XML::Compile::Util qw/pack_type/;
 
-use Test::More tests => 366;
+use Test::More tests => 374;
 
 set_compile_defaults
     elements_qualified => 'NONE';
@@ -173,6 +173,16 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
       <fractionDigits value="2" />
     </restriction>
   </simpleType>
+</element>
+
+<!-- Question by andrew campbell, 2013-02-08 -->
+<element name="test18">
+  <simpleType>
+    <restriction base="dateTime">
+      <minInclusive value="1995-01-01T00:00:00Z"/>
+      <maxInclusive value="2120-12-31T00:00:00Z"/>
+    </restriction>
+  </simpleType>
 </element>
 
 </schema>
@@ -405,3 +415,13 @@ is($r17->(qq{<test17 xmlns="$TestNS">3.14152</test17>}), "3.14");
 my $w17 = writer_create $schema, 'total 5, frac 2w', $t17;
 my $x17 = writer_test $w17, '3.141526';
 compare_xml($x17, qq{<a:test17 xmlns:a="$TestNS">3.14</a:test17>});
+
+### test18
+set_compile_defaults
+    include_namespaces    => 0
+  , elements_qualified    => 'NONE'
+  , use_default_namespace => 0;
+
+test_rw($schema, test18 => '<test18>2012-01-01T00:00:00Z</test18>'
+  , '2012-01-01T00:00:00Z');
+

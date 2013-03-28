@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 # QName builtins are harder, because they need the node which is processed
 # to lookup the name-space.
 

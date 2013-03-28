@@ -17,9 +17,10 @@ use MIME::Base64       qw/decoded_base64_length/;
 use constant DBL_MAX_DIG => 15;
 use constant DBL_MAX_EXP => 307;
 
-# depends on Perl's compile flags
+# depend on Perl's compile flags
 use constant INT_MAX => int((sprintf"%u\n",-1)/2);
 use constant INT_MIN => -1 - INT_MAX;
+
 
 =chapter NAME
 
@@ -45,40 +46,52 @@ The content is not for end-users, but called by the schema translator.
 =cut
 
 my %facets_simple =
- ( enumeration     => \&_enumeration
- , fractionDigits  => \&_s_fractionDigits
- , length          => \&_s_length
- , maxExclusive    => \&_s_maxExclusive
- , maxInclusive    => \&_s_maxInclusive
- , maxLength       => \&_s_maxLength
- , maxScale        => undef   # ignore
- , minExclusive    => \&_s_minExclusive
- , minInclusive    => \&_s_minInclusive
- , minLength       => \&_s_minLength
- , minScale        => undef   # ignore
- , pattern         => \&_pattern
- , totalDigits     => \&_s_totalDigits
- , whiteSpace      => \&_s_whiteSpace
- , _totalFracDigits=> \&_s_totalFracDigits
- );
+  ( enumeration     => \&_enumeration
+  , fractionDigits  => \&_s_fractionDigits
+  , length          => \&_s_length
+  , maxExclusive    => \&_s_maxExclusive
+  , maxInclusive    => \&_s_maxInclusive
+  , maxLength       => \&_s_maxLength
+  , maxScale        => undef   # ignore
+  , minExclusive    => \&_s_minExclusive
+  , minInclusive    => \&_s_minInclusive
+  , minLength       => \&_s_minLength
+  , minScale        => undef   # ignore
+  , pattern         => \&_pattern
+  , totalDigits     => \&_s_totalDigits
+  , whiteSpace      => \&_s_whiteSpace
+  , _totalFracDigits=> \&_s_totalFracDigits
+  );
 
 my %facets_list =
- ( enumeration     => \&_enumeration
- , length          => \&_l_length
- , maxLength       => \&_l_maxLength
- , minLength       => \&_l_minLength
- , pattern         => \&_pattern
- , whiteSpace      => \&_l_whiteSpace
+  ( enumeration     => \&_enumeration
+  , length          => \&_l_length
+  , maxLength       => \&_l_maxLength
+  , minLength       => \&_l_minLength
+  , pattern         => \&_pattern
+  , whiteSpace      => \&_l_whiteSpace
+  );
+
+my %facets_date =  # inclusive or exclusive times is rather useless.
+  ( maxExclusive    => \&_d_max
+  , maxInclusive    => \&_d_max
+  , minExclusive    => \&_d_min
+  , minInclusive    => \&_d_min
  );
 
 sub builtin_facet($$$$$$$$)
 {   my ($path, $args, $facet, $value, $is_list, $type, $nss, $action) = @_;
+    my $date_time_type = pack_type SCHEMA2001, 'dateTime';
 
-    my $def = $is_list ? $facets_list{$facet} : $facets_simple{$facet};
-      $def
-    ? $def->($path, $args, $value, $type, $nss, $action)
-    : error __x"facet {facet} not implemented at {where}"
+    my $def
+      = $is_list ? $facets_list{$facet}
+      : $nss->doesExtend($type, $date_time_type) ? $facets_date{$facet}
+      : $facets_simple{$facet};
+
+    $def or error __x"facet {facet} not implemented at {where}"
         , facet => $facet, where => $path;
+
+    $def->($path, $args, $value, $type, $nss, $action);
 }
 
 sub _l_whiteSpace($$$)
@@ -384,6 +397,22 @@ sub _pattern($$$)
     sub { return $_[0] if $compiled->matches($_[0]);
          error __x"string `{string}' does not match pattern `{pat}' at {where}"
            , string => $_[0], pat => $regex, where => $path;
+    };
+}
+
+sub _d_min($$$)
+{   my ($path, $args, $min) = @_;
+    sub { return $_[0] if $_[0] gt $min;
+        error __x"too small inclusive {value}, min {min} at {where}"
+          , value => $_[0], min => $min, where => $path;
+    };
+}
+
+sub _d_max($$$)
+{   my ($path, $args, $min) = @_;
+    sub { return $_[0] if $_[0] lt $min;
+        error __x"too large inclusive {value}, min {min} at {where}"
+          , value => $_[0], min => $min, where => $path;
     };
 }
 
