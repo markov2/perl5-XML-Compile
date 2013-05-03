@@ -172,7 +172,7 @@ test_rw($schema, test9 => '<test9><test2>92</test2></test9>', {test2 => 92});
 #
 
 $error = error_r($schema, test10 => '<test10><t10>100</t10></test10>');
-is($error, "element `t10' not processed at {$TestNS}test10");
+is($error, "element `t10' not processed for {$TestNS}test10 at /test10/t10");
 
 $error = error_w($schema, test10 => { t10 => 100 });
 is($error, "tag `t10' not used at {$TestNS}test10");

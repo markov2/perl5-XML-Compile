@@ -94,7 +94,7 @@ __XML
 $error = error_r($schema, test1 => <<__XML);
 <test1><t1_a>8</t1_a><extra>9</extra></test1>
 __XML
-is($error, "element `extra' not processed at {http://test-types}test1");
+is($error, "element `extra' not processed for {http://test-types}test1 at /test1/extra");
 
 # all itself is not a all, unless minOccurs=0
 $error = error_r($schema, test1 => <<__XML);

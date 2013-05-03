@@ -100,9 +100,11 @@ sub makeElementWrapper
           }
 
           my $data = ($processor->($tree))[-1];
-          defined $data
-              or error __x"data not recognized, found a `{type}'"
-                  , type => type_of_node $tree->node;
+          unless(defined $data)
+          {    my $node = $tree->node;
+               error __x"data not recognized, found a `{type}' at {where}"
+                  , type => type_of_node $node, where => $node->nodePath;
+          }
           $data;
         };
 }
@@ -582,6 +584,13 @@ sub makeElementAbstract
 # complexType and complexType/ComplexContent
 #
 
+sub _notProcessed($$)
+{   my ($self, $child, $path) = @_;
+    error __x"element `{name}' not processed for {path} at {where}"
+      , name => type_of_node($child), path => $path
+      , _class => 'misfit', where => $child->nodePath;
+}
+
 sub makeComplexElement
 {   my ($self, $path, $tag, $elems, $attrs, $attrs_any,undef,$is_nillable) = @_;
 #my @e = @$elems; my @a = @$attrs;
@@ -596,30 +605,28 @@ sub makeComplexElement
             , (map $_->($node), @attrs)
             );
 
-          defined $tree->currentChild
-              and error __x"element `{name}' not processed at {path}"
-                      , name => $tree->currentType, path => $path
-                      , _class => 'misfit';
+          $self->_notProcessed($tree->currentChild, $path)
+             if $tree->currentChild;
 
           ($tag => \%complex);
         };
 
     @elems || return
     sub { my $tree = shift or return ();
-          defined $tree->currentChild
-              and error __x"element `{name}' not processed at {path}"
-                    , name => $tree->currentType, path => $path
-                    , _class => 'misfit';
+
+          $self->_notProcessed($tree->currentChild, $path)
+             if $tree->currentChild;
+
           ($tag => {});
         };
 
     my $el = shift @elems;
     sub { my $tree    = shift or return ();
           my %complex = $el->($tree);
-          defined $tree->currentChild
-              and error __x"element `{name}' not processed at {path}"
-                      , name => $tree->currentType, path => $path
-                      , _class => 'misfit';
+
+          $self->_notProcessed($tree->currentChild, $path)
+             if $tree->currentChild;
+
           ($tag => \%complex);
         };
 }
@@ -1087,7 +1094,7 @@ sub makeHook($$$$$$)
                         , sub {$r->($tree->descend($xml))} )} @replace
              : $r->($tree->descend($xml));
        @h or return ();
-       my $h = @h==1 ? {_ => $h[0]} : $h[1];  # detect simpleType
+       my $h = @h==1 && !ref $h[0] ? {_ => $h[0]} : $h[1];  # detect simpleType
        foreach my $after (@after)
        {   $h = $after->($xml, $h, $path);
            defined $h or return ();
@@ -1111,41 +1118,49 @@ sub _decodeReplace($$)
     error __x"labeled replace hook `{call}' undefined for READER", call=>$call;
 }
 
+my %after = 
+  ( PRINT_PATH   => sub {print "$_[2]\n"; $_[1] }
+  , INCLUDE_PATH => sub { my $h = $_[1];
+        $h = { _ => $h } if ref $h ne 'HASH';
+        $h->{_PATH} = $_[0];
+        $h;
+    }
+  , XML_NODE     => sub { my $h = $_[1];
+        $h = { _ => $h } if ref $h ne 'HASH';
+        $h->{_XML_NODE} = $_[0];
+        $h;
+    }
+  , ELEMENT_ORDER => sub { my ($xml, $h) = @_;
+        $h = { _ => $h } if ref $h ne 'HASH';
+        my @order = map type_of_node($_)
+          , grep $_->isa('XML::LibXML::Element'), $xml->childNodes;
+        $h->{_ELEMENT_ORDER} = \@order;
+        $h;
+    }
+  , ATTRIBUTE_ORDER => sub { my ($xml, $h) = @_;
+        $h = { _ => $h } if ref $h ne 'HASH';
+        my @order = map $_->nodeName, $xml->attributes;
+        $h->{_ATTRIBUTE_ORDER} = \@order;
+        $h;
+    }
+  , NODE_TYPE => sub { my ($xml, $h) = @_;
+        $h = { _ => $h } if ref $h ne 'HASH';
+        $h->{_NODE_TYPE} = type_of_node $xml;
+        $h;
+    }
+  );
+
 sub _decodeAfter($$)
 {   my ($self, $path, $call) = @_;
     return $call if ref $call eq 'CODE';
 
-      $call eq 'PRINT_PATH'
-    ? sub {print "$_[2]\n"; $_[1] }
-    : $call eq 'XML_NODE'
-    ? sub { my $h = $_[1];
-            $h = { _ => $h } if ref $h ne 'HASH';
-            $h->{_XML_NODE} = $_[0];
-            $h;
-          }
-    : $call eq 'ELEMENT_ORDER'
-    ? sub { my ($xml, $h) = @_;
-            $h = { _ => $h } if ref $h ne 'HASH';
-            my @order = map {type_of_node $_}
-                grep { $_->isa('XML::LibXML::Element') }
-                    $xml->childNodes;
-            $h->{_ELEMENT_ORDER} = \@order;
-            $h;
-          }
-    : $call eq 'ATTRIBUTE_ORDER'
-    ? sub { my ($xml, $h) = @_;
-            $h = { _ => $h } if ref $h ne 'HASH';
-            my @order = map {$_->nodeName} $xml->attributes;
-            $h->{_ATTRIBUTE_ORDER} = \@order;
-            $h;
-          }
-    : $call eq 'NODE_TYPE'
-    ? sub { my ($xml, $h) = @_;
-            $h = { _ => $h } if ref $h ne 'HASH';
-            $h->{_NODE_TYPE} = type_of_node $xml;
-            $h;
-          }
-    : error __x"labeled after hook `{call}' undefined for READER", call=> $call;
+    # The 'after' can be called on a single.  In that case, turn it into
+    # a HASH for additional information.
+    my $dec = $after{$call}
+        or error __x"labeled after hook `{call}' undefined for READER"
+            , call=> $call;
+
+    $dec;
 }
 
 sub makeBlocked($$$)
@@ -1398,7 +1413,8 @@ M<XML::LibXML::Simple> to translate a part of your tree.  Simply
 
  use XML::LibXML::Simple  qw/XMLin/;
  $schema->addHook
-   ( type    => ...type-definition...
+   ( type    => 'tns:xyz'     # or pack_type($tns,'xyz')
+  #  path    => qr!/company$! # by element name
    , replace =>
        sub { my ($xml, $args, $path, $type, $r) = @_;
              ($type => XMLin($xml, ...));
@@ -1412,12 +1428,12 @@ the data collected and the path.  Be careful that the collected data
 might be a SCALAR (for simpleType).  Return a HASH or a SCALAR.  C<undef>
 may work, unless it is the value of a required element you throw awy.
 
-This hook also offers a predefined C<PRINT_PATH>.  Besides, it has
-C<XML_NODE>, C<NODE_TYPE>, C<ELEMENT_ORDER>, and C<ATTRIBUTE_ORDER>, which
-will result in additional fields in the HASH, respectively containing the
-NODE which was processed (an XML::LibXML::Element), the type_of_node,
-the element names, and the attribute names.  The keys start with an
-underscore C<_>.
+This hook also offers a predefined C<PRINT_PATH>.  Besides, it
+has C<INCLUDE_PATH>, C<XML_NODE>, C<NODE_TYPE>, C<ELEMENT_ORDER>,
+and C<ATTRIBUTE_ORDER>, which will result in additional fields in
+the HASH, respectively containing the NODE which was processed (an
+XML::LibXML::Element), the type_of_node, the element names, and the
+attribute names.  The keys start with an underscore C<_>.
 
 =section Typemaps
 

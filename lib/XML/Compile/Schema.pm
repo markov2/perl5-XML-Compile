@@ -313,6 +313,9 @@ must be a M<XML::LibXML> node, therefore it is advised to use
 M<importDefinitions()>, which has a much more flexible way to
 specify the data.
 
+When the object extends M<XML::Compile::Cache>, the prefixes declared
+on the schema element will be taken as default prefixes.
+
 =option  source STRING
 =default source C<undef>
 An indication where this schema data was found.  If you use M<dataToXML()>
@@ -347,13 +350,12 @@ sub addSchemas($@)
     {   push @nsopts, $o => delete $opts{$o} if exists $opts{$o};
     }
 
-
     UNIVERSAL::isa($node, __PACKAGE__)
         and error __x"use useSchema(), not addSchemas() for a {got} object"
              , got => ref $node;
 
     UNIVERSAL::isa($node, 'XML::LibXML::Node')
-        or error __x"required is a XML::LibXML::Node";
+        or error __x"addSchema() requires an XML::LibXML::Node";
 
     $node = $node->documentElement
         if $node->isa('XML::LibXML::Document');
@@ -729,12 +731,14 @@ sub compile($$@)
         exists $args{check_occurs}   or $args{check_occurs} = 1;
     }
 
-    my $iut = exists $args{ignore_unused_tags} ? $args{ignore_unused_tags}
-      : $self->{unused_tags};
+    my $iut = exists $args{ignore_unused_tags}
+      ? $args{ignore_unused_tags} : $self->{unused_tags};
+
     $args{ignore_unused_tags}
       = !defined $iut ? undef : ref $iut eq 'Regexp' ? $iut : qr/^/;
 
-    exists $args{include_namespaces} or $args{include_namespaces} = 1;
+    exists $args{include_namespaces}
+        or $args{include_namespaces} = 1;
 
     if($args{sloppy_integers} ||= 0)
     {   eval "require Math::BigInt";
@@ -858,7 +862,7 @@ The templates produced are B<not always correct>.  Please contribute
 improvements: read and understand the comments in the text.
 
 =option  elements_qualified 'ALL'|'TOP'|'NONE'|BOOLEAN
-=default elements_qualified <undef>
+=default elements_qualified 'TOP'
 
 =option  attributes_qualified BOOLEAN
 =default attributes_qualified <undef>
@@ -910,11 +914,12 @@ sub template($@)
     my %show = map {("show_$_" => 1)} split m/\,/, $show;
     my $nss  = $self->namespaces;
 
-    my $indent              = $args{indent} || "  ";
-    $args{check_occurs}     = 1;
-    $args{mixed_elements} ||= 'ATTRIBUTES';
-    $args{default_values} ||= 'EXTEND';
-    $args{abstract_types} ||= 'ERROR';
+    my $indent                  = $args{indent} || "  ";
+    $args{check_occurs}         = 1;
+    $args{mixed_elements}     ||= 'ATTRIBUTES';
+    $args{default_values}     ||= 'EXTEND';
+    $args{abstract_types}     ||= 'ERROR';
+    $args{elements_qualified} ||= 'TOP';
 
     exists $args{include_namespaces}
         or $args{include_namespaces} = 1;
@@ -1021,8 +1026,8 @@ Overrule the details information about the source of the data.
 my (%schemaByFilestamp, %schemaByChecksum);
 
 sub importDefinitions($@)
-{   my ($self, $thing, %options) = @_;
-    my @data = ref $thing eq 'ARRAY' ? @$thing : $thing;
+{   my ($self, $frags, %options) = @_;
+    my @data = ref $frags eq 'ARRAY' ? @$frags : $frags;
 
     # this is a horrible hack, but by far the simpelest solution to
     # avoid dataToXML process the same info twice.

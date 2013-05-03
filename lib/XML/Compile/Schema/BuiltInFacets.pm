@@ -14,13 +14,11 @@ use XML::LibXML;  # for ::RegExp
 use XML::Compile::Util qw/SCHEMA2001 pack_type/;
 use MIME::Base64       qw/decoded_base64_length/;
 
-use constant DBL_MAX_DIG => 15;
-use constant DBL_MAX_EXP => 307;
+use POSIX              qw/DBL_MAX_10_EXP DBL_DIG/;
 
 # depend on Perl's compile flags
 use constant INT_MAX => int((sprintf"%u\n",-1)/2);
 use constant INT_MIN => -1 - INT_MAX;
-
 
 =chapter NAME
 
@@ -135,17 +133,16 @@ sub _maybe_big($$$)
     $value =~ s/\s//g;
     if($value =~ m/[.eE]/)
     {   my $c   = $value;
-        my $exp = $c =~ s/[eE][+-]?(\d+)// ? $1 : 0;
-        for($c) { s/\.//; s/^[-+]// }
+        my $exp = $c =~ s/[eE][+-]?([0-9]+)// ? $1 : 0;
+        my $pre = $c =~ /^[-+]?([0-9]*)/ ? length($1) : 0;
         return Math::BigFloat->new($value)
-           if length($c) > DBL_MAX_DIG || $exp > DBL_MAX_EXP;
+            if $pre >= DBL_DIG || $pre+$exp >= DBL_MAX_10_EXP;
     }
-
     # compare ints as strings, because they will overflow!!
-    if(substr($value, 0, 1) eq '-')
+    elsif(substr($value, 0, 1) eq '-')
     {   return Math::BigInt->new($value)
-           if length($value) > length(INT_MIN)
-           || (length($value)==length(INT_MIN) && $value gt INT_MIN);
+            if length($value) > length(INT_MIN)
+            || (length($value)==length(INT_MIN) && $value gt INT_MIN);
     }
     else
     {   return Math::BigInt->new($value)

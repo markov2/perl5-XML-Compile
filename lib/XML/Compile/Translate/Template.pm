@@ -60,11 +60,14 @@ sub makeTagUnqualified
     length $prefix ? "$prefix:$local" : $local;
 }
 
-my (%recurse, %reuse);
+# Detect recursion.  Based on type is best, but some schema's do not
+# have named types, so tags are indexed as well.
+my (%recurse_type, %reuse_type, %recurse_tag, %reuse_tag);
+
 sub compile($@)
 {   my ($self, $type, %args) = @_;
     $self->{_output} = $args{output};
-    (%recurse, %reuse) = ();
+    (%recurse_type, %reuse_type, %recurse_tag, %reuse_tag) = ();
     $self->SUPER::compile($type, %args);
 }
 
@@ -252,7 +255,7 @@ sub makeComplexElement
     sub { my (@attrs, @elems);
           my $is_pseudo_type = $type !~ m/^{/;  # like "unnamed complex"
 
-          if(!$is_pseudo_type && $recurse{$type})
+          if((!$is_pseudo_type && $recurse_type{$type}) || $recurse_tag{$tag})
           {   return
               +{ kind   => 'complex'
                , struct => 'probably a recursive complex'
@@ -261,7 +264,7 @@ sub makeComplexElement
                };
           }
 
-          if(!$is_pseudo_type && $reuse{$type})
+          if((!$is_pseudo_type && $reuse_type{$type}) || $reuse_tag{$tag})
           {   return
               +{ kind   => 'complex'
                , struct => 'complex structure shown above'
@@ -270,14 +273,14 @@ sub makeComplexElement
                };
           }
 
-          $recurse{$type}++;
-          $reuse{$type}++;
+          $recurse_type{$type}++; $recurse_tag{$tag}++;
+          $reuse_type{$type}++;   $reuse_tag{$tag}++;
           foreach my $part (@parts)
           {   my $child = $part->();
               if($child->{attr}) { push @attrs, $child }
               else               { push @elems, $child }
           }
-          $recurse{$type}--;
+          $recurse_type{$type}--; $recurse_tag{$tag}--;
 
           +{ kind   => 'complex'
            , struct => ($is_nillable ? "is nillable, as: $tag => NIL" : undef)

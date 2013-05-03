@@ -154,7 +154,7 @@ __XML
 my $error = error_r($schema, test1 => <<__XML);
 <test1><t1_a>8</t1_a><extra>9</extra></test1>
 __XML
-is($error, "element `extra' not processed at {http://test-types}test1");
+is($error, "element `extra' not processed for {http://test-types}test1 at /test1/extra");
 
 # choice itself is not a choice, unless minOccurs=0
 $error = error_r($schema, test1 => <<__XML);
@@ -248,7 +248,7 @@ is($error, "found 0 blocks for `cho_t6_a', must be between 1 and 3 inclusive at 
 $error = error_r($schema, test6 => <<__XML);
 <test6><t6_a>30</t6_a><t6_a>31</t6_a><t6_c>32</t6_c><t6_a>33</t6_a></test6>
 __XML
-is($error, "element `t6_a' not processed at {http://test-types}test6");
+is($error, "element `t6_a' not processed for {http://test-types}test6 at /test6/t6_a[3]");
 
 my %t6_b =
  ( cho_t6_a => [ {t6_a => 30}

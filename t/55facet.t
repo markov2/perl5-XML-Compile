@@ -19,7 +19,8 @@ set_compile_defaults
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema targetNamespace="$TestNS"
         xmlns="$SchemaNS"
-        xmlns:me="$TestNS">
+        xmlns:me="$TestNS"
+        elementFormDefault="qualified">
 
 <simpleType name="t1">
   <restriction base="int" />

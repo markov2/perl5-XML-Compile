@@ -4,23 +4,24 @@
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
 
-To be resolved:
- - handle XML::LibXML::Error objects
- - useSchema() relation to ::Cache::declare()?
- - proposed new schema features:
-     . alternative
-       http://www.ibm.com/developerworks/library/x-xml11pt2/#N103D7
-     . ::Instance cannot handle element and attribute declaration attribute
-       "targetNamespace" (proposed schema feature)
- - namespace blocking option for templates; exclude deprecated elements
- - when you use appendChild i.s.o. addChild, the namespace declarators
-   are managed automatically correct, saving a wrapper in the writer
-   and avoiding the prefix trick. [Roman Daniel].  Nicer, but would
-   affect the whole code and most tests.
- - errors on types should show dynamic nested location in structure,
-   not path in schema.
- - nillable support for mixed elements
- - typemaps on basic types
+Plans and unwanted limitations? see README.todo
+
+version 1.33: Fri May  3 10:02:27 CEST 2013
+
+	Fixes:
+	- schema's used elementFormDefault=TOP when there was a
+	  targetNamespace.  That's too much.
+	- some schemas have not named types, to recursion is not
+	  detected: detection based on label is also required.
+	- reader: replace hook should not get extra '_' level.
+	- detection whether Big::Float is needed was incorrect
+	  rt.cpan.org#85000 [James Davis]
+	- reader hook: added INCLUDE_PATH
+
+	Improvements:
+	- improvement in OODoc generated pods
+	- reader: introduction of nodePath in some error messages.
+	- moved some TODO from ChangeLog into README.todo
 
 version 1.32: Thu Mar 28 11:13:33 CET 2013
 
