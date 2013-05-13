@@ -428,7 +428,7 @@ sub findSchemaFile($)
 =section Comparison
 
 Where other Perl modules (like M<SOAP::WSDL>) help you using these schemas
-(often with a lot of run-time [XPath] searches), XML::Compile takes a
+(often with a lot of run-time XPath searches), XML::Compile takes a
 different approach: instead of run-time processing of the specification,
 it will first compile the expected structure into a pure Perl CODE
 reference, and then use that to process the data as often as needed.
@@ -441,11 +441,12 @@ quite a number of modules simply ignore that.
 
 Next to this, data-types are formatted and processed correctly; for
 instance, the specification prescribes that the C<Integer> data-type
-must accept values of at least 18 digits... not just Perl's idea of longs.
+must accept values of at least 18 digits... not fitting in Perl's idea
+of longs.
 
-XML::Compile supports the more complex data-types like C<list>, C<union>,
-C<substitutionGroup> (unions on complex type level), and even the
-nasty C<any> and C<anyAttribute>, which is rarely the case for the
+XML::Compile also supports all more complex data-types like C<list>,
+C<union>, C<substitutionGroup> (unions on complex type level), and even
+the nasty C<any> and C<anyAttribute>, which is rarely the case for the
 other modules.
 =cut
 

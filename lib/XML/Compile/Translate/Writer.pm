@@ -157,14 +157,15 @@ sub makeSequence($@)
 
     if(@pairs==2)
     {   my ($take, $do) = @pairs;
-        return $do
-            if ref $do eq 'BLOCK' || ref $do eq 'ANY';
 
-        return bless sub {
-            my ($doc, $values) = @_;
-            defined $values or return;
-            $do->($doc, delete $values->{$take});
-        }, 'BLOCK';
+        return
+            ref $do eq 'ANY'   ? bless(sub { $do->(@_) }, 'BLOCK')
+          : ref $do eq 'BLOCK' ? $do
+          : bless sub {
+                my ($doc, $values) = @_;
+                defined $values or return;
+                $do->($doc, delete $values->{$take});
+            }, 'BLOCK';
     }
  
     bless sub {
