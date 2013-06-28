@@ -40,6 +40,7 @@ XML::Compile::Schema - Compile a schema into CODE
  $schema->addSchemas($tree);
 
  # three times the same: well-known url, filename in schemadir, url
+ # Just as example: usually not needed.
  $schema->importDefinitions('http://www.w3.org/2001/XMLSchema');
  $schema->importDefinitions('2001-XMLSchema.xsd');
  $schema->importDefinitions(SCHEMA2001);  # from ::Util

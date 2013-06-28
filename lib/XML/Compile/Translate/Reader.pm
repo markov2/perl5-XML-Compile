@@ -1298,10 +1298,6 @@ from the container which are not used.  Also in this case C<TAKE_ALL>
 is required to produce C<any> results.  C<SKIP_ALL> will ignore all
 results, although this are being processed for validation needs.
 
-The C<minOccurs> and C<maxOccurs> of C<any> are ignored: the amount of
-elements is always unbounded.  Therefore, you will get an array of
-elements back per type. 
-
 =subsection option any_type CODE
 
 By default, the elements which have type "xsd:anyType" will return
@@ -1313,7 +1309,7 @@ will get called with the path, the node, and the default handler.  Be
 awayre the $node may actually be a string already.
 
    $schema->compile(READER => ..., any_type => \&handle_any_type);
-   sub handle_any_type
+   sub handle_any_type($$$)
    { my ($path, $node, $handler) = @_;
      ref $node or return $node;
      $node;

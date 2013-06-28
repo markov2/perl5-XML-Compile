@@ -141,6 +141,8 @@ __XML
 
 my $out = templ_perl $schema, "{$TestNS}test2"
             , key_rewrite => sub {uc $_[1]}, skip_header => 1;
+
+# T2B "borrows" type of base type
 is($out, <<'__TEMPL');
 # Describing complex x0:test2
 #     {http://test-types}test2
@@ -150,6 +152,6 @@ is($out, <<'__TEMPL');
 
   # substitutionGroup x0:t2a
   #   T2A xs:int
-  #   T2B xs:anyType
+  #   T2B xs:int
   T2A => { T2A => 42 }, }
 __TEMPL

@@ -668,7 +668,8 @@ sub element($)
     my ($comptype, $comps);
     my $nr_childs = $tree->nrChildren;
     if(my $isa    = $node->getAttribute('type'))
-    {   $nr_childs==0
+    {   # explicitly names type
+        $nr_childs==0
             or error __x"no childs expected with attribute `type' at {where}"
                  , where => $where, _class => 'schema';
 
@@ -677,8 +678,22 @@ sub element($)
                  || $self->typeByName($tree, $comptype);
     }
     elsif($nr_childs==0)
-    {   $comptype = $self->anyType($node);
-        $comps    = $self->typeByName($tree, $comptype);
+    {   if(my $subst = $node->getAttribute('substitutionGroup'))
+        {   # default type for substGroups is type of base-class
+            my $subst_elem = $self->rel2abs($where, $node, $subst);
+            my $base_elem  = $self->namespaces->find(element => $subst_elem);
+            my $node       = $base_elem->{node};
+            if(my $isa = $node->getAttribute('type'))
+            {   $comptype  = $self->rel2abs($where, $node, $isa);
+                $comps     = $self->blocked($where, complexType => $comptype)
+                          || $self->typeByName($tree, $comptype);
+            }
+        }
+        unless($comptype)
+        {   # no type found, so anyType
+            $comptype = $self->anyType($node);
+            $comps    = $self->typeByName($tree, $comptype);
+        }
     }
     elsif($nr_childs!=1)
     {   error __x"expected is only one child at {where}"
@@ -914,7 +929,7 @@ sub particleBlock($)
 {   my ($self, $tree) = @_;
 
     my $node  = $tree->node;
-    my @pairs = map { $self->particle($tree->descend($_)) } $tree->childs;
+    my @pairs = map $self->particle($tree->descend($_)), $tree->childs;
     @pairs or return ();
 
     # label is name of first component, only needed when maxOcc > 1
@@ -965,9 +980,8 @@ sub particleElementRef($)
 sub particleElement($)
 {   my ($self, $tree) = @_;
 
-    my $node  = $tree->node;
-
-    if(my $ref =  $node->getAttribute('ref'))
+    my $node   = $tree->node;
+    if(my $ref = $node->getAttribute('ref'))
     {   my $where   = $tree->path . "/$ref";
         my $refname = $self->rel2abs($tree, $node, $ref);
         return () if $self->blocked($where, ref => $refname);
@@ -989,7 +1003,15 @@ sub particleElement($)
              , where => $tree->path, _class => 'schema';
 
     my $fullname = pack_type $self->{tns}, $name;
-    my $nodetype = $self->{elems_qual} ? $fullname : $name;
+    my $form     = $node->getAttribute('form');
+    my $qual
+      = !defined $form         ? $self->{elems_qual}
+      : $form eq 'qualified'   ? 1
+      : $form eq 'unqualified' ? 0
+      : error __x"form must be (un)qualified, not {form} at {where}"
+          , form => $form, where => $tree->path, _class => 'schema';
+
+    my $nodetype = $qual ? $fullname : $name;
     my $do       = $self->element($tree->descend($node, $name));
     $do ? ($nodetype => $do) : ();
 }
@@ -1660,7 +1682,6 @@ sub blocked($$$)
     $is_blocked or return;
 
     trace "$type of $class is blocked";
-
     $self->makeBlocked($path, $class, $type);
 }
 
