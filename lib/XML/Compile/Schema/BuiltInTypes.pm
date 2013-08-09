@@ -441,7 +441,7 @@ $builtin_types{base64Binary} =
  { parse   => sub { eval { decode_base64 $_[0] } }
  , format  => sub { eval { encode_base64 $_[0] } }
  , check   => sub { !$@ }
- , example => 'VGVzdA=='
+ , example => 'decoded bytes'
  , extends => 'anyAtomicType'
  };
 

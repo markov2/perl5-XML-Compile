@@ -118,7 +118,7 @@ sub type($) { $_[0]->{types}{$_[1]} }
 Returns one global element definition.
 =cut
 
-sub element($) { $_[0]->{elements}{$_[1]} }
+sub element($) { $_[0]->{element}{$_[1]} }
 
 =method elements
 Returns a list of all globally defined element names.

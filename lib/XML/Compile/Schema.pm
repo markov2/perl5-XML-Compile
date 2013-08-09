@@ -286,11 +286,17 @@ sub addHooks(@)
     $self;
 }
 
-=method hooks
+=method hooks [READER|WRITER]
 Returns the LIST of defined hooks (as HASHes).
+[1.36] When an action parameter is provided, it will only return a list
+with hooks added with that action value or no action at all.
 =cut
 
-sub hooks() { @{shift->{hooks}} }
+sub hooks(;$)
+{   my $hooks = shift->{hooks};
+    my $dir   = shift or return @$hooks;
+    grep +(!$_->{action} || $_->{action} eq $dir), @$hooks;
+}
 
 =method addTypemaps PAIRS
 Add new XML-Perl type relations.  See L</Typemaps>.
@@ -658,7 +664,7 @@ Alternative for option C<hook>.
 =option  permit_href BOOLEAN
 =default permit_href <false>
 When parsing SOAP-RPC encoded messages, the elements may have a C<href>
-attribute, pointing to an object with C<id>.  The READER will return the
+attribute pointing to an object with C<id>.  The READER will return the
 unparsed, unresolved node when the attribute is detected, and the SOAP-RPC
 decoder will have to discover and resolve it.
 
@@ -762,7 +768,7 @@ sub compile($$@)
     my $nss   = $self->namespaces;
 
     my ($h1, $h2) = (delete $args{hook}, delete $args{hooks});
-    my @hooks = $self->hooks;
+    my @hooks = $self->hooks($action);
     push @hooks, ref $h1 eq 'ARRAY' ? @$h1 : $h1 if $h1;
     push @hooks, ref $h2 eq 'ARRAY' ? @$h2 : $h2 if $h2;
 
@@ -1790,10 +1796,12 @@ evaluated before the global hooks.
 
  my $hook = { type    => '{my_ns}my_type'
             , before  => sub { ... }
+            , action  => 'WRITER'
             };
 
  my $hook = { path    => qr/\(volume\)/
             , replace => 'SKIP'
+            , action  => 'READER'
             };
 
  # path contains "volume" or id is 'aap' or id is 'noot'
@@ -1805,7 +1813,13 @@ evaluated before the global hooks.
 
 =subsection general syntax
 
-Each hook has two kinds of parameters: selectors and processors.
+Each hook has three kinds of parameters:
+=over 4
+=item . selectors
+=item . processors
+=item . action ('READER' or 'WRITER', defaults to both)
+=back
+
 Selectors define the schema component of which the processing is modified.
 When one of the selectors matches, the processing information for the hook
 is used.  When no selector is specified, then the hook will be used on all
@@ -1859,7 +1873,7 @@ define prefix to namespace beforehand.
 
  use XML::Compile::Util qw/SCHEMA2001/;
  my $schemas = XML::Compile::Cache->new(...);
- $schemas->prefixes(xsd => SCHEMA2001, mine => 'http://somens');
+ $schemas->addPrefixes(xsd => SCHEMA2001, mine => 'http://somens');
  $schemas->addHook(type => 'xsd:int', ...);
  $schemas->addHook(type => 'mine:sometype', ...);
  

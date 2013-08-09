@@ -177,7 +177,7 @@ when an external schema is "loaded" "dynamically" into another schema.
   my $schema     = XML::Compile::Cache->new(....);
   $schema->addSchemaDirs($schema_dir);
   $schema->importDefinitions($xyz_xsd, target_namespace => $xyz_ns);
-  $schema->prefixes(xyz => $xyz_ns);
+  $schema->addPrefixes(xyz => $xyz_ns);
   $schema->addKeyRewrite('PREFIXED(xyz)');
 
 The schema "forgets" to mention its C<targetNamespace>, so it is

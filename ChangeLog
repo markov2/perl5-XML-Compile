@@ -6,6 +6,21 @@ Mark Overmeer.
 
 Plans and unwanted limitations? see README.todo
 
+TODO:
+  - modify all modules with the new action parameter for hooks.
+
+version 1.36: Sat Aug 10 00:09:44 CEST 2013
+
+	Fixes:
+	- example of base64Binary should show that Perl's version is
+	  automatically encoded and decoded.
+	- ::Instance::element typo in hash field name
+	  rt.cpan.org#87682 [Jason Prondak]
+
+	Improvements:
+	- ::Schema::addHook() now permits to specify a processing direction
+	- also for ::Schema::hooks()
+
 version 1.35: Fri Jun 28 16:15:48 CEST 2013
 
 	Fixes:
