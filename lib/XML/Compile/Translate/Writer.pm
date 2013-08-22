@@ -109,7 +109,7 @@ sub typemapToHooks($$)
 
         }
 
-        push @$hooks, { type => $type, before => $hook };
+        push @$hooks, +{action => 'WRITER', type => $type, before => $hook};
     }
     $hooks;
 }

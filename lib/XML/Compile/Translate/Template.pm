@@ -222,7 +222,7 @@ sub makeElement
 sub makeElementDefault
 {   my ($self, $path, $ns, $childname, $do, $default) = @_;
     sub { my $h = $do->(@_);
-          $h->{occur}   = "defaults to $default";
+          $h->{occur}   = "defaults to '$default'";
           $h->{example} = $default;
           $h;
         };
@@ -231,7 +231,7 @@ sub makeElementDefault
 sub makeElementFixed
 {   my ($self, $path, $ns, $childname, $do, $fixed) = @_;
     sub { my $h = $do->(@_);
-          $h->{occur}   = "fixed to $fixed";
+          $h->{occur}   = "fixed to '$fixed'";
           $h->{example} = $fixed;
           $h;
         };

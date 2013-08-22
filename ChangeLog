@@ -6,8 +6,14 @@ Mark Overmeer.
 
 Plans and unwanted limitations? see README.todo
 
-TODO:
-  - modify all modules with the new action parameter for hooks.
+version 1.37: Thu Aug 22 16:11:24 CEST 2013
+
+	Changes:
+	- reader: mixed_element own handler now also gets the $path
+
+	Improvements:
+	- template: display '' around default and fixed values
+	- typemap hooks now also use new 'action' parameter
 
 version 1.36: Sat Aug 10 00:09:44 CEST 2013
 

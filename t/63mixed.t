@@ -105,8 +105,8 @@ set_compile_defaults
 my $r3 = reader_create($schema, "code reference" => "{$TestNS}test1");
 my $r3a = $r3->($mixed1);
 is($r3a, 42);
-cmp_ok(scalar @caught, '==', 1);
-isa_ok($caught[0], 'XML::LibXML::Element');
+cmp_ok(scalar @caught, '==', 2);  # got $path and $node
+isa_ok($caught[1], 'XML::LibXML::Element');
 
 #### XML_NODE
 

@@ -78,7 +78,7 @@ sub typemapToHooks($$)
             $hook = sub {$object->fromXML($_[1], $type)};
         }
 
-        push @$hooks, { type => $type, after => $hook };
+        push @$hooks, +{action => 'READER', type => $type, after => $hook};
     }
     $hooks;
 }
@@ -643,7 +643,7 @@ sub makeTaggedElement
           my $simple = $is_nillable && $tree->nodeNil ? 'NIL' : $st->($tree);
           ref $tree or return ($tag => {_ => $simple});
           my $node   = $tree->node;
-          my @pairs  = map {$_->($node)} @attrs;
+          my @pairs  = map $_->($node), @attrs;
           defined $simple || @pairs ?  ($tag => {_ => $simple, @pairs}) : ();
         };
 }
@@ -662,7 +662,7 @@ $is_nillable and panic "nillable mixed not yet supported";
       ref $mixed eq 'CODE'
     ? sub { my $tree = shift or return;
             my $node = $tree->node or return;
-            my @v = $mixed->($node);
+            my @v = $mixed->($path, $node);
             @v ? ($tag => $v[0]) : ();
           }
 
@@ -672,14 +672,14 @@ $is_nillable and panic "nillable mixed not yet supported";
     : $mixed eq 'ATTRIBUTES'
     ? sub { my $tree   = shift or return;
             my $node   = $tree->node;
-            my @pairs  = map {$_->($node)} @attrs;
+            my @pairs  = map $_->($node), @attrs;
             ($tag => { _ => $node, @pairs
                      , _MIXED_ELEMENT_MODE => 'ATTRIBUTES'});
           } 
     : $mixed eq 'TEXTUAL'
     ? sub { my $tree   = shift or return;
             my $node   = $tree->node;
-            my @pairs  = map {$_->($node)} @attrs;
+            my @pairs  = map $_->($node), @attrs;
             ($tag => { _ => $node->textContent, @pairs
                      , _MIXED_ELEMENT_MODE => 'TEXTUAL'});
           } 
@@ -725,7 +725,8 @@ sub makeBuiltin
 {   my ($self, $path, $node, $type, $def, $check_values) = @_;
 
     if($type =~ m/}anyType$/)
-    {   if(my $a = $self->{any_type})
+    {
+        if(my $a = $self->{any_type})
         {   return sub {
                my $node
                  = ref $_[0] && UNIVERSAL::isa($_[0], 'XML::Compile::Iterator')
@@ -736,7 +737,7 @@ sub makeBuiltin
         {   return sub
               { ref $_[0] or return $_[0];
                 my $node = UNIVERSAL::isa($_[0], 'XML::Compile::Iterator')
-                 ? $_[0]->node : $_[0];
+                  ? $_[0]->node : $_[0];
                 (first{ UNIVERSAL::isa($_, 'XML::LibXML::Element') }
                      $node->childNodes) ? $node : $node->textContent;
               };
@@ -781,7 +782,7 @@ sub makeList
              = UNIVERSAL::isa($tree, 'XML::LibXML::Node') ? $tree
              : ref $tree ? $tree->node : undef;
           my $v = ref $tree ? $tree->textContent : $tree;
-          my @v = grep {defined} map {$st->($_, $node)} split(" ",$v);
+          my @v = grep defined, map $st->($_, $node), split " ", $v;
           @v ? \@v : undef;
         };
 }
@@ -940,8 +941,8 @@ sub makeAnyAttribute
 {   my ($self, $path, $handler, $yes, $no, $process) = @_;
     return () unless defined $handler;
 
-    my %yes = map { ($_ => 1) } @{$yes || []};
-    my %no  = map { ($_ => 1) } @{$no  || []};
+    my %yes = map +($_ => 1), @{$yes || []};
+    my %no  = map +($_ => 1), @{$no  || []};
 
     # Takes all, before filtering
     my $all =
@@ -1078,9 +1079,9 @@ sub makeHook($$$$$$)
     return sub { ($_[0]->node->localName => 'SKIPPED') }
         if $replace && grep {$_ eq 'SKIP'} @$replace;
 
-    my @replace = $replace ? map {$self->_decodeReplace($path,$_)} @$replace:();
-    my @before  = $before  ? map {$self->_decodeBefore($path,$_) } @$before :();
-    my @after   = $after   ? map {$self->_decodeAfter($path,$_)  } @$after  :();
+    my @replace = $replace ? map $self->_decodeReplace($path,$_),@$replace : ();
+    my @before  = $before  ? map $self->_decodeBefore($path,$_), @$before  : ();
+    my @after   = $after   ? map $self->_decodeAfter($path,$_),  @$after   : ();
 
     sub
      { my $tree = shift or return ();
@@ -1090,9 +1091,8 @@ sub makeHook($$$$$$)
            defined $xml or return ();
        }
        my @h = @replace
-             ? map {$_->( $xml,$self,$path,$tag
-                        , sub {$r->($tree->descend($xml))} )} @replace
-             : $r->($tree->descend($xml));
+         ? map $_->($xml,$self,$path,$tag,sub{$r->($tree->descend($xml))}), @replace
+         : $r->($tree->descend($xml));
        @h or return ();
        my $h = @h==1 && !ref $h[0] ? {_ => $h[0]} : $h[1];  # detect simpleType
        foreach my $after (@after)
@@ -1108,7 +1108,7 @@ sub _decodeBefore($$)
     return $call if ref $call eq 'CODE';
 
       $call eq 'PRINT_PATH' ? sub {print "$_[1]\n"; $_[0] }
-    : error __x"labeled before hook `{call}' undefined for READER",call=>$call;
+    : error __x"labeled before hook `{call}' undefined for READER", call=>$call;
 }
 
 sub _decodeReplace($$)
@@ -1389,7 +1389,11 @@ is returned, the whole node will disappear.
 This hook offers a predefined C<PRINT_PATH>.
 
 =example to trace the paths
- $schema->addHook(path => qr/./, before => 'PRINT_PATH');
+ $schema->addHook
+   ( action => 'READER'
+   , path   => qr/./
+   , before => 'PRINT_PATH'
+   );
 
 =subsection hooks executed as replacement
 
@@ -1409,7 +1413,8 @@ M<XML::LibXML::Simple> to translate a part of your tree.  Simply
 
  use XML::LibXML::Simple  qw/XMLin/;
  $schema->addHook
-   ( type    => 'tns:xyz'     # or pack_type($tns,'xyz')
+   ( action  => 'READER'
+   , type    => 'tns:xyz'     # or pack_type($tns,'xyz')
   #  path    => qr!/company$! # by element name
    , replace =>
        sub { my ($xml, $args, $path, $type, $r) = @_;
