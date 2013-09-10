@@ -6,6 +6,18 @@ Mark Overmeer.
 
 Plans and unwanted limitations? see README.todo
 
+version 1.38: Tue Sep 10 14:56:24 CEST 2013
+	Fixes:
+	- reader: simple-type nillable with default value [Ciaran Deignan]
+	- templates: show array when "shown above" is quoted as array.
+	- writer: nested particle blocks produced "undef" error when
+	  used incorrectly. Reported by [Alex Bernier]
+	- all: namespace qualification where ref with attribute not
+	  the tns. [Alex Bernier]
+
+	Improvements:
+	- test for nested choice blocks
+
 version 1.37: Thu Aug 22 16:11:24 CEST 2013
 
 	Changes:

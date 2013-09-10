@@ -784,7 +784,8 @@ sub _perlAny($$)
         }
     }
     elsif($kind eq 'complex' || $kind eq 'mixed')  # empty complex-type
-    {   push @lines, "$tag => {}";
+    {   # if there is an "occurs", then there can always be more than one
+        push @lines, $tag.' => '.($ast->{occur} ? '[{},]' : '{}');
     }
     elsif($kind eq 'collapsed') {;}
     elsif($kind eq 'union')    # union type

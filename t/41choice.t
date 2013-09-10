@@ -9,7 +9,7 @@ use TestTools;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 219;
+use Test::More tests => 236;
 
 set_compile_defaults
     elements_qualified => 'NONE';
@@ -139,6 +139,18 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
       </choice>
       <element name="t10d" type="int" minOccurs="0" />
     </sequence>
+  </complexType>
+</element>
+
+<element name="test11">
+  <complexType>
+    <choice>
+      <choice minOccurs="1" maxOccurs="unbounded">
+        <element name="t11a" type="int" />
+        <element name="t11b" type="int" />
+      </choice>
+      <element name="t11c" type="int" />
+    </choice>
   </complexType>
 </element>
 
@@ -323,4 +335,47 @@ test_rw($schema, test10 => <<__XML, { t10a => 6, t10d => 7 });
   <t10a>6</t10a>
   <t10d>7</t10d>
 </test10>
+__XML
+
+# test11, nested choice
+
+my $out = templ_perl($schema, "{$TestNS}test11", show => 'ALL'
+ , skip_header => 1, , prefixes => [ 'me' => $TestNS ]
+ );
+is($out, <<__TEST11);
+# Describing complex me:test11
+#     {http://test-types}test11
+
+# is an unnamed complex
+{ # choice of cho_t11a, t11c
+
+  # choice of t11a, t11b
+  # occurs 1 <= # <= unbounded times
+  cho_t11a => 
+  [ {
+      # is a xs:int
+      t11a => 42,
+
+      # is a xs:int
+      t11b => 42, },
+  ],
+
+  # is a xs:int
+  t11c => 42, }
+__TEST11
+
+my $t11 = { cho_t11a => [ {t11a => 3},{t11b => 4},{t11b => 5},{t11a => 6} ]};
+test_rw($schema, test11 => <<__XML, $t11);
+<test11>
+  <t11a>3</t11a>
+  <t11b>4</t11b>
+  <t11b>5</t11b>
+  <t11a>6</t11a>
+</test11>
+__XML
+
+test_rw($schema, test11 => <<__XML, {t11c => 7} );
+<test11>
+  <t11c>7</t11c>
+</test11>
 __XML
