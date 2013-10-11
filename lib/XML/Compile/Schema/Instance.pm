@@ -10,7 +10,7 @@ use XML::Compile::Util qw/pack_type unpack_type/;
 
 my @defkinds = qw/element attribute simpleType complexType
                   attributeGroup group/;
-my %defkinds = map { ($_ => 1) } @defkinds;
+my %defkinds = map +($_ => 1), @defkinds;
 
 =chapter NAME
 
@@ -340,7 +340,7 @@ sub find($$)
      $self->{$kind}{$full} = \%info;
 
      my $abstract    = $node->getAttribute('abstract') || '';
-     $info{abstract} =  $abstract eq 'true' || $abstract eq '1';
+     $info{abstract} = $abstract eq 'true' || $abstract eq '1';
 
      my $final       = $node->getAttribute('final') || '';
      $info{final}    =  $final eq 'true' || $final eq '1';

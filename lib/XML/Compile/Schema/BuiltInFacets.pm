@@ -75,7 +75,9 @@ my %facets_date =  # inclusive or exclusive times is rather useless.
   , maxInclusive    => \&_d_max
   , minExclusive    => \&_d_min
   , minInclusive    => \&_d_min
- );
+  , enumeration     => \&_enumeration
+  , pattern         => \&_pattern
+  );
 
 sub builtin_facet($$$$$$$$)
 {   my ($path, $args, $facet, $value, $is_list, $type, $nss, $action) = @_;

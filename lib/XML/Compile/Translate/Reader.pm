@@ -705,7 +705,7 @@ sub makeSimpleElement
 
       $is_nillable
     ? sub { my $tree  = shift or return $st->(undef);
-            my $value = $tree->nodeNil ? 'NIL' : $st->($tree);
+            my $value = (ref $tree && $tree->nodeNil) ? 'NIL' : $st->($tree);
             defined $value ? ($tag => $value) : ();
           }
     : sub { my $value = $st->(@_);

@@ -6,6 +6,12 @@ Mark Overmeer.
 
 Plans and unwanted limitations? see README.todo
 
+version 1.39: Fri Oct 11 15:55:05 CEST 2013
+	Fixes:
+	- all: add enumeration and pattern facets on dates.
+	  rt.cpan.org#89259 [Rumen Palov]
+	- base64binary encoded fields without newlines
+
 version 1.38: Tue Sep 10 14:56:24 CEST 2013
 	Fixes:
 	- reader: simple-type nillable with default value [Ciaran Deignan]

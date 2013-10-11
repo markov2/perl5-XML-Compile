@@ -34,3 +34,4 @@ is incorrect.
    are managed automatically correct, saving a wrapper in the writer
    and avoiding the prefix trick. [Roman Daniel].  Nicer, but would
    affect the whole code and most tests.
+ - reader replace hook "XML_SIMPLE"

@@ -10,7 +10,7 @@ use XML::Compile::Schema;
 use XML::Compile::Tester;
 use Math::BigFloat;
 
-use Test::More tests => 162;
+use Test::More tests => 170;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema xmlns="$SchemaNS"
@@ -128,3 +128,5 @@ is('<![CDATA[abc]]>', $cdata->toString(1));
 # object (as done in clone of test_rw).  Other XML::LibXML objects do not
 # crash on this.
 #test_rw($schema, testA => $cd, 'abc', $cd, $cdata);
+
+test_rw($schema, testA => '<testA></testA>', '');
