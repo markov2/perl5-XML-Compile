@@ -20,6 +20,7 @@ is incorrect.
  - typemaps on basic types
  - errors on types should show dynamic nested location in structure,
    not path in schema.
+ - the "assertions" facet
 
 = wishlist
  - handle XML::LibXML::Error objects

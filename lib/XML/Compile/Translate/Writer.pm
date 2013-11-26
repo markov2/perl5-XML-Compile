@@ -533,8 +533,8 @@ sub makeComplexElement
             if(@not_used)
             {   trace "available tags are: $tags";
                 mistake __xn "tag `{tags}' not used at {path}"
-                  , "unused tags {tags} at {path}"
-                  , scalar @not_used, tags => [sort @not_used], path => $path;
+                 , "unused tags {tags} at {path}"
+                 , scalar @not_used, tags => [sort @not_used], path => $path;
             }
         }
 
@@ -544,7 +544,7 @@ sub makeComplexElement
         {   defined $child or next;
             if(ref $child)
             {   next if UNIVERSAL::isa($child, 'XML::LibXML::Text')
-                     && $child->data eq '' ;
+                     && $child->data eq '';
             }
             else
             {   length $child or next;

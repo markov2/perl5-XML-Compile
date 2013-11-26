@@ -1090,9 +1090,12 @@ sub makeHook($$$$$$)
        {   $xml = $_->($xml, $path);
            defined $xml or return ();
        }
+
+       my $process = sub { $r->($tree->descend($xml)) };
        my @h = @replace
-         ? map $_->($xml,$self,$path,$tag,sub{$r->($tree->descend($xml))}), @replace
-         : $r->($tree->descend($xml));
+         ? map $_->($xml, $self, $path, $tag, $process), @replace
+         : $process->();
+
        @h or return ();
        my $h = @h==1 && !ref $h[0] ? {_ => $h[0]} : $h[1];  # detect simpleType
        foreach my $after (@after)

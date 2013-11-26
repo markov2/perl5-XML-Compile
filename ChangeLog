@@ -6,6 +6,14 @@ Mark Overmeer.
 
 Plans and unwanted limitations? see README.todo
 
+version 1.40: Tue Nov 26 09:57:33 CET 2013
+	Fixes:
+	- whiteSpace facet on dateTime [magallanes]
+	- support for explicitTimeZone facet on dates
+
+	Improvements:
+	- error on build-in type now shows location [Radek Šťastný]
+
 version 1.39: Fri Oct 11 15:55:05 CEST 2013
 	Fixes:
 	- all: add enumeration and pattern facets on dates.

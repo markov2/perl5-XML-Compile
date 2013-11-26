@@ -64,13 +64,13 @@ test_rw($schema, test3 => '<test3>-INF</test3>', Math::BigFloat->binf('-'));
 test_rw($schema, test3 => '<test3>NaN</test3>',  Math::BigFloat->bnan); 
 
 my $error = error_r($schema, test3 => '<test3></test3>');
-is($error, "illegal value `' for type {http://www.w3.org/2001/XMLSchema}float");
+is($error, "illegal value `' for type {http://www.w3.org/2001/XMLSchema}float at {http://test-types}test3");
 
 $error = error_w($schema, test3 => 'aap');
-is($error, "illegal value `aap' for type {http://www.w3.org/2001/XMLSchema}float");
+is($error, "illegal value `aap' for type {http://www.w3.org/2001/XMLSchema}float at {http://test-types}test3");
 
 $error = error_w($schema, test3 => '');
-is($error, "illegal value `' for type {http://www.w3.org/2001/XMLSchema}float");
+is($error, "illegal value `' for type {http://www.w3.org/2001/XMLSchema}float at {http://test-types}test3");
 
 ###
 

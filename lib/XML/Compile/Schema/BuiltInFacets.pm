@@ -77,6 +77,8 @@ my %facets_date =  # inclusive or exclusive times is rather useless.
   , minInclusive    => \&_d_min
   , enumeration     => \&_enumeration
   , pattern         => \&_pattern
+  , whiteSpace      => \&_d_whitespace
+  , explicitTimeZone=> \&_d_expl_tz
   );
 
 sub builtin_facet($$$$$$$$)
@@ -109,6 +111,16 @@ sub _s_whiteSpace($$$)
     : $ws eq 'preserve' ? ()
     : error __x"illegal whiteSpace facet '{ws}' in {path}"
           , ws => $ws, path => $path;
+}
+
+sub _d_whiteSpace($$$)
+{   my ($path, undef, $ws) = @_;
+
+    # whitespace processing already in the dateTime parser
+    $ws eq 'collapse'
+        or error __x"illegal whiteSpace facet '{ws}' in {path}"
+          , ws => $ws, path => $path;
+    ();
 }
 
 sub _whitespace_replace($)
@@ -168,8 +180,8 @@ sub _s_minExclusive($$$)
 {   my ($path, $args, $min) = @_;
     $min = _maybe_big $path, $args, $min;
     sub { return $_[0] if $_[0] > $min;
-        error __x"too small exclusive {value}, larger {min} at {where}"
-          , value => $_[0], min => $min, where => $path;
+          error __x"too small exclusive {value}, larger {min} at {where}"
+             , value => $_[0], min => $min, where => $path;
     };
 }
 
@@ -413,6 +425,25 @@ sub _d_max($$$)
         error __x"too large inclusive {value}, min {min} at {where}"
           , value => $_[0], min => $min, where => $path;
     };
+}
+
+sub _d_expl_tz($$$)
+{   my ($path, $args, $enum) = @_;
+    my $tz = qr/Z$ | [+-](?:(?:0[0-9]|1[0-3])\:[0-5][0-9] | 14\:00)$/x;
+
+      $enum eq 'optional'   ? ()
+    : $enum eq 'prohibited'
+    ? sub {   $_[0] !~ $tz
+                 or error __x"timezone forbidden on {date} at {where}"
+                    , date => $_[0], where => $path;
+          }
+    : $enum eq 'required'
+    ? sub {   $_[0] =~ $tz
+                 or error __x"timezone required on {date} at {where}"
+                    , date => $_[0], where => $path;
+          }
+    : error __x"illegal explicitTimeZone facet '{enum}' in {path}"
+          , enum => $enum, path => $path;
 }
 
 1;

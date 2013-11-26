@@ -33,12 +33,17 @@ XML::Compile::Schema - Compile a schema into CODE
  # get schema from string
  my $schema = XML::Compile::Schema->new($xml_string);
 
- # get schema from file
+ # get schema from file (most used)
  my $schema = XML::Compile::Schema->new($filename);
+ my $schema = XML::Compile::Schema->new([glob "*.xsd"]);
 
- # adding schemas
+ # the "::Cache" extension has more power
+ my $schema = XML::Compile::Cache->new(\@xsdfiles);
+
+ # adding more schemas, from parsed XML
  $schema->addSchemas($tree);
 
+ # adding more schemas from files
  # three times the same: well-known url, filename in schemadir, url
  # Just as example: usually not needed.
  $schema->importDefinitions('http://www.w3.org/2001/XMLSchema');
@@ -1763,7 +1768,7 @@ You can use hooks, for instance, to block processing parts of the message,
 to create work-arounds for schema bugs, or to extract more information
 during the process than done by default.
 
-=subsection defining hooks
+=subsection Defining hooks
 
 Multiple hooks can active during the compilation process of a type,
 when C<compile()> is called.  During Schema translation, each of the
@@ -1811,7 +1816,7 @@ evaluated before the global hooks.
             , after   => sub { ... }
             };
 
-=subsection general syntax
+=subsection General syntax
 
 Each hook has three kinds of parameters:
 =over 4
@@ -1846,7 +1851,7 @@ are major differences.  Each of those manual-pages lists the specifics.
 The label tells us when the processing is initiated.  Available labels are
 C<before>, C<replace>, and C<after>.
 
-=subsection hooks on matching types
+=subsection Hooks on matching types
 
 The C<type> selector specifies a complexType of simpleType by name.
 Best is to base the selection on the full name, like C<{ns}type>,
@@ -1869,6 +1874,11 @@ define prefix to namespace beforehand.
  use XML::Compile::Util qw/pack_type SCHEMA2000/;
  type => pack_type(SCHEMA2000, 'int')
 
+ # with XML::Compile::Cache
+ $schema->addPrefixes(xsd => SCHEMA2000);
+ type => 'xsd:int'
+
+
 =examples type hook with XML::Compile::Cache
 
  use XML::Compile::Util qw/SCHEMA2001/;
@@ -1877,7 +1887,7 @@ define prefix to namespace beforehand.
  $schemas->addHook(type => 'xsd:int', ...);
  $schemas->addHook(type => 'mine:sometype', ...);
  
-=subsection hooks on matching ids
+=subsection Hooks on matching ids
 
 Matching based on IDs can reach more schema elements: some types are
 anonymous but still have an ID.  Best is to base selection on the full
@@ -1895,7 +1905,7 @@ the future.
  use XML::Compile::Util qw/pack_id SCHEMA2001/;
  id => pack_id(SCHEMA2001, 'ABC')
 
-=subsection hooks on matching paths
+=subsection Hooks on matching paths
 
 When you see error messages, you always see some representation of
 the path where the problem was discovered.  You can use this path
@@ -2033,6 +2043,14 @@ which list this AUTO gets expanded.
 
   xsi_type => { $base_type => 'AUTO' }   # requires X::C v1.25
 
+M<XML::Compile::Cache> (since v1.01) makes using C<xsi:type> easier.  When
+you have a ::Cache based object (for instance a M<XML::Compile::WSDL11>)
+you can simply say
+
+  $wsdl->addXsiType( $base_type => 'AUTO' )
+
+Now, you do not need to pass the xsi table to each compilation call.
+
 =section Key rewrite
 
 [improved with release 1.10]
@@ -2080,7 +2098,7 @@ M<XML::Compile::Util::pack_type()> or by hand:
     );
   $schema->addKeyRewrite( \%table );
 
-=subsection rewrite via function
+=subsection Rewrite via function
 
 When a CODE reference is provided, it will get called for each key
 which is found in the schema.  Passed are the name-space of the
@@ -2115,7 +2133,7 @@ In the perl representation of the data, the name-spaces get ignored
 (to make the programmer's life simple) but that may cause these nasty
 conflicts.
 
-=subsection rewrite for convenience
+=subsection Rewrite for convenience
 
 In XML, we often see names like C<my-elem-name>, which in Perl
 would be accessed as
@@ -2136,7 +2154,7 @@ then C<< my-elem-name >> in XML will get mapped onto C<< my_elem_name >>
 in Perl, both in the READER as the WRITER.  Be warned that the substitute
 command returns the success, not the modified value!
 
-=subsection pre-defined key_rewrite rules
+=subsection Pre-defined key_rewrite rules
 
 =over 4
 =item UNDERSCORES

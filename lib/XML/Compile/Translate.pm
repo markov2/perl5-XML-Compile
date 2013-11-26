@@ -277,7 +277,8 @@ sub topLevel($$)
     my $node       = $top->{node};
     my $elems_qual = $top->{efd} eq 'qualified';
     my $qual
-      = exists $self->{elements_qualified} ? ($self->{elements_qualified} || 0)
+      = exists $self->{elements_qualified}
+      ? ($self->{elements_qualified} || 0)
       : $elems_qual ? 'ALL' : 'NONE';
 
     my $remove_form_attribute;
@@ -339,8 +340,8 @@ sub topLevel($$)
     $data;
 }
 
-sub typeByName($$)
-{   my ($self, $tree, $typename) = @_;
+sub typeByName($$$)
+{   my ($self, $where, $tree, $typename) = @_;
 
     my $node  = $tree->node;
 
@@ -354,7 +355,6 @@ sub typeByName($$)
 
     if($def)
     {   # Is built-in
-        my $where = $typename;
         my $st = $self->makeBuiltin($where, $node, $typename, $def, $self->{check_values});
 
         return +{ st => $st, is_list => $def->{is_list} };
@@ -366,7 +366,7 @@ sub typeByName($$)
     my $top = $self->namespaces->find(complexType => $typename)
            || $self->namespaces->find(simpleType  => $typename)
        or error __x"cannot find type {type} at {where}"
-            , type => $typename, where => $tree->path, _class => 'usage';
+            , type => $typename, where => $where, _class => 'usage';
 
     local @$self{ qw/elems_qual attrs_qual tns/ }
                  = $self->nsContext($top);
@@ -423,7 +423,7 @@ sub simpleList($)
 
         my $typename = $self->rel2abs($where, $node, $type);
         $per_item    = $self->blocked($where, simpleType => $typename)
-                    || $self->typeByName($tree, $typename);
+                    || $self->typeByName($where, $tree, $typename);
     }
     else
     {   $tree->nrChildren==1
@@ -466,7 +466,7 @@ sub simpleUnion($)
     {   foreach my $union (split " ", $members)
         {   my $typename = $self->rel2abs($where, $node, $union);
             my $type = $self->blocked($where, simpleType => $typename)
-                    || $self->typeByName($tree, $typename);
+                    || $self->typeByName($where, $tree, $typename);
             my $st   = $type->{st}
                 or error __x"union only of simpleTypes, but {type} is complex at {where}"
                      , type => $typename, where => $where, _class => 'schema';
@@ -502,7 +502,7 @@ sub simpleRestriction($$)
     if(my $basename = $node->getAttribute('base'))
     {   $typename = $self->rel2abs($where, $node, $basename);
         $base     = $self->blocked($where, simpleType => $typename)
-                 || $self->typeByName($tree, $typename);
+                 || $self->typeByName($where, $tree, $typename);
     }
     else
     {   my $simple   = $tree->firstChild
@@ -675,7 +675,7 @@ sub element($)
 
         $comptype = $self->rel2abs($where, $node, $isa);
         $comps    = $self->blocked($where, anyType => $comptype)
-                 || $self->typeByName($tree, $comptype);
+                 || $self->typeByName($where, $tree, $comptype);
     }
     elsif($nr_childs==0)
     {   if(my $subst = $node->getAttribute('substitutionGroup'))
@@ -686,13 +686,13 @@ sub element($)
             if(my $isa = $node->getAttribute('type'))
             {   $comptype  = $self->rel2abs($where, $node, $isa);
                 $comps     = $self->blocked($where, complexType => $comptype)
-                          || $self->typeByName($tree, $comptype);
+                          || $self->typeByName($where, $tree, $comptype);
             }
         }
         unless($comptype)
         {   # no type found, so anyType
             $comptype = $self->anyType($node);
-            $comps    = $self->typeByName($tree, $comptype);
+            $comps    = $self->typeByName($where, $tree, $comptype);
         }
     }
     elsif($nr_childs!=1)
@@ -1150,7 +1150,7 @@ sub attributeOne($)
           : $self->anyType($node);
 
          $type  = $self->blocked($where, simpleType => $typename)
-               || $self->typeByName($tree, $typename);
+               || $self->typeByName($where, $tree, $typename);
     }
 
     my $st      = $type->{st}
@@ -1434,7 +1434,7 @@ sub simpleContentExtension($)
      : $self->anyType($node);
 
     my $basetype = $self->blocked($where, simpleType => $typename)
-                || $self->typeByName($tree, $typename);
+                || $self->typeByName($where, $tree, $typename);
     defined $basetype->{st}
         or error __x"base of simpleContent not simple at {where}"
              , where => $where, _class => 'schema';
@@ -1469,7 +1469,7 @@ sub simpleContentRestriction($$)
     elsif(my $basename  = $node->getAttribute('base'))
     {   $typename = $self->rel2abs($where, $node, $basename);
         $type     = $self->blocked($where, simpleType => $type)
-                 || $self->typeByName($tree, $typename);
+                 || $self->typeByName($where, $tree, $typename);
     }
     else
     {   error __x"no base in complex-restriction, so simpleType required at {where}"

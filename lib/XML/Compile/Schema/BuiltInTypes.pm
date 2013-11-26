@@ -515,8 +515,16 @@ because the default is not defined in the standard. For that reason,
 the C<dateTimeStamp> got introduced, which requires the timezone.
 
 When a decimal value is passed, it is interpreted as C<time> value in UTC,
-and will be formatted as required. When reading, the date string will
-not be parsed.
+and will be formatted as required.  This will not work when the dateTime
+extended type has facet C<explicitTimeZome="prohibited">.
+
+When reading, the date string will not be parsed.  Parsing timestamps
+is quite expensive, therefore not preformed automatically.   You may try
+M<Time::Local> in combination with M<Date::Parse>, or M<Time::Piece::ISO>.
+Be very careful with the timezone settings in your program, which effects
+C<mktime> which is used by these implementations.  Best to run your
+application in GMT/UTC/UCT/Z.
+
 =cut
 
 my $dateTime

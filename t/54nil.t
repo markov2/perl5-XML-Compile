@@ -156,7 +156,7 @@ _XMLWriter
 {   my $error = error_r($schema, test1 => <<_XML);
 <test1 xmlns:xsi="$xsi"><e1></e1><e2 xsi:nil="true"/><e3>45</e3></test1>
 _XML
-   is($error,"illegal value `' for type {http://www.w3.org/2001/XMLSchema}int");
+   is($error,"illegal value `' for type {http://www.w3.org/2001/XMLSchema}int at {http://test-types}test1/e1");
 }
 
 {   my %t1b = (e1 => undef, e2 => undef, e3 => 45);
