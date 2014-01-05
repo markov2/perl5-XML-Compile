@@ -156,7 +156,7 @@ sub types()           { ($_[0]->simpleTypes, $_[0]->complexTypes) }
 =section Index
 =cut
 
-my %skip_toplevel = map { ($_ => 1) } qw/annotation notation redefine/;
+my %skip_toplevel = map +($_ => 1), qw/annotation notation redefine/;
 
 sub _collectTypes($$)
 {   my ($self, $schema, $args) = @_;
@@ -187,7 +187,6 @@ sub _collectTypes($$)
 
     $self->{tnses} = {}; # added when used
     $self->{types} = {};
-
     $self->{schema} = $schema;
 
   NODE:

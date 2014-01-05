@@ -6,6 +6,17 @@ Mark Overmeer.
 
 Plans and unwanted limitations? see README.todo
 
+version 1.41: Sun Jan  5 17:44:35 CET 2014
+	Fixes:
+	- schema's without elements did not get registered.  They may
+	  contain <import>, for instance.
+	- namespace, qualified and attributes to attributes via ref
+
+	Improvements:
+	- small trick to around namespace problems with namespace-less
+	  schema's in SOAP [Patrick Powell]
+	- add ::Namespaces::importIndex()
+
 version 1.40: Tue Nov 26 09:57:33 CET 2013
 	Fixes:
 	- whiteSpace facet on dateTime [magallanes]

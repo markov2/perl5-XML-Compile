@@ -4,7 +4,7 @@ use 5.008;
 
 WriteMakefile
  ( NAME	 	=> 'XML::Compile'
- , VERSION	=> '1.40'
+ , VERSION	=> '1.41'
 
  , PREREQ_PM    =>
    { XML::LibXML               => 1.94
@@ -42,7 +42,7 @@ LICENSE         = artistic
 SKIP_LINKS	= XML::LibXML
 
 # for POD
-EXTENDS		= ../XMLSOAP:../XMLSOAP12:../XMLDaemon:../XMLDumper:../XMLCache:../XMLSimple:../XMLTester:../XMLRewrite:../XMLRPC:../SOAPAnyEvent:../XMLC14N:../XMLWSS:../WSSSIG
+EXTENDS		= ../XMLSOAP:../XMLSOAP12:../XMLDaemon:../XMLDumper:../XMLCache:../XMLSimple:../XMLTester:../XMLRewrite:../XMLRPC:../SOAPAnyEvent:../XMLC14N:../XMLWSS:../WSSSIG:../XMLWSDL
 FIRST_YEAR      = 2006
 EMAIL           = perl@overmeer.net
 WEBSITE         = http://perl.overmeer.net/xml-compile/

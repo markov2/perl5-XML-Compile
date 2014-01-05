@@ -293,7 +293,7 @@ sub topLevel($$)
             $node->removeAttribute('form');   # when in schema
             $node->setAttribute(form => 'qualified');
             $elems_qual = 0;
-            $remove_form_attribute = 1;
+            $remove_form_attribute++;
         }
     }
     else {$elems_qual = $qual}
@@ -335,7 +335,7 @@ sub topLevel($$)
     }
 
     $node->removeAttribute('form')
-        if $remove_form_attribute;
+        if $remove_form_attribute && --$remove_form_attribute == 0;
 
     $data;
 }
@@ -1084,12 +1084,12 @@ sub attributeOne($)
     # content: annotation?, simpleType?
 
     my $node = $tree->node;
-    my ($type, $tns);
+    my ($type, $tns, $attr_q);
     local @$self{ qw/elems_qual attrs_qual tns/ }
         = @$self{ qw/elems_qual attrs_qual tns/ };
 
     my($ref, $name, $form, $typeattr);
-    if(my $refattr =  $node->getAttribute('ref'))
+    if(my $refattr = $node->getAttribute('ref'))
     {   my $where  = $tree->path;
         my $refname = $self->rel2abs($tree, $node, $refattr);
         return () if $self->blocked($where, ref => $refname);
@@ -1099,7 +1099,7 @@ sub attributeOne($)
                  , name => $refname, where => $where, _class => 'schema';
 
         $ref        = $def->{node};
-        @$self{ qw/elems_qual attrs_qual tns/ }
+        local @$self{ qw/elems_qual attrs_qual tns/ }
             = $self->nsContext($def);
 
         $name       = $ref->getAttribute('name')
@@ -1116,8 +1116,9 @@ sub attributeOne($)
                      , type => $refname, _class => 'schema';
             $type   = $self->simpleType($other->descend);
         }
-        $form = $ref->getAttribute('form');
-        $node = $ref;
+        $form   = $ref->getAttribute('form');
+        $attr_q = $self->{attrs_qual};
+        $tns    = $self->{tns};
     }
     elsif($tree->nrChildren==1)
     {   $tree->currentLocal eq 'simpleType'
@@ -1125,20 +1126,20 @@ sub attributeOne($)
                  , found => $tree->currentLocal, where => $tree->path
                  , _class => 'schema';
 
-        $name       = $node->getAttribute('name')
+        $name = $node->getAttribute('name')
             or error __x"attribute without name at {where}"
                    , where => $tree->path;
 
-        $form       = $node->getAttribute('form');
-        $type       = $self->simpleType($tree->descend);
+        $form = $node->getAttribute('form');
+        $type = $self->simpleType($tree->descend);
     }
     else
-    {   $name       = $node->getAttribute('name')
+    {   $name = $node->getAttribute('name')
             or error __x"attribute without name or ref at {where}"
                    , where => $tree->path, _class => 'schema';
 
-        $typeattr   = $node->getAttribute('type');
-        $form       = $node->getAttribute('form');
+        $typeattr = $node->getAttribute('type');
+        $form = $node->getAttribute('form');
     }
 
     my $where = $tree->path.'/@'.$name;
@@ -1158,10 +1159,10 @@ sub attributeOne($)
              , where => $where, _class => 'schema';
 
     my $qual
-      = ! defined $form        ? $self->{attrs_qual}
+      = ! defined $form        ? ($attr_q || $self->{attrs_qual})
       : $form eq 'qualified'   ? 1
       : $form eq 'unqualified' ? 0
-      : error __x"form must be (un)qualified, not {form} at {where}"
+      : error __x"form must be (un)qualified, not `{form}' at {where}"
             , form => $form, where => $where, _class => 'schema';
 
     $tns      ||= $node->getAttribute('targetNamespace') || $self->{tns};

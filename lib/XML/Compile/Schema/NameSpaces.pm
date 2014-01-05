@@ -75,9 +75,18 @@ knowledge of this object.
 sub add(@)
 {   my $self = shift;
     foreach my $instance (@_)
-    {   unshift @{$self->{tns}{$_}}, $instance
-	    for $instance->tnses;
+    {   # With the "new" targetNamespace attribute on any attribute, one
+        # schema may have contribute to multiple tns's.  Also, I have
+        # encounted schema's without elements, but <import>
+        my @tnses = $instance->tnses;
+        @tnses or @tnses = '(none)';
 
+        # newest definitions overrule earlier.
+        unshift @{$self->{tns}{$_}}, $instance
+            for @tnses;
+
+        # inventory where to find definitions which belong to some
+        # substitutionGroup.
         while(my($base,$ext) = each %{$instance->sgs})
         {   $self->{sgs}{$base}{$_} ||= $instance for @$ext;
         }
@@ -333,6 +342,31 @@ sub printIndex(@)
     }
 
     $self;
+}
+
+=method importIndex OPTIONS
+[1.41] Returns a HASH with namespaces which are declared in all currently
+known schema's, pointing to ARRAYs of the locations where the import should
+come from.
+
+In reality, the locations mentioned are often wrong. But when you think
+you want to load all schema's dynamically at start-up (no, you do not
+want it but it is a SOAP paradigma) then you get that info easily with
+this method.
+=cut
+
+sub importIndex(%)
+{   my ($self, %args) = @_;
+    my %import;
+    foreach my $fragment (map $self->schemas($_), $self->list)
+    {   foreach my $import ($fragment->imports)
+        {   $import{$import}{$_}++ for $fragment->importLocations($import);
+        }
+    }
+    foreach my $ns (keys %import)
+    {   $import{$ns} = [ grep length, keys %{$import{$ns}} ];
+    }
+    \%import;
 }
 
 1;
