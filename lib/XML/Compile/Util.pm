@@ -85,7 +85,7 @@ the node id.
 
 sub pack_id($$) { "$_[0]#$_[1]" }
 
-=function unpack_type STRING
+=function unpack_id STRING
 Returns a LIST of two elements: the name-space and the id, as
 included in the STRING.  That STRING must be compatible with the
 result of M<pack_id()>.

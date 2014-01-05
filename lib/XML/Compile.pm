@@ -31,7 +31,7 @@ XML::Compile - Compilation based XML processing
 
 =chapter SYNOPSIS
 
- # See XML::Compile::Schema / ::WSDL / ::SOAP
+ # See XML::Compile::Schema / ::WSDL / ::SOAP11 etc
 
 =chapter DESCRIPTION
 
@@ -62,40 +62,6 @@ dynamically; you have to call M<XML::Compile::Schema::importDefinitions()>
 explicitly with filenames of locally stored copies. Includes do only
 work if they have a targetNamespace defined, which is the same as that
 of the schema it is included into.
-
-=back
-
-For end-users, the following packages are of interest (the other
-are support packages):
-
-=over 4
-
-=item M<XML::Compile::Schema>
-Interpret schema elements and types: create processors for XML messages.
-
-=item M<XML::Compile::SOAP>
-Use the SOAP protocol, client side.
-
-=item M<XML::Compile::WSDL11>
-Use SOAP with a WSDL version 1.1 communication specification file.
-
-=item M<XML::Compile::SOAP::Daemon>
-Create a SOAP daemon, directly from a WSDL file.
-
-=item M<XML::Compile::Tester>
-Helps you write regression tests.
-
-=item M<XML::Compile::Cache>
-Helps you administer compiled readers and writers, especially useful it
-there are a lot of them.  Extends M<XML::Compile::Schema>.
-
-=item M<XML::Rewrite>
-Clean-up XML structures: beautify, simplify, extract.
-
-=item M<XML::Compile::Dumper>
-Enables you to save pre-compiled XML handlers, the results of any
-C<compileClient>.  However, this results in huge files, so this may
-not be worth the effort.
 
 =back
 
@@ -424,6 +390,45 @@ sub findSchemaFile($)
 }
 
 =chapter DETAILS
+
+=section Distribution collection overview
+
+For end-users, the following packages are of interest (the other
+are support packages):
+
+=over 4
+
+=item * M<XML::Compile::Schema>
+Interpret schema elements and types: create processors for XML messages.
+
+=item * M<XML::Compile::Cache>
+Helps you administer compiled readers and writers, especially useful it
+there are a lot of them.  Extends M<XML::Compile::Schema>.
+
+=item * M<XML::Compile::SOAP>
+Implements the SOAP 1.1 protocol. client side.
+
+=item * M<XML::Compile::SOAP12>
+Implements the SOAP 1.2 protocol.
+
+=item * M<XML::Compile::WSDL11>
+Use SOAP with a WSDL version 1.1 communication specification file.
+
+=item * M<XML::Compile::SOAP::Daemon>
+Create a SOAP daemon, directly from a WSDL file.
+
+=item * M<XML::Compile::Tester>
+Helps you write regression tests.
+
+=item * M<XML::Rewrite>
+Clean-up XML structures: beautify, simplify, extract.
+
+=item * M<XML::Compile::Dumper>
+Enables you to save pre-compiled XML handlers, the results of any
+C<compileClient>.  However, this results in huge files, so this may
+not be worth the effort.
+
+=back
 
 =section Comparison
 

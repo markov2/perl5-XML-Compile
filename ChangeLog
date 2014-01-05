@@ -6,6 +6,10 @@ Mark Overmeer.
 
 Plans and unwanted limitations? see README.todo
 
+version 1.42: Mon Jan  6 00:53:54 CET 2014
+	Fixes:
+	- another attempt on namespaces with ref attributes
+
 version 1.41: Sun Jan  5 17:44:35 CET 2014
 	Fixes:
 	- schema's without elements did not get registered.  They may
