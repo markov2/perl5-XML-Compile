@@ -10,7 +10,6 @@ use XML::Compile::Schema;
 use XML::Compile::Tester;
 
 use Test::More    tests => 7;
-use Test::Deep    qw/cmp_deeply/;
 
 set_compile_defaults
     elements_qualified => 'NONE';

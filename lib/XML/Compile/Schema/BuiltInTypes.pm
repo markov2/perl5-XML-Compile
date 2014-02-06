@@ -46,8 +46,8 @@ defined by the W3C schema specification would be too slow.
 
 =section Real functions
 
-=function builtin_type_info TYPE
-Returns the configuration for TYPE, which is a HASH.  Be aware that
+=function builtin_type_info $type
+Returns the configuration for $type, which is a HASH.  Be aware that
 the information in this HASH will change over time without too much
 notice.  Implement regression-tests in this if you use it!
 =cut

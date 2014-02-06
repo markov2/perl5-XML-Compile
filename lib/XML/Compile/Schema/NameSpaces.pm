@@ -33,7 +33,7 @@ older definitions).
 
 =section Constructors
 
-=method new OPTIONS
+=method new %options
 =cut
 
 sub new($@)
@@ -57,9 +57,9 @@ Returns the list of name-space URIs defined.
 
 sub list() { keys %{shift->{tns}} }
 
-=method namespace URI
+=method namespace $uri
 Returns a list of M<XML::Compile::Schema::Instance> objects which have
-the URI as target namespace.
+the $uri as target namespace.
 =cut
 
 sub namespace($)
@@ -67,7 +67,7 @@ sub namespace($)
     $nss ? @$nss : ();
 }
 
-=method add SCHEMA, [SCHEMAS]
+=method add $schema, [$schemas]
 Add M<XML::Compile::Schema::Instance> objects to the internal
 knowledge of this object.
 =cut
@@ -94,7 +94,7 @@ sub add(@)
     @_;
 }
 
-=method use OBJECT
+=method use $object
 Use any other M<XML::Compile::Schema> extension as fallback, if the
 M<find()> does not succeed for the current object.  Searches for
 definitions do not recurse into the used object.
@@ -110,7 +110,7 @@ sub use($)
     @{$self->{use}};
 }
 
-=method schemas URI
+=method schemas $uri
 We need the name-space; when it is lacking then import must help, but that
 must be called explicitly.
 =cut
@@ -126,10 +126,10 @@ sub allSchemas()
     map {$self->schemas($_)} $self->list;
 }
 
-=method find KIND, ADDRESS|(URI,NAME), OPTIONS
-Lookup the definition for the specified KIND of definition: the name
+=method find $kind, $address|<$uri,$name>, %options
+Lookup the definition for the specified $kind of definition: the name
 of a global element, global attribute, attributeGroup or model group.
-The ADDRESS is constructed as C< {uri}name > or as separate URI and NAME.
+The $address is constructed as C< {uri}name > or as separate $uri and $name.
 
 =option  include_used BOOLEAN
 =default include_used <true>
@@ -159,8 +159,8 @@ sub find($$;$)
     undef;
 }
 
-=method doesExtend EXTTYPE, BASETYPE
-Returns true when EXTTYPE extends BASETYPE.
+=method doesExtend $exttype, $basetype
+Returns true when $exttype extends $basetype.
 =cut
 
 sub doesExtend($$)
@@ -223,7 +223,7 @@ sub doesExtend($$)
     $base eq $supertype ? 1 : $self->doesExtend($supertype, $base);
 }
 
-=method findTypeExtensions TYPE
+=method findTypeExtensions $type
 This method can be quite expensive, with large and nested schemas.
 =cut
 
@@ -252,9 +252,9 @@ sub autoexpand_xsi_type($)
     \@ext;
 }
 
-=method findSgMembers CLASS, TYPE
+=method findSgMembers $class, $type
 Lookup the substitutionGroup alternatives for a specific element, which
-is an TYPE (element full name) of form C< {uri}name > or as separate
+is an $type (element full name) of form C< {uri}name > or as separate
 URI and NAME.  Returned is an ARRAY of HASHes, each describing one type
 (as returned by M<find()>)
 =cut
@@ -272,9 +272,9 @@ sub findSgMembers($$)
     @sgs;
 }
 
-=method findID ADDRESS|(URI,ID)
+=method findID $address|<$uri,$id>
 Lookup the definition for the specified id, which is constructed as
-C< uri#id > or as separate URI and ID.
+C< uri#id > or as separate $uri and $id.
 =cut
 
 sub findID($;$)
@@ -302,9 +302,9 @@ sub findID($;$)
     undef;
 }
 
-=method printIndex [FILEHANDLE], OPTIONS
+=method printIndex [$fh], %options
 Show all definitions from all namespaces, for debugging purposes, by
-default the selected.  Additional OPTIONS are passed to 
+default the selected.  Additional %options are passed to 
 M<XML::Compile::Schema::Instance::printIndex()>.
 
 =option  namespace URI|ARRAY-of-URI
@@ -344,7 +344,7 @@ sub printIndex(@)
     $self;
 }
 
-=method importIndex OPTIONS
+=method importIndex %options
 [1.41] Returns a HASH with namespaces which are declared in all currently
 known schema's, pointing to ARRAYs of the locations where the import should
 come from.

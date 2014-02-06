@@ -191,7 +191,7 @@ prefix for clarity.
 =head3 my data is not recognized
 
 You do specify the data in your structure, but it seems not to
-be recognized.  See L</"Wrong error message">
+be recognized.  See L</"wrong error message">
 
 =head3 wrong error message
 

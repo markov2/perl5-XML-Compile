@@ -75,9 +75,9 @@ exist!
 These constructors are base class methods to be extended,
 and therefore should not be accessed directly.
 
-=c_method new [XMLDATA], OPTIONS
+=c_method new [$xmldata], %options
 
-The XMLDATA is a source of XML. See M<dataToXML()> for valid ways,
+The $xmldata is a source of XML. See M<dataToXML()> for valid ways,
 for example as filename, string or C<undef>.
 
 If you have compiled all readers and writers you need, you may simply
@@ -121,8 +121,8 @@ sub init($)
 #-------------------
 =section Accessors
 
-=ci_method addSchemaDirs DIRECTORIES|FILENAME
-Each time this method is called, the specified DIRECTORIES will be added
+=ci_method addSchemaDirs $directories|$filename
+Each time this method is called, the specified $directories will be added
 in front of the list of already known schema directories.  Initially,
 the value of the environment variable C<SCHEMA_DIRECTORIES> is added
 (therefore tried as last resort). The constructor option C<schema_dirs>
@@ -132,7 +132,7 @@ Values which are C<undef> are skipped.  ARRAYs are flattened.  Arguments
 are split at colons (on UNIX) or semi-colons (windows) after flattening.
 The list of directories is returned, in all but VOID context.
 
-When a C<.pm> package FILENAME is given, then the directory
+When a C<.pm> package $filename is given, then the directory
 to be used is calculated from it (platform independently).  So,
 C<something/XML/Compile.pm> becomes C<something/XML/Compile/xsd/>.
 This way, modules can simply add their definitions via C<<
@@ -174,7 +174,7 @@ sub addSchemaDirs(@)
 
 =section Compilers
 
-=ci_method initParser OPTIONS
+=ci_method initParser %options
 Create a new parser, an M<XML::LibXML::Parser> object. By default, the
 parsing is set in a safe mode, avoiding exploits. You may explicitly
 overrule it, especially if you need to process entities.
@@ -194,17 +194,17 @@ sub initParser(@)
       );
 }
 
-=ci_method dataToXML NODE|REF-XML-STRING|XML-STRING|FILENAME|FILEHANDLE|KNOWN
-Collect XML data, from a wide variety of sources.  In SCALAR context,
+=ci_method dataToXML $node|REF-XML|XML-STRING|$filename|$fh|$known
+Collect $xml data, from a wide variety of sources.  In SCALAR context,
 an M<XML::LibXML::Element> or M<XML::LibXML::Document> is returned.
 In LIST context, pairs of additional information follow the scalar result.
 
-When a ready M<XML::LibXML::Node> (::Element or ::Document) NODE is
+When a ready M<XML::LibXML::Node> (::Element or ::Document) $node is
 provided, it is returned immediately and unchanged.  A SCALAR reference is
-interpreted as reference to XML as plain text (XML texts can be large,
+interpreted as reference to $xml as plain text ($xml texts can be large,
 and you can improve performance by passing it around by reference
 instead of copy).  Any value which starts with blanks followed by a
-'E<lt>' is interpreted as XML text.
+'E<lt>' is interpreted as $xml text.
 
 You may also specify a pre-defined I<known> name-space URI.  A set of
 definition files is included in the distribution, and installed somewhere
@@ -212,8 +212,8 @@ when this all gets installed.  Either define an environment variable
 named SCHEMA_LOCATION or use M<new(schema_dirs)> (option available to
 all end-user objects) to inform the library where to find these files.
 
-According the M<XML::LibXML::Parser> manual page, passing a FILEHANDLE
-is much slower than pasing a FILENAME.  However, it may be needed to
+According the M<XML::LibXML::Parser> manual page, passing a $fh
+is much slower than pasing a $filename.  However, it may be needed to
 open a file with an explicit character-set.
 
 =example
@@ -256,6 +256,9 @@ sub dataToXML($)
     }
     elsif(-f $raw)
     {   ($xml, %details) = $thing->_parseFile($raw);
+    }
+    elsif($raw !~ /[\n\r<]/ && $raw =~ m![/\\]|\.xsd$|\.wsdl!i)
+    {   error __x"file {fn} does not exist", fn => $fn;
     }
     else
     {   my $data = "$raw";
@@ -326,9 +329,9 @@ sub _parseFileHandle($)
 
 =section Administration
 
-=method walkTree NODE, CODE
-Walks the whole tree from NODE downwards, calling the CODE reference
-for each NODE found.  When that routine returns false, the child
+=method walkTree $node, CODE
+Walks the whole tree from $node downwards, calling the CODE reference
+for each $node found.  When that routine returns false, the child
 nodes will be skipped.
 =cut
 
@@ -340,11 +343,11 @@ sub walkTree($$)
     }
 }
 
-=ci_method knownNamespace NAMESPACE|PAIRS
-If used with only one NAMESPACE, it returns the filename in the
+=ci_method knownNamespace $ns|PAIRS
+If used with only one $ns, it returns the filename in the
 distribution (not the full path) which contains the definition.
 
-When PAIRS of NAMESPACE-FILENAME are given, then those get defined.
+When PAIRS of $ns-FILENAME are given, then those get defined.
 This is typically called during the initiation of modules, like
 M<XML::Compile::WSDL11> and M<XML::Compile::SOAP>.  The definitions
 are global: not related to specific instances.
@@ -365,9 +368,9 @@ sub knownNamespace($;@)
     undef;
 }
 
-=ci_method findSchemaFile FILENAME
+=ci_method findSchemaFile $filename
 Runs through all defined schema directories (see M<addSchemaDirs()>)
-in search of the specified FILENAME.  When the FILENAME is absolute,
+in search of the specified $filename.  When the $filename is absolute,
 that will be used, and no search is needed.  An C<undef> is returned when
 the file is not found, otherwise a full path to the file is returned to
 the caller.

@@ -182,36 +182,36 @@ mainly because it cannot produce valid code.
 
 =section Constructors
 
-=c_method new [XMLDATA], OPTIONS
+=c_method new [$xmldata], %options
 Details about many name-spaces can be organized with only a single
 schema object (actually, the data is administered in an internal
 M<XML::Compile::Schema::NameSpaces> object)
 
-The initial information is extracted from the XMLDATA source.  The XMLDATA
+The initial information is extracted from the $xmldata source.  The $xmldata
 can be anything what is acceptable by M<importDefinitions()>, which
 is everything accepted by M<dataToXML()> or an ARRAY of those things.
 You may also add any OPTION accepted by M<addSchemas()> to guide the
-understanding of the schema.  When no XMLDATA is provided, you can add
+understanding of the schema.  When no $xmldata is provided, you can add
 it later with M<importDefinitions()>
 
 You can specify the hooks before you define the schemas the hooks
 work on: all schema information and all hooks are only used when
 the readers and writers get compiled.
 
-=option  hook ARRAY-WITH-HOOKDATA | HOOK
+=option  hook HOOK|ARRAY
 =default hook C<undef>
-See M<addHook()>.  Adds one HOOK (HASH).
+See M<addHook()>.  Adds one HOOK (HASH) or more at once.
 
-=option  hooks ARRAY-OF-HOOK
+=option  hooks ARRAY
 =default hooks []
-See M<addHooks()>.
+Add one or more hooks.  See M<addHooks()>.
 
 =option  typemap HASH
 =default typemap {}
 HASH of Schema type to Perl object or Perl class.  See L</Typemaps>, the
 serialization of objects.
 
-=option  key_rewrite HASH|CODE|ARRAY-of-HASH-and-CODE
+=option  key_rewrite HASH|CODE|ARRAY
 =default key_rewrite []
 Translate XML element local-names into different Perl keys.
 See L</Key rewrite>.
@@ -268,10 +268,9 @@ sub init($)
 
 =section Accessors
 
-=method addHook HOOKDATA|HOOK|undef
-HOOKDATA is a LIST of options as key-value pairs, HOOK is a HASH with
-the same data.  C<undef> is ignored. See M<addHooks()> and
-L</Schema hooks> below.
+=method addHook $hook|LIST|undef
+A $hook is specified as HASH or a LIST of PAIRS.  When C<undef>, this call
+is ignored. See M<addHooks()> and L</Schema hooks> below.
 =cut
 
 sub addHook(@)
@@ -280,7 +279,7 @@ sub addHook(@)
     $self;
 }
 
-=method addHooks HOOK, [HOOK, ...]
+=method addHooks $hook, [$hook, ...]
 Add multiple hooks at once.  These must all be HASHes. See L</Schema hooks>
 and M<addHook()>. C<undef> values are ignored.
 =cut
@@ -291,7 +290,7 @@ sub addHooks(@)
     $self;
 }
 
-=method hooks [READER|WRITER]
+=method hooks [<'READER'|'WRITER'>]
 Returns the LIST of defined hooks (as HASHes).
 [1.36] When an action parameter is provided, it will only return a list
 with hooks added with that action value or no action at all.
@@ -319,8 +318,8 @@ sub addTypemaps(@)
 }
 *addTypemap = \&addTypemaps;
 
-=method addSchemas XML, OPTIONS
-Collect all the schemas defined in the XML data.  The XML parameter
+=method addSchemas $xml, %options
+Collect all the schemas defined in the $xml data.  The $xml parameter
 must be a M<XML::LibXML> node, therefore it is advised to use
 M<importDefinitions()>, which has a much more flexible way to
 specify the data.
@@ -392,11 +391,11 @@ sub addSchemas($@)
     @schemas;
 }
 
-=method useSchema SCHEMA, [SCHEMA]
+=method useSchema $schema, [$schema, ...]
 Pass a M<XML::Compile::Schema> object, or extensions like
 M<XML::Compile::Cache>, to be used as definitions as well.  First,
 elements are looked-up in the current schema definition object.  If not
-found the other provided SCHEMA objects are checked in the order as
+found the other provided $schema objects are checked in the order as
 they were added.
 
 Searches for definitions do not recurse into schemas which are used
@@ -420,7 +419,7 @@ sub useSchema(@)
     $self;
 }
 
-=method addKeyRewrite PREDEF|CODE|HASH, ...
+=method addKeyRewrite $predef|CODE|HASH, ...
 Add new rewrite rules to the existing list (initially provided with
 M<new(key_rewrite)>).  The whole list of rewrite rules is returned.
 
@@ -452,9 +451,9 @@ sub _key_rewrite($)
       : ()), @other );
 }
 
-=method blockNamespace NAMESPACE|TYPE|HASH|CODE|ARRAY
+=method blockNamespace $ns|$type|HASH|CODE|ARRAY
 
-Block all references to a NAMESPACE or full TYPE, as if they do not appear
+Block all references to a $ns or full $type, as if they do not appear
 in the schema.  Specially useful if the schema includes references to
 old (deprecated) versions of itself which are not being used.  It can
 also be used to block inclusion of huge structures which are not used,
@@ -480,13 +479,13 @@ sub _block_nss(@)
 
 =section Compilers
 
-=method compile ('READER'|'WRITER'), TYPE, OPTIONS
+=method compile <'READER'|'WRITER'>, $type, %options
 
 Translate the specified ELEMENT (found in one of the read schemas) into
 a CODE reference which is able to translate between XML-text and a HASH.
-When the TYPE is C<undef>, an empty LIST is returned.
+When the $type is C<undef>, an empty LIST is returned.
 
-The indicated TYPE is the starting-point for processing in the
+The indicated $type is the starting-point for processing in the
 data-structure, a toplevel element or attribute name.  The name must
 be specified in C<{url}name> format, there the url is the name-space.
 An alternative is the C<url#id> which refers to an element or type with
@@ -501,7 +500,7 @@ When a WRITER is created, a CODE reference is returned which needs
 to be called with an M<XML::LibXML::Document> object and a HASH, and
 returns a M<XML::LibXML::Node>.
 
-Many OPTIONS below are B<explained in more detailed> in the manual-page
+Many %options below are B<explained in more detailed> in the manual-page
 M<XML::Compile::Translate>, which implements the compilation.
 
 =option  validation BOOLEAN
@@ -694,7 +693,7 @@ M<addTypemaps()>
 What to do when mixed schema elements are to be processed.  Read
 more in the L</DETAILS> section below.
 
-=option  key_rewrite HASH|CODE|ARRAY-of-HASH-and-CODE
+=option  key_rewrite HASH|CODE|ARRAY
 =default key_rewrite []
 Add key rewrite rules to the front of the list of rules, as set by
 M<new(key_rewrite)> and M<addKeyRewrite()>.  See L</Key rewrite>
@@ -857,18 +856,18 @@ _DIRTY_TRICK
      $self->compile($action, $elem, %args);
 }
 
-=method template 'XML'|'PERL'|'TREE', ELEMENT, OPTIONS
+=method template <'XML'|'PERL'|'TREE'>, $element, %options
 
 Schema's can be horribly complex and unreadible.  Therefore, this template
 method can be called to create an example which demonstrates how data
-of the specified ELEMENT shown as XML or Perl is organized in practice.
+of the specified $element shown as XML or Perl is organized in practice.
 
 The 'TREE' template returns the intermediate parse tree, which gets
 formatted into the XML or Perl example.  This is not a very stable
 interface: it may change without much notice.
 
-Some OPTIONS are explained in M<XML::Compile::Translate>.  There are
-some extra OPTIONS defined for the final output process.
+Some %options are explained in M<XML::Compile::Translate>.  There are
+some extra %options defined for the final output process.
 
 The templates produced are B<not always correct>.  Please contribute
 improvements: read and understand the comments in the text.
@@ -902,7 +901,7 @@ By default, do not show abstract types in the output.
 =default skip_header <false>
 Skip the comment header from the output.
 
-=option  key_rewrite HASH|CODE|ARRAY-of-HASH-and-CODE
+=option  key_rewrite HASH|CODE|ARRAY
 =default key_rewrite []
 =cut
 
@@ -999,10 +998,10 @@ to collect schemas.
 
 sub namespaces() { shift->{namespaces} }
 
-=method importDefinitions XMLDATA, OPTIONS
-Import (include) the schema information included in the XMLDATA.  The
-XMLDATA must be acceptable for M<dataToXML()>.  The resulting node
-and all the OPTIONS are passed to M<addSchemas()>. The schema node does
+=method importDefinitions $xmldata, %options
+Import (include) the schema information included in the $xmldata.  The
+$xmldata must be acceptable for M<dataToXML()>.  The resulting node
+and all the %options are passed to M<addSchemas()>. The schema node does
 not need to be the top element: any schema node found in the data
 will be decoded.
 
@@ -1017,7 +1016,7 @@ XML structures.
 As an extension to the handling M<dataToXML()> provides, you can specify an
 ARRAY of things which are acceptable to C<dataToXML>.  This way, you can
 specify multiple resources at once, each of which will be processed with
-the same OPTIONS.
+the same %options.
 
 =option  details HASH
 =default details <from XMLDATA>
@@ -1101,7 +1100,7 @@ sub _parseFile($)
     my $self = $thing;
 
     my ($mtime, $size) = (stat $fn)[9,7];
-    my $filestamp = basename($fn) . '-'. $mtime . '-' . $size;
+    my $filestamp = File::Spec->rel2abs($fn) . '-'. $mtime . '-' . $size;
 
     if($self->{_cache_file}{$filestamp})
     {   trace "reusing schemas from file $filestamp";
@@ -1137,9 +1136,9 @@ sub elements()
              $nss->list;
 }
 
-=method printIndex [FILEHANDLE], OPTIONS
-Print all the elements which are defined in the schemas to the FILEHANDLE
-(by default the selected handle).  OPTIONS are passed to
+=method printIndex [$fh], %options
+Print all the elements which are defined in the schemas to the $fh
+(by default the selected handle).  %options are passed to
 M<XML::Compile::Schema::NameSpaces::printIndex()> and
 M<XML::Compile::Schema::Instance::printIndex()>.
 
@@ -1150,8 +1149,8 @@ sub printIndex(@)
     $self->namespaces->printIndex(@_);
 }
 
-=method doesExtend EXTTYPE, BASETYPE
-Returns true when the EXTTYPE extends the BASETYPE. See
+=method doesExtend $exttype, $basetype
+Returns true when the $exttype extends the $basetype. See
 M<XML::Compile::Schema::NameSpaces::doesExtend()>
 =cut
 

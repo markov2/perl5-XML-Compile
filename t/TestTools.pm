@@ -54,7 +54,7 @@ sub test_rw($$$$;$$)
     }
 
 #warn "COMPARE READ: ", Dumper($h, $hash);
-    cmp_deeply($h, $hash, "from xml");
+    is_deeply($h, $hash, "from xml");
 
     # Writer
 

@@ -39,7 +39,7 @@ The content is not for end-users, but called by the schema translator.
 
 =chapter FUNCTIONS
 
-=function builtin_facet PATH, ARGS, TYPE, [VALUE]
+=function builtin_facet $path, $args, $type, [$value]
 
 =cut
 

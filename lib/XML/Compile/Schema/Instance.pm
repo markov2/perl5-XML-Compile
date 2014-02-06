@@ -30,7 +30,7 @@ process it.
 
 =section Constructors
 
-=method new TOP, OPTIONS
+=method new $top, %options
 Get's the top of an XML::LibXML tree, which must be a schema element.
 The tree is parsed: the information collected.
 
@@ -108,13 +108,13 @@ which extend it.
 
 sub sgs() { shift->{sgs} }
 
-=method type URI
+=method type $uri
 Returns the type definition with the specified name.
 =cut
 
 sub type($) { $_[0]->{types}{$_[1]} }
 
-=method element URI
+=method element $uri
 Returns one global element definition.
 =cut
 
@@ -255,8 +255,8 @@ Returns a list with all namespaces which need to be imported.
 
 sub imports() { keys %{shift->{import}} }
 
-=method importLocations NAMESPACE
-Returns a list of all schemaLocations specified with the import NAMESPACE
+=method importLocations $ns
+Returns a list of all schemaLocations specified with the import $ns
 (one of the values returned by M<imports()>).
 =cut
 
@@ -265,9 +265,9 @@ sub importLocations($)
     $locs ? @$locs : ();
 }
 
-=method printIndex [FILEHANDLE], OPTIONS
+=method printIndex [$fh], %options
 Prints an overview over the defined objects within this schema to the
-selected FILEHANDLE.
+selected $fh.
 
 =option  kinds KIND|ARRAY-of-KIND
 =default kinds <all>
@@ -318,8 +318,8 @@ sub printIndex(;$)
     }
 }
 
-=method find KIND, FULLNAME
-Returns the definition for the object of KIND, with FULLNAME.
+=method find $kind, $fullname
+Returns the definition for the object of $kind, with $fullname.
 =example of find
   my $attr = $instance->find(attribute => '{myns}my_global_attr');
 =cut

@@ -6,6 +6,18 @@ Mark Overmeer.
 
 Plans and unwanted limitations? see README.todo
 
+version 1.43: Thu Feb  6 15:34:01 CET 2014
+
+	Fixes:
+	- two schema's with same basename, size and mtime are possible
+	  rt.cpan.org#92090 [Brendan Knox]
+	- preparation of "tagged" default element [Wesley Schwengle]
+
+	Improvements:
+	- change documentation style.
+	- ::dataToXML() will produce a clearer error when it thinks to
+	  see a filename which is missing.
+
 version 1.42: Mon Jan  6 00:53:54 CET 2014
 	Fixes:
 	- another attempt on namespaces with ref attributes

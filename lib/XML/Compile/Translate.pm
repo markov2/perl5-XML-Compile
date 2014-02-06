@@ -88,8 +88,8 @@ See chapter L</DETAILS> for more on how the tune the translator.
 
 =section Constructors
 
-=method new TRANSLATOR, OPTIONS
-The OPTIONS are described in M<XML::Compile::Schema::compile()>.  Those
+=method new $translator, %options
+The %options are described in M<XML::Compile::Schema::compile()>.  Those
 descriptions will probably move here, eventually.
 
 =requires nss L<XML::Compile::Schema::NameSpaces>
@@ -113,7 +113,7 @@ sub init($)
     $self;
 }
 
-=ci_method register NAME
+=ci_method register $name
 Register a new back-end.
 =example
  use XML::Compile::Translate::SomeBackend;
@@ -137,7 +137,7 @@ sub actsAs($) { panic "not implemented" }
 
 =section Handlers
 
-=c_method compile ELEMENT|ATTRIBUTE|TYPE, OPTIONS
+=c_method compile $element|$attribute|$type, %options
 Do not call this function yourself, but use
 M<XML::Compile::Schema::compile()> (or wrappers around that).
 
@@ -1893,7 +1893,7 @@ you do not need.  So, with this option, you can make the compilation to
 ignore whole namespaces and specific elements or types.
 
 The NAMESPACE is a uri, which will disable use of any element or type
-defined in that space.  You may also provide a specific full TYPE (toplevel
+defined in that space.  You may also provide a specific full $type (toplevel
 element or type name).  You may also give an LIST or ARRAY of these, but
 then a HASH is much more suitable: with linear lookup time.
 

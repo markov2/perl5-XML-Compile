@@ -13,7 +13,6 @@ use XML::Compile::Util qw/pack_type/;
 use Data::Dumper;
 
 use Test::More tests => 65;
-use Test::Deep   qw/cmp_deeply/;
 
 set_compile_defaults
     elements_qualified => 'NONE';
@@ -92,10 +91,10 @@ ok(defined $r2, 'typemap reader from code');
 my $h2 = $r2->('<test2><e2>bbb</e2></test2>');
 cmp_ok(scalar(@out), '==', 3, 'reader with CODE');
 is($out[0], 'READER');
-cmp_deeply($out[1], {e2 => 'bbb'});
+is_deeply($out[1], {e2 => 'bbb'});
 is($out[2], $type2);
 isa_ok($h2, 'HASH');
-cmp_deeply($h2, {e2 => 'bbb'});
+is_deeply($h2, {e2 => 'bbb'});
 
 # A class where we can modify the fromXML and toXML methods.
 
@@ -126,7 +125,7 @@ my $r3 = create_reader $schema, "typemap class" => $type2
 
 ok(defined $r3, 'typemap reader from class');
 my $h3 = $r3->('<test2><e2>aaa</e2></test2>');
-cmp_deeply($h3, bless {e2 => 'aaa'}, 'My::Class');
+is_deeply($h3, bless {e2 => 'aaa'}, 'My::Class');
 
 #
 # test fromXML with Object
@@ -138,7 +137,7 @@ sub
 {  my ($self, $data, $type) = @_;
    ok(1, 'fromXML called');
    isa_ok($self, 'My::Class');
-   cmp_deeply($data, {e2 => 'ccc'});
+   is_deeply($data, {e2 => 'ccc'});
    {e3 => 'donkey'};
 };
 
@@ -147,7 +146,7 @@ my $r4 = create_reader $schema, "typemap object" => $type2
 
 ok(defined $r4, 'typemap reader from object');
 my $h4 = $r4->('<test2><e2>ccc</e2></test2>');
-cmp_deeply($h4, {e3 => 'donkey'});
+is_deeply($h4, {e3 => 'donkey'});
 
 #
 # test toXML with CODE
@@ -163,7 +162,7 @@ my $x2 = $w2->($doc, $someobj);
 
 cmp_ok(scalar(@out), '==', 4, 'writer with CODE');
 is($out[0], 'WRITER');
-cmp_deeply($out[1], $someobj);
+is_deeply($out[1], $someobj);
 is($out[2], $type2);
 isa_ok($out[3], 'XML::LibXML::Document');
 compare_xml($x2, '<test2><e2>bbb</e2></test2>');
@@ -183,7 +182,7 @@ $to_xml =
 sub
 {  my ($self, $type, $d) = @_;
    ok(1, 'toXML called');
-   cmp_deeply($self, $someobj);
+   is_deeply($self, $someobj);
    isa_ok($self, 'My::Class');
    is($type, $type2);
    isa_ok($d, 'XML::LibXML::Document');
@@ -215,7 +214,7 @@ sub
    ok(1, 'toXML called');
    isa_ok($self, 'My::Class');
    isa_ok($obj, 'My::Class');  # usually some other type
-   cmp_deeply($obj, $someobj);
+   is_deeply($obj, $someobj);
    is($type, $type2);
    isa_ok($d, 'XML::LibXML::Document');
    $obj;

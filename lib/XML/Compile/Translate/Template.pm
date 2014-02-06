@@ -11,7 +11,7 @@ use XML::Compile::Util
 use Log::Report 'xml-compile', syntax => 'SHORT';
 use List::Util  qw/max/;
 
-our $VERSION;         # OODoc adds $VERSION to the script
+use vars '$VERSION';         # OODoc adds $VERSION to the script
 $VERSION ||= 'undef';
 
 =chapter NAME

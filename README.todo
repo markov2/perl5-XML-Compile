@@ -28,8 +28,6 @@ is incorrect.
  - proposed new schema features:
      . alternative
        http://www.ibm.com/developerworks/library/x-xml11pt2/#N103D7
-     . ::Instance cannot handle element and attribute declaration attribute
-       "targetNamespace" (proposed schema feature)
  - namespace blocking option for templates; exclude deprecated elements
  - when you use appendChild i.s.o. addChild, the namespace declarators
    are managed automatically correct, saving a wrapper in the writer

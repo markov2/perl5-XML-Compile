@@ -6,7 +6,6 @@ use strict;
 
 use lib 'lib','t';
 use TestTools;
-use Test::Deep   qw/cmp_deeply/;
 
 use XML::Compile::Schema;
 use XML::Compile::Tester;
@@ -145,7 +144,7 @@ cmp_ok(scalar @$order, '==', 0, "no elements");
 ok(exists $h5->{_ATTRIBUTE_ORDER});
 $order = $h5->{_ATTRIBUTE_ORDER}; 
 is(ref $order, 'ARRAY');
-cmp_deeply($order, [ qw/attr1 attr2/ ]);
+is_deeply($order, [ qw/attr1 attr2/ ]);
 
 # test element order
 
@@ -161,7 +160,7 @@ ok(defined $h6, "node order");
 ok(exists $h6->{_ELEMENT_ORDER});
 $order = $h6->{_ELEMENT_ORDER}; 
 is(ref $order, 'ARRAY');
-cmp_deeply($order, [ qw/byType byId byPath/ ]);
+is_deeply($order, [ qw/byType byId byPath/ ]);
 
 ok(exists $h6->{_ATTRIBUTE_ORDER});
 $order = $h6->{_ATTRIBUTE_ORDER}; 

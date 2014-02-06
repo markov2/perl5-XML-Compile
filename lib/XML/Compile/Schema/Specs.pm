@@ -158,15 +158,15 @@ Returns the uri of all predefined schemas.
 
 sub predefinedSchemas() { keys %schemas }
 
-=c_method predefinedSchema URI
+=c_method predefinedSchema $uri
 Return a HASH which contains the schema information for the specified
-URI (or undef if it doesn't exist).
+$uri (or undef if it doesn't exist).
 =cut
 
 sub predefinedSchema($) { defined $_[1] ? $schemas{$_[1]} : () }
 
-=c_method builtInType (NODE|undef), EXPANDED | (URI,LOCAL), OPTIONS
-Provide an EXPANDED (full) type name or an namespace URI and a LOCAL node
+=c_method builtInType <$node|undef>, $expanded | <$uri,$local>, %options
+Provide an $expanded (full) type name or an namespace $uri and a $local node
 name.  Returned is a HASH with process information or C<undef> if not
 found.
 

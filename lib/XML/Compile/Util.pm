@@ -43,9 +43,9 @@ SCHEMA2000, SCHEMA2001, and SCHEMA2001i.
 
 =section Packing
 
-=function pack_type [NAMESPACE], LOCALNAME
+=function pack_type [$ns], $localname
 Translates the arguments into one compact string representation of
-the node type.  When the NAMESPACE is not present, C<undef>, or an
+the node type.  When the $ns is not present, C<undef>, or an
 empty string, then no namespace is presumed, and no curly braces
 part made.
 
@@ -66,16 +66,16 @@ sub pack_type($;$)
     : "{$_[0]}$_[1]"
 }
 
-=function unpack_type STRING
+=function unpack_type $string
 Returns a LIST of two elements: the name-space and the localname, as
-included in the STRING.  That STRING must be compatible with the
+included in the $string.  That $string must be compatible with the
 result of M<pack_type()>.  When no name-space is present, an empty
 string is used.
 =cut
 
 sub unpack_type($) { $_[0] =~ m/^\{(.*?)\}(.*)$/ ? ($1, $2) : ('', $_[0]) }
 
-=function pack_id NAMESPACE, ID
+=function pack_id $ns, $id
 Translates the two arguments into one compact string representation of
 the node id.
 =example
@@ -85,9 +85,9 @@ the node id.
 
 sub pack_id($$) { "$_[0]#$_[1]" }
 
-=function unpack_id STRING
+=function unpack_id $string
 Returns a LIST of two elements: the name-space and the id, as
-included in the STRING.  That STRING must be compatible with the
+included in the $string.  That $string must be compatible with the
 result of M<pack_id()>.
 =cut
 
@@ -105,7 +105,7 @@ Returns the even-numbered elements from the LIST.
 sub odd_elements(@)  { my $i = 0; map {$i++ % 2 ? $_ : ()} @_ }
 sub even_elements(@) { my $i = 0; map {$i++ % 2 ? () : $_} @_ }
 
-=function type_of_node NODE
+=function type_of_node $node
 Translate an XML::LibXML::Node into a packed type.
 =cut
 

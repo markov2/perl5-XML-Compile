@@ -640,7 +640,7 @@ sub makeTaggedElement
     my @attrs = (odd_elements(@$attrs), @$attrs_any);
 
     sub { my $tree   = shift or return ();
-          my $simple = $is_nillable && $tree->nodeNil ? 'NIL' : $st->($tree);
+          my $simple = $is_nillable && ref $tree && $tree->nodeNil ? 'NIL' : $st->($tree);
           ref $tree or return ($tag => {_ => $simple});
           my $node   = $tree->node;
           my @pairs  = map $_->($node), @attrs;
