@@ -76,28 +76,26 @@ sub descend(;$$$)
       ($node, $path, ($filter || $self->{filter}));
 }
 
+#----------------
 =section Attributes
 
 =method node
 Returns the M<XML::LibXML::Node> node of which the children are walked
 through.
-=cut
-
-sub node()   {shift->{node}}
 
 =method filter
 Returns the CODE reference which is used to select the nodes.
-=cut
-
-sub filter() {shift->{filter}}
 
 =method path
 The path represents the location where the node is, like a symbolic
 link, how you got there.
 =cut
 
-sub path() {shift->{path}}
+sub node()   {shift->{node}}
+sub filter() {shift->{filter}}
+sub path()   {shift->{path}}
 
+#----------------
 =section Scanning
 
 =method childs
@@ -167,6 +165,7 @@ sub nrChildren()
     scalar @$list;
 }
 
+#---------
 =section simplify XML node access
 
 =method nodeType

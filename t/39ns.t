@@ -17,9 +17,10 @@ my $NS2 = "http://test2/ns";
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <wsdl>
-<xs:schema targetNamespace="$TestNS"
-        xmlns:xs="$SchemaNS"
-        xmlns:me="$TestNS">
+<xs:schema
+   targetNamespace="$TestNS"
+   xmlns:xs="$SchemaNS"
+   xmlns:me="$TestNS">
 
 <xs:element name="test1" type="xs:int" />
 
@@ -42,10 +43,10 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 </xs:schema>
 
 <schema
- targetNamespace="$NS2"
- xmlns="$SchemaNS"
- xmlns:me="$NS2"
- xmlns:that="$TestNS">
+   targetNamespace="$NS2"
+   xmlns="$SchemaNS"
+   xmlns:me="$NS2"
+   xmlns:that="$TestNS">
 
 <element name="test3" type="that:ct1" />
 
@@ -96,9 +97,11 @@ is(join("\n", join "\n", $schema->elements)."\n", <<__ELEMS__);
 __ELEMS__
 
 set_compile_defaults
-    elements_qualified   => 'ALL'
-  , attributes_qualified => 1
-  , include_namespaces   => 1;
+    elements_qualified    => 'ALL'
+  , attributes_qualified  => 1
+  , include_namespaces    => 1
+  , use_default_namespace => 0
+  , prefixes => [b => $NS2];
 
 #
 # simple name-space on schema
@@ -107,26 +110,27 @@ set_compile_defaults
 ok(1, "** Testing simple namespace");
 
 test_rw($schema, test1 => <<_XML, 10);
-<test1 xmlns="$TestNS">10</test1>
+<x0:test1 xmlns:x0="http://test-types">10</x0:test1>
 _XML
 
 test_rw($schema, "test2" => <<_XML, {c1_a => 11});
-<test2 xmlns="$TestNS"><c1_a>11</c1_a></test2>
+<x0:test2 xmlns:x0="http://test-types"><x0:c1_a>11</x0:c1_a></x0:test2>
 _XML
 
 test_rw($schema, "{$NS2}test3" => <<_XML, {c1_a => 12, a1_a => 13});
-<test3 xmlns="$NS2" xmlns:that="$TestNS" that:a1_a="13">
-   <that:c1_a>12</that:c1_a>
-</test3>
+<b:test3 xmlns:b="http://test2/ns" xmlns:that="http://test-types"
+   that:a1_a="13">
+  <that:c1_a>12</that:c1_a>
+</b:test3>
 _XML
 
 my %t4 = (c1_a => 14, a1_a => 15, c4_a => 16, a4_a => 17);
 test_rw($schema, "{$NS2}test4" => <<_XML, \%t4);
-<test4 xmlns="$NS2" xmlns:that="$TestNS"
-   that:a1_a="15" a4_a="17">
+<b:test4 xmlns:b="$NS2" xmlns:that="$TestNS"
+   that:a1_a="15" b:a4_a="17">
   <that:c1_a>14</that:c1_a>
-  <c4_a>16</c4_a>
-</test4>
+  <b:c4_a>16</b:c4_a>
+</b:test4>
 _XML
 
 # now with name-spaces off

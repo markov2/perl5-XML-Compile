@@ -74,6 +74,7 @@ is($out, <<'__TEMPL');
 # is an unnamed complex
 # test1 has a mixed content
 { # is a xs:string
+  # becomes an attribute
   id => "example",
 
   # mixed content cannot be processed automatically

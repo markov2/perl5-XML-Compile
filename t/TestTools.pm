@@ -95,7 +95,12 @@ sub error_r($$$)
 sub error_w($$$)
 {   my ($schema, $test, $data) = @_;
     my $type = $test =~ m/\{/ ? $test : "{$TestNS}$test";
-    writer_error($schema, $type, $data);
+
+    # the default dispatcher (::Perl) shows some non-fatal warnings
+    dispatcher disable => 'default';
+    my $err = writer_error($schema, $type, $data);
+    dispatcher enable => 'default';
+    $err;
 }
 
 1;

@@ -56,6 +56,7 @@ my $schema   = XML::Compile::Schema->new($s
  , target_namespace     => $TestNS
  , element_form_default => 'qualified'
  );
+# $schema->printIndex;
 
 ok(defined $schema, 'compiled schema');
 

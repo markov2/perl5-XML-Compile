@@ -121,8 +121,8 @@ sub init($)
 #-------------------
 =section Accessors
 
-=ci_method addSchemaDirs $directories|$filename
-Each time this method is called, the specified $directories will be added
+=ci_method addSchemaDirs @directories|$filename
+Each time this method is called, the specified @directories will be added
 in front of the list of already known schema directories.  Initially,
 the value of the environment variable C<SCHEMA_DIRECTORIES> is added
 (therefore tried as last resort). The constructor option C<schema_dirs>
@@ -258,7 +258,7 @@ sub dataToXML($)
     {   ($xml, %details) = $thing->_parseFile($raw);
     }
     elsif($raw !~ /[\n\r<]/ && $raw =~ m![/\\]|\.xsd$|\.wsdl!i)
-    {   error __x"file {fn} does not exist", fn => $fn;
+    {   error __x"file {fn} does not exist", fn => $raw;
     }
     else
     {   my $data = "$raw";

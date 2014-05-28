@@ -73,10 +73,10 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 </schema>
 __SCHEMA__
 
-ok(defined $schema);
+ok(defined $schema, 'load schema');
 
 my $out = templ_perl($schema, "{$TestNS}test1", show => 'ALL', skip_header => 1);
-is($out, <<__TEST1__);
+is($out, <<__TEST1a__, 'test 1a');
 # Describing complex x0:test1
 #     {http://test-types}test1
 
@@ -92,7 +92,19 @@ is($out, <<__TEST1__);
   # is a x0:test2
   # occurs 1 <= # <= 2 times
   t1_c =>
-  [ { # sequence of t3_a, t3_b
+  [ { # is a xs:int
+      # becomes an attribute
+      a3_a => 42,
+
+      # is a xs:int
+      # becomes an attribute
+      a2_a => 42,
+
+      # is a xs:string
+      # attribute a2_b is required
+      a2_b => "example",
+
+      # sequence of t3_a, t3_b
 
       # is a xs:anyType
       t3_a => "anything",
@@ -105,17 +117,7 @@ is($out, <<__TEST1__);
       # sequence of t2_a
 
       # is a xs:int
-      t2_a => 42,
-
-      # is a xs:int
-      a3_a => 42,
-
-      # is a xs:int
-      a2_a => 42,
-
-      # is a xs:string
-      # attribute a2_b is required
-      a2_b => "example", }, ],
+      t2_a => 42, }, ],
 
   # is an unnamed complex
   t1_d =>
@@ -134,7 +136,11 @@ is($out, <<__TEST1__);
   [ {
       # is a x0:test3
       t1_g =>
-      { # sequence of t3_a, t3_b
+      { # is a xs:int
+        # becomes an attribute
+        a3_a => 42,
+
+        # sequence of t3_a, t3_b
 
         # is a xs:anyType
         t3_a => "anything",
@@ -142,10 +148,7 @@ is($out, <<__TEST1__);
         # is a xs:int
         # value < 77
         # value >= 12
-        t3_b => 42,
-
-        # is a xs:int
-        a3_a => 42, },
+        t3_b => 42, },
 
       # is a xs:int
       # is optional
@@ -155,22 +158,22 @@ is($out, <<__TEST1__);
       # occurs 1 <= # <= unbounded times
       t1_i => [ -1, ], },
   ], }
-__TEST1__
+__TEST1a__
 
 $out = templ_perl($schema, "{$TestNS}test1", show => 'NONE', indent => '    ', skip_header => 1);
-is($out, <<__TEST1b__);
+is($out, <<__TEST1b__, 'test 1b');
 # Describing complex x0:test1
 #     {http://test-types}test1
 
 {   t1_a => 42,
     t1_b => 42,
     t1_c =>
-    [ {   t3_a => "anything",
-          t3_b => 42,
-          t2_a => 42,
-          a3_a => 42,
+    [ {   a3_a => 42,
           a2_a => 42,
-          a2_b => "example", }, ],
+          a2_b => "example",
+          t3_a => "anything",
+          t3_b => 42,
+          t2_a => 42, }, ],
 
     t1_d =>
     {   t1_e => "example",
@@ -178,9 +181,9 @@ is($out, <<__TEST1b__);
 
     cho_t1_g => 
     [ {   t1_g =>
-          {   t3_a => "anything",
-              t3_b => 42,
-              a3_a => 42, },
+          {   a3_a => 42,
+              t3_a => "anything",
+              t3_b => 42, },
 
           t1_h => 42,
           t1_i => [ -1, ], },
@@ -190,13 +193,16 @@ __TEST1b__
 $out = templ_xml($schema, "{$TestNS}test1", show => 'ALL', skip_header => 1
  , use_default_namespace => 1, include_namespaces => 1);
 
-is($out, <<__TEST1c__);
+is($out, <<__TEST1c__, 'test 1c');
 <test1 xmlns="http://test-types" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="x0:unnamed complex">
   <!-- sequence of t1_a, t1_b, t1_c, t1_d, cho_t1_g -->
   <t1_a xsi:type="xs:int">42</t1_a>
   <t1_b xsi:type="xs:int">42</t1_b>
-  <t1_c xsi:type="test2">
-    <!-- occurs 1 <= # <= 2 times -->
+  <t1_c x0:a3_a="42" x0:a2_a="42" a2_b="example" xsi:type="test2">
+    <!-- occurs 1 <= # <= 2 times
+         attr x0:a3_a has type xs:int
+         attr x0:a2_a has type xs:int
+         attr a2_b has type xs:string -->
     <!-- sequence of t3_a, t3_b -->
     <t3_a xsi:type="xs:anyType">anything</t3_a>
     <t3_b xsi:type="xs:int">
@@ -206,12 +212,6 @@ is($out, <<__TEST1c__);
     </t3_b>
     <!-- sequence of t2_a -->
     <t2_a xsi:type="xs:int">42</t2_a>
-    <a3_a xsi:type="xs:int">42</a3_a>
-    <a2_a xsi:type="xs:int">42</a2_a>
-    <a2_b xsi:type="xs:string">
-      <!-- attribute x0:a2_b is required -->
-      example
-    </a2_b>
   </t1_c>
   <t1_d xsi:type="x0:unnamed complex">
     <!-- sequence of t1_e, t1_f -->
@@ -223,7 +223,8 @@ is($out, <<__TEST1c__);
   </t1_d>
   <!-- choice of t1_g, t1_h, t1_i
        occurs 1 <= # <= 3 times -->
-  <t1_g xsi:type="test3">
+  <t1_g x0:a3_a="42" xsi:type="test3">
+    <!-- attr x0:a3_a has type xs:int -->
     <!-- sequence of t3_a, t3_b -->
     <t3_a xsi:type="xs:anyType">anything</t3_a>
     <t3_b xsi:type="xs:int">
@@ -231,7 +232,6 @@ is($out, <<__TEST1c__);
            value >= 12 -->
       42
     </t3_b>
-    <a3_a xsi:type="xs:int">42</a3_a>
   </t1_g>
   <t1_h xsi:type="xs:int">
     <!-- is optional -->
@@ -246,26 +246,22 @@ __TEST1c__
 
 $out = templ_xml($schema, "{$TestNS}test1", show => 'NONE', skip_header => 1
  , use_default_namespace => 1, include_namespaces => 1);
-is($out, <<__TEST1d__);
+is($out, <<__TEST1d__, 'test 1d');
 <test1 xmlns="http://test-types">
   <t1_a>42</t1_a>
   <t1_b>42</t1_b>
-  <t1_c>
+  <t1_c x0:a3_a="42" x0:a2_a="42" a2_b="example">
     <t3_a>anything</t3_a>
     <t3_b>42</t3_b>
     <t2_a>42</t2_a>
-    <a3_a>42</a3_a>
-    <a2_a>42</a2_a>
-    <a2_b>example</a2_b>
   </t1_c>
   <t1_d>
     <t1_e>example</t1_e>
     <t1_f>3.1415</t1_f>
   </t1_d>
-  <t1_g>
+  <t1_g x0:a3_a="42">
     <t3_a>anything</t3_a>
     <t3_b>42</t3_b>
-    <a3_a>42</a3_a>
   </t1_g>
   <t1_h>42</t1_h>
   <t1_i>-1</t1_i>
@@ -275,13 +271,17 @@ __TEST1d__
 $out = templ_perl($schema, "{$TestNS}test3", show => 'ALL', skip_header => 1
  , key_rewrite => 'PREFIXED', include_namespaces => 1
  , prefixes => [ 'me' => $TestNS ], elements_qualified => 'ALL');
-is($out, <<__TEST3__);
+is($out, <<__TEST3__, 'test 3');
 # Describing complex me:test3
 #     {http://test-types}test3
 # xmlns:me        http://test-types
 
 # is a me:test3
-{ # sequence of me_t3_a, me_t3_b
+{ # is a xs:int
+  # becomes an attribute
+  a3_a => 42,
+
+  # sequence of me_t3_a, me_t3_b
 
   # is a xs:anyType
   me_t3_a => "anything",
@@ -289,10 +289,7 @@ is($out, <<__TEST3__);
   # is a xs:int
   # value < 77
   # value >= 12
-  me_t3_b => 42,
-
-  # is a xs:int
-  a3_a => 42, }
+  me_t3_b => 42, }
 __TEST3__
 
 my $tree = templ_tree($schema, "{$TestNS}test3");

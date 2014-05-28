@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# Check implementation of extensions
+# Check implementation of type extension administration
 
 use warnings;
 use strict;

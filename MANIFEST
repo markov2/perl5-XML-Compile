@@ -45,6 +45,7 @@ lib/XML/Compile/xsd/2001-XMLSchema.xsd
 lib/XML/Compile/xsd/2001-datatypes.dtd
 t/01use.t
 t/02ext.t
+t/03duration.t
 t/20spec.t
 t/21types.t
 t/22call.t

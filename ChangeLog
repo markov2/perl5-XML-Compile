@@ -6,6 +6,29 @@ Mark Overmeer.
 
 Plans and unwanted limitations? see README.todo
 
+version 1.44: Wed May 28 09:23:24 CEST 2014
+
+	Changes:
+	- namespace qualification of global element and attributes was
+	  implemented incorrectly.  Had little consequence for most
+	  schema's, because they use elementFormDefault="qualified",
+	  but does show when using global attributes across namespaces.
+	  Discovered by  [Michiel Ootjers]
+
+	Fixes:
+	- writer: prefixes on required attributes [Christian Cebular]
+	- failing open with unknown filename did report <undef>, not filename
+	- template XML: show attributes not as elements
+	- template XML: XML compatible example for list elements
+	- memory-leak keeping ::Reader and ::Writer objects [Michiel Ootjers]
+	- no not accept to read NIL when not nillable
+
+	Improvements:
+	- ::Util new functions add_duration() and duration2secs()  tests
+	  in t/03duration.t
+	- adapt no try{} changes in Log::Report
+	- writer: ignore_unused_tags for tagged.
+
 version 1.43: Thu Feb  6 15:34:01 CET 2014
 
 	Fixes:
@@ -367,11 +390,6 @@ version 1.18: Thu Sep 30 17:00:29 CEST 2010
 	- template: apply key rewrite also on unqualified names.
 
 	- preferred prefix for SCHEMA2001i is xsi, not xs
-
-	Improvements:
-
-	- added explanation how to use hexBinary and base64Binary.
-
 	- reorganized the ::Schema manpage a little.
 
 	- template: show types in prefixed form, not qname.

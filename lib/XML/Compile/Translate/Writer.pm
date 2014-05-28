@@ -8,7 +8,7 @@ no warnings 'once', 'recursion';
 
 use Log::Report   qw/xml-compile/;
 use List::Util    qw/first/;
-use Scalar::Util  qw/blessed/;
+use Scalar::Util  qw/blessed weaken/;
 use XML::Compile::Util qw/pack_type unpack_type type_of_node SCHEMA2001i
   odd_elements even_elements/;
 
@@ -528,7 +528,7 @@ sub makeComplexElement
 
         if(%$copy)
         {   my @not_used
-              = defined $iut ? grep({$_ !~ $iut} keys %$copy) : keys %$copy;
+              = defined $iut ? (grep $_ !~ $iut, keys %$copy) : keys %$copy;
 
             if(@not_used)
             {   trace "available tags are: $tags";
@@ -638,6 +638,7 @@ sub makeMixedElement
             };
     }
 
+    my $iut     = $self->{ignore_unused_tags};
     sub { my ($doc, $data) = @_;
           defined $data or return;
 
@@ -665,10 +666,15 @@ sub makeMixedElement
           push @childs, $_->($doc, $copy)
               for @anya;
 
-          if(my @not_used = sort keys %$copy)
-          {   error __xn "tag `{tags}' not processed at {path}"
-                       , "unprocessed tags {tags} at {path}"
-                       , scalar @not_used, tags => \@not_used, path => $path;
+          if(%$copy)
+          {   my @not_used
+                = defined $iut ? (grep $_ !~ $iut, keys %$copy) : keys %$copy;
+
+              if(my @not_used = sort keys %$copy)
+              {   error __xn "tag `{tags}' not processed at {path}"
+                    , "unprocessed tags {tags} at {path}", scalar @not_used
+                    , tags => [sort @not_used], path => $path;
+              }
           }
 
           @childs or return $node;
@@ -814,7 +820,7 @@ sub makeAttributeRequired
 {   my ($self, $path, $ns, $tag, $label, $do) = @_;
 
     sub { my $value = $do->(@_);
-          return $_[0]->createAttributeNS($ns, $tag, $value)
+          return $_[0]->createAttribute($tag, $value)
               if defined $value;
 
           error __x"attribute `{tag}' is required at {path}"
@@ -885,8 +891,8 @@ sub makeAttributeFixed
 
 # any
 
-sub _splitAnyList($$$)
-{   my ($self, $path, $type, $v) = @_;
+sub _split_any_list($$$)
+{   my ($path, $type, $v) = @_;
     my @nodes = ref $v eq 'ARRAY' ? @$v : defined $v ? $v : return ([], []);
     my (@attrs, @elems);
 
@@ -914,8 +920,11 @@ sub _splitAnyList($$$)
 
 sub makeAnyAttribute
 {   my ($self, $path, $handler, $yes, $no, $process) = @_;
-    my %yes = map +($_ => 1), @{$yes || []};
-    my %no  = map +($_ => 1), @{$no  || []};
+    my %yes   = map +($_ => 1), @{$yes || []};
+    my %no    = map +($_ => 1), @{$no  || []};
+    my $prefs = $self->{prefixes};
+
+    weaken $self;
 
     bless
     sub { my ($doc, $values) = @_;
@@ -929,8 +938,9 @@ sub makeAnyAttribute
               }
               elsif(index($label, ':') >= 0)
               {   (my $prefix, $local) = split ':', $label, 2;
-                  $ns    = $self->namespaceForPrefix($prefix);
-                  $type  = pack_type $ns, $local;
+                  my $match = first {$_->{prefix} eq $prefix} values %$prefs;
+                  my $ns    = $match ? $match->{uri} : undef;
+                  $type     = pack_type $ns, $local;
               }
               else {next}  # not fully qualified, not an 'any'
 
@@ -938,7 +948,7 @@ sub makeAnyAttribute
               $no{$ns} and next if keys %no;
 
               my $value = delete $values->{$label} or next;
-              my ($attrs, $elems) = $self->_splitAnyList($path, $type, $value);
+              my ($attrs, $elems) = _split_any_list $path, $type, $value;
 
               $values->{$type} = $elems if @$elems;
               @$attrs or next;
@@ -959,11 +969,13 @@ sub makeAnyAttribute
 
 sub makeAnyElement
 {   my ($self, $path, $handler, $yes, $no, $process, $min, $max) = @_;
-    my %yes = map +($_ => 1), @{$yes || []};
-    my %no  = map +($_ => 1), @{$no  || []};
-    my $prefixes = $self->{prefixes};
+    my %yes   = map +($_ => 1), @{$yes || []};
+    my %no    = map +($_ => 1), @{$no  || []};
+    my $prefs = $self->{prefixes};
 
     $handler ||= 'SKIP_ALL';
+    weaken $self;
+
     bless
     sub { my ($doc, $values) = @_;
           my @res;
@@ -976,7 +988,8 @@ sub makeAnyElement
               }
               elsif(index($label, ':') >= 0)
               {   (my $prefix, $local) = split ':', $label, 2;
-                  $ns    = $self->namespaceForPrefix($prefix);
+                  my $match = first {$_->{prefix} eq $prefix} values %$prefs;
+                  my $ns    = $match ? $match->{uri} : undef;
                   $type  = pack_type $ns, $local;
               }
               else {next}  # not fully qualified, not an 'any'
@@ -985,7 +998,7 @@ sub makeAnyElement
               $no{$ns} and next if keys %no;
 
               my $value = delete $values->{$label} or next;
-              my ($attrs, $elems) = $self->_splitAnyList($path, $type, $value);
+              my ($attrs, $elems) = _split_any_list $path, $type, $value;
 
               $values->{$type} = $attrs if @$attrs;
               @$elems or next;
@@ -1056,7 +1069,7 @@ sub makeHook($$$$$$)
     error __x"writer only supports one production (replace) hook"
         if $replace && @$replace > 1;
 
-    return sub {()} if $replace && grep {$_ eq 'SKIP'} @$replace;
+    return sub {()} if $replace && grep $_ eq 'SKIP', @$replace;
 
     my @replace = $replace ? map $self->_decodeReplace($path,$_), @$replace :();
     my @before  = $before  ? map $self->_decodeBefore($path,$_),  @$before  :();

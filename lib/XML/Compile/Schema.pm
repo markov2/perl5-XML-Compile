@@ -543,23 +543,30 @@ error in the XML-Scheme tree.
 =option  elements_qualified C<TOP>|C<ALL>|C<NONE>|BOOLEAN
 =default elements_qualified <undef>
 When defined, this will overrule the namespace use on elements in
-all schemas.  When C<TOP> is specified, at least the top-element will
-be name-space qualified.  When C<ALL> or a true value is given, then all
-elements will be used qualified.  When C<NONE> or a false value is given,
-the XML will not produce or process prefixes on the elements.
+all schemas.  When C<ALL> or a true value is given, then all elements
+will be used qualified.  When C<NONE> or a false value is given, the
+XML will not produce or process prefixes on any element.
 
-The C<form> attributes will be respected, except on the top element when
-C<TOP> is specified.  Use hooks when you need to fix name-space use in
-more subtile ways.
+All top-level elements (and attributes) will be used in a name-space
+qualified way, if they have a targetNamespace.  Some applications require
+some global element with qualification, so refuse global elements which
+have no qualification.  Using the C<TOP> setting, the compiler checks
+that the targetNamespace exists.
+
+The C<form> attributes in the schema will be respected; overrule the
+effects of this option.  Use hooks when you need to fix name-space use
+in more subtile ways.
 
 With C<element_form_default>, you can correct whole
 schema's about their name-space behavior.
 
-=option  attributes_qualified BOOLEAN
+Change in [1.44]: C<TOP> before enforced a name-space on the top-level.
+There should always be a name-space on the top element.  It got changed
+into that C<TOP> checks that the globals have a targetNamespace.
+
+=option  attributes_qualified C<ALL>|C<NONE>|BOOLEAN
 =default attributes_qualified <undef>
-When defined, this will overrule the C<attributeFormDefault> flags in
-all schemas.  When not qualified, the xml will not produce nor
-process prefixes on attributes.
+[1.44] Like option C<elements_qualified>, but then for attributes.
 
 =option  prefixes HASH|ARRAY-of-PAIRS
 =default prefixes {}
@@ -574,7 +581,7 @@ prefix, uri PAIRS is simpler.
  prefixes => { $myns => 'mine', $twons => 'two' }
 
  # the previous is short for:
- prefixes => { $myns => [ uri => $myns, prefix => 'mine', used => 0 ]
+ prefixes => { $myns  => [ uri => $myns, prefix => 'mine', used => 0 ]
              , $twons => [ uri => $twons, prefix => 'two', ...] };
 
 =option  output_namespaces HASH|ARRAY-of-PAIRS
@@ -1876,7 +1883,6 @@ define prefix to namespace beforehand.
  # with XML::Compile::Cache
  $schema->addPrefixes(xsd => SCHEMA2000);
  type => 'xsd:int'
-
 
 =examples type hook with XML::Compile::Cache
 

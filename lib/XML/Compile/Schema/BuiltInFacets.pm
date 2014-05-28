@@ -405,9 +405,10 @@ sub _pattern($$$)
     my $regex    = @$pats==1 ? $pats->[0] : "(".join(')|(', @$pats).")";
     my $compiled = XML::LibXML::RegExp->new($regex);
 
-    sub { return $_[0] if $compiled->matches($_[0]);
-         error __x"string `{string}' does not match pattern `{pat}' at {where}"
-           , string => $_[0], pat => $regex, where => $path;
+    sub {
+        return $_[0] if $compiled->matches($_[0]);
+        error __x"string `{string}' does not match pattern `{pat}' at {where}"
+          , string => $_[0], pat => $regex, where => $path;
     };
 }
 

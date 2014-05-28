@@ -35,25 +35,29 @@ my @combinations =
   ( [   'qualified',   'qualified', <<__QQ ]
 <x0:request xmlns:x0="$tns">
   <x0:x>42</x0:x>
+  <x0:y>3</x0:y>
 </x0:request>
 __QQ
 
   , [ 'unqualified',   'qualified', <<__UQ ]
-<request xmlns:x0="$tns">
+<x0:request xmlns:x0="$tns">
   <x0:x>42</x0:x>
-</request>
+  <y>3</y>
+</x0:request>
 __UQ
 
   , [   'qualified', 'unqualified', <<__QU ]
 <x0:request xmlns:x0="$tns">
   <x>42</x>
+  <x0:y>3</x0:y>
 </x0:request>
 __QU
 
   , [ 'unqualified', 'unqualified', <<__UU ]
-<request>
+<x0:request xmlns:x0="$tns">
   <x>42</x>
-</request>
+  <y>3</y>
+</x0:request>
 __UU
   );
 
@@ -70,6 +74,6 @@ foreach (@combinations)
 
     my $schema = XML::Compile::Schema->new($data);
 
-    test_rw $schema, request => $expect, {x => 42};
+    test_rw $schema, request => $expect, {x => 42, y => 3};
 }
 

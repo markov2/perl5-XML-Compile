@@ -129,7 +129,19 @@ is($out, <<__EXPECT, 'templ of extension');
 #     {http://test-types}test1
 
 # is a x0:t2
-{ # sequence of t1_a, t1_b
+{ # is a xs:int
+  # becomes an attribute
+  a1_a => 42,
+
+  # is a xs:int
+  # attribute a1_b is required
+  a1_b => 42,
+
+  # is a xs:int
+  # becomes an attribute
+  a2_a => 42,
+
+  # sequence of t1_a, t1_b
 
   # is a xs:int
   t1_a => 42,
@@ -140,16 +152,6 @@ is($out, <<__EXPECT, 'templ of extension');
   # sequence of t2_a
 
   # is a xs:int
-  t2_a => 42,
-
-  # is a xs:int
-  a1_a => 42,
-
-  # is a xs:int
-  # attribute a1_b is required
-  a1_b => 42,
-
-  # is a xs:int
-  a2_a => 42, }
+  t2_a => 42, }
 __EXPECT
 
