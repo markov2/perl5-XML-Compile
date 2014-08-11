@@ -880,7 +880,7 @@ The templates produced are B<not always correct>.  Please contribute
 improvements: read and understand the comments in the text.
 
 =option  elements_qualified 'ALL'|'TOP'|'NONE'|BOOLEAN
-=default elements_qualified 'TOP'
+=default elements_qualified <undef>
 
 =option  attributes_qualified BOOLEAN
 =default attributes_qualified <undef>
@@ -937,7 +937,6 @@ sub template($@)
     $args{mixed_elements}     ||= 'ATTRIBUTES';
     $args{default_values}     ||= 'EXTEND';
     $args{abstract_types}     ||= 'ERROR';
-    $args{elements_qualified} ||= 'TOP';
 
     exists $args{include_namespaces}
         or $args{include_namespaces} = 1;

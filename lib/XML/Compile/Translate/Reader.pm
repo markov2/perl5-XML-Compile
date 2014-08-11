@@ -141,9 +141,7 @@ sub makeSequence($@)
         my $code
          = (ref $action eq 'BLOCK' || ref $action eq 'ANY')
          ? sub { $action->($_[0]) }
-         : sub {
-#warn "T=$take ", $_[0] && $_[0]->currentType;
- $action->($_[0] && $_[0]->currentType eq $take ? $_[0]:undef)};
+         : sub { $action->($_[0] && $_[0]->currentType eq $take ? $_[0]:undef)};
         return bless $code, 'BLOCK';
     }
 
@@ -222,8 +220,7 @@ sub makeChoice($@)
 
           my @special_errors;
           foreach (@specials)
-          {
-              my @d = try { $_->($tree) };
+          {   my @d = try { $_->($tree) };
               return @d if !$@ && @d;
               push @special_errors, $@->wasFatal->message if $@;
           }
@@ -322,6 +319,7 @@ sub makeAll($@)
 sub makeBlockHandler
 {   my ($self, $path, $label, $min, $max, $process, $kind, $multi) = @_;
 
+#warn "BLOCK $label $min $max";
     # flatten the HASH: when a block appears only once, there will
     # not be an additional nesting in the output tree.
     if($max ne 'unbounded' && $max==1)
@@ -509,9 +507,6 @@ sub makeElementHref
 sub makeElement
 {   my ($self, $path, $ns, $childname, $do) = @_;
     sub { my $tree  = shift;
-#warn "NT=", ($tree ? $tree->nodeType : 'undef'), ' expected ', $childname;
-#use Carp qw/cluck/;
-#cluck if $childname =~ /c1_a/;
           my $value = defined $tree && $tree->nodeType eq $childname
              ? $do->($tree) : $do->(undef);
           defined $value ? ($childname => $value) : ();
@@ -590,6 +585,9 @@ sub makeElementAbstract
 # complexType and complexType/ComplexContent
 #
 
+# Be warned that the location reported in 'path' may not be the actual
+# location, caused by the cashing of compiled schema components.  The
+# path you see is the first path where that element was encountered.
 sub _not_processed($$)
 {   my ($child, $path) = @_;
     error __x"element `{name}' not processed for {path} at {where}"
@@ -600,6 +598,7 @@ sub _not_processed($$)
 sub makeComplexElement
 {   my ($self, $path, $tag, $elems, $attrs, $attrs_any,undef,$is_nillable) = @_;
 my @e = @$elems; my @a = @$attrs;
+
     my @elems = odd_elements @$elems;
     my @attrs = (odd_elements(@$attrs), @$attrs_any);
 
@@ -620,8 +619,6 @@ my @e = @$elems; my @a = @$attrs;
     @elems > 1 || @attrs and return
     sub { my $tree    = shift or return ();
           my $node    = $tree->node;
-#warn $node->toString(1);
-#warn "@e @a";
           my %complex = ((map $_->($tree), @elems), (map $_->($node), @attrs));
 
           _not_processed $tree->currentChild, $path
@@ -632,7 +629,6 @@ my @e = @$elems; my @a = @$attrs;
 
     @elems || return
     sub { my $tree = shift or return ();
-
           _not_processed $tree->currentChild, $path
               if $tree->currentChild;
 
@@ -941,16 +937,17 @@ sub makeSubstgroup
     keys %do or return bless sub { () }, 'BLOCK';
 
     bless
-    sub { my $tree = shift;
-          my $type = ($tree ? $tree->currentType : undef)
+    sub { my $tree  = shift;
+          my $type  = ($tree ? $tree->currentType : undef)
               or error __x"no data for substitution group {type} at {path}"
                     , type => $base, path => $path;
 
-          my $do   = $do{$type}
-              or return;
+          my $do    = $do{$type} or return ();
           my @subst = $do->[1]($tree->descend);
+          @subst or return ();
+
           $tree->nextChild;
-          @subst ? ($do->[0] => $subst[1]) : ();   # key-rewrite
+          ($do->[0] => $subst[1]);   # key-rewrite
         }, 'BLOCK';
 }
 
@@ -1196,22 +1193,23 @@ sub _decodeAfter($$)
 
 sub makeBlocked($$$)
 {   my ($self, $where, $class, $type) = @_;
+    my $err_type = $self->prefixed($type) || $type;
 
     # errors are produced in class=misfit to allow other choices to succeed.
       $class eq 'anyType'
     ? { st => sub { error __x"use of `{type}' blocked at {where}"
-              , type => $type, where => $where, _class => 'misfit';
+              , type => $err_type, where => $where, _class => 'misfit';
           }}
     : $class eq 'simpleType'
     ? { st => sub { error __x"use of {class} `{type}' blocked at {where}"
-              , class => $class, type => $type, where => $where
+              , class => $class, type => $err_type, where => $where
               , _class => 'misfit';
           }}
     : $class eq 'complexType'
     ? { elems => [] }
     : $class eq 'ref'
     ? { st => sub { error __x"use of referenced `{type}' blocked at {where}"
-              , type => $type, where => $where, _class => 'misfit';
+              , type => $err_type, where => $where, _class => 'misfit';
           }}
     : panic "blocking of $class for $type not implemented";
 }

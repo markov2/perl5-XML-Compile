@@ -110,7 +110,7 @@ __XML
 $error = error_r $schema, test1 => <<__XML;
 <test1><t1>10</t1><head>11</head><t3>12</t3></test1>
 __XML
-is($error, "abstract element `head' used at {$TestNS}test1/head");
+is($error, "abstract element `head' used at {$TestNS}test1/one:head");
 
 ### test2
 

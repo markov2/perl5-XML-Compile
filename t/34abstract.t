@@ -36,12 +36,12 @@ __SCHEMA__
 ok(defined $schema);
 
 my $error = error_w($schema, test2 => {test1 => 42});
-is($error, "attempt to instantiate abstract element `test1' at {http://test-types}test2/test1");
+is($error, "attempt to instantiate abstract element `test1' at {http://test-types}test2/me:test1");
 
 $error = error_r($schema, test2 => <<__XML);
 <test2><test1>43</test1></test2>
 __XML
-is($error, "abstract element `test1' used at {http://test-types}test2/test1");
+is($error, "abstract element `test1' used at {http://test-types}test2/me:test1");
 
 # abstract elements are skipped from the docs
 my $out = templ_perl($schema, "{$TestNS}test2", abstract_types => 1, skip_header => 1);

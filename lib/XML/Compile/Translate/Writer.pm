@@ -208,10 +208,13 @@ sub makeChoice($@)
         my ($doc, $values) = @_;
         defined $values or return ();
         foreach my $take (keys %do)
-        {   return $do{$take}->($doc, delete $values->{$take})
+        {
+#warn "TAKE($take) = ", (defined $values->{$take} ? 'defined' : "undef");
+            return $do{$take}->($doc, delete $values->{$take})
                 if defined $values->{$take};
         }
 
+#warn "TRY SPECIALS";
         my $starter = keys %$values;
         foreach (@specials)
         {   my @d = try { $_->($doc, $values) };
@@ -227,6 +230,7 @@ sub makeChoice($@)
             return @d;
         }
 
+#warn "BLURK!";
         # blurk... any element with minOccurs=0 or default?
         foreach (values %do)
         {   my @d = try { $_->($doc, undef) };
@@ -488,6 +492,7 @@ sub nil($)
 
 sub makeComplexElement
 {   my ($self, $path, $tag, $elems, $attrs, $any_attr,undef, $is_nillable) = @_;
+my @e = @$elems;
     my @elems   = odd_elements @$elems;
     my @attrs   = @$attrs;
     my $tags    = join ', ', grep defined
@@ -509,15 +514,15 @@ sub makeComplexElement
                 or error __x"complex `{tag}' requires data at {path}"
                       , tag => $tag, path => $path, _class => 'misfit';
 
-            error __x"complex `{tag}' requires a HASH of input data, not `{found}' at {path}"
-               , tag => $tag, found => (ref $data || $data), path => $path;
+            error __x"complex `{tag}' requires a HASH of input data, not `{got}' at {path}"
+               , tag => $tag, got => (ref $data || $data), path => $path;
         }
 
         my $copy   = { %$data };  # do not destroy callers hash
 
         my @childs = ($is_nillable && (delete $copy->{_} || '') eq 'NIL')
           ? $doc->createAttribute($nilattr => 'true')
-          : map {$_->($doc, $copy)} @elems;
+          : map($_->($doc, $copy), @elems);
 
         for(my $i=0; $i<@attrs; $i+=2)
         {   push @childs, $attrs[$i+1]->($doc, delete $copy->{$attrs[$i]});
@@ -1125,22 +1130,23 @@ sub _decodeAfter($$)
 
 sub makeBlocked($$$)
 {   my ($self, $where, $class, $type) = @_;
+    my $err_type = $self->prefixed($type);
 
     # errors are produced in class=misfit to allow other choices to succeed.
       $class eq 'anyType'
     ? { st => sub { error __x"use of `{type}' blocked at {where}"
-              , type => $type, where => $where, _class => 'misfit';
+              , type => $err_type, where => $where, _class => 'misfit';
           }}
     : $class eq 'simpleType'
     ? { st => sub { error __x"use of {class} `{type}' blocked at {where}"
-              , class => $class, type => $type, where => $where
+              , class => $class, type => $err_type, where => $where
               , _class => 'misfit';
           }}
     : $class eq 'complexType'
     ? { elems => [] }
     : $class eq 'ref'
     ? { st => sub { error __x"use of referenced `{type}' blocked at {where}"
-              , type => $type, where => $where, _class => 'misfit';
+              , type => $err_type, where => $where, _class => 'misfit';
           }}
     : panic "blocking of $class for $type not implemented";
 }

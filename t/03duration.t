@@ -8,8 +8,15 @@ use File::Spec;
 use POSIX  qw/strftime tzset/;
 
 use lib 'lib', 't';
-use Test::More tests => 16;
 use XML::Compile::Util qw/duration2secs add_duration/;
+use Test::More;
+
+# On some platforms (Windows), tzset is not supported so we cannot produce
+# consistent time output.
+eval { tzset };
+plan skip_all => $@ if $@;
+
+plan tests => 16;
 
 # examples taken from http://www.schemacentral.com/sc/xsd/t-xsd_duration.html
 
@@ -38,7 +45,7 @@ sub t($) {strftime "%Y-%m-%dT%H:%M:%S", gmtime shift}
 
 # used to calculate some fixed reference point in time
 # my $now  = time;
-my $now = 1397731609;   # 2014-04-17T10:46:49
+my $now    = 1397731609;   # 2014-04-17T10:46:49Z
 #print "$now=",t($now), "\n";
 
 cmp_ok(t(add_duration('P2Y6M5DT12H35M30S', $now)), 'eq', '2016-10-22T23:22:19');

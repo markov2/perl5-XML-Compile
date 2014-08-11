@@ -102,10 +102,10 @@ set_compile_defaults
 #
 
 my $error = error_r($schema, test1 => '<test1>11</test1>');
-is($error, "use of `{$OtherNS}t1' blocked at {$TestNS}test1");
+is($error, "use of `other:t1' blocked at {$TestNS}test1");
 
 $error = error_w($schema, test1 => 11);
-is($error, "use of `{$OtherNS}t1' blocked at {$TestNS}test1");
+is($error, "use of `other:t1' blocked at {$TestNS}test1");
 
 # should still work
 test_rw($schema, test2 => '<test2>12</test2>', 12);
@@ -115,29 +115,29 @@ test_rw($schema, test2 => '<test2>12</test2>', 12);
 #
 
 $error = error_r($schema, test3 => XML::LibXML::Attr->new('test3', 13));
-is($error, "use of simpleType `{$OtherNS}t3' blocked at {$TestNS}test3/\@test3");
+is($error, "use of simpleType `other:t3' blocked at {$TestNS}test3/\@test3");
 
 $error = error_w($schema, test3 => 13);
-is($error, "use of simpleType `{$OtherNS}t3' blocked at {$TestNS}test3/\@test3");
+is($error, "use of simpleType `other:t3' blocked at {$TestNS}test3/\@test3");
 
 test_rw($schema, test4 => XML::LibXML::Attr->new(test4 => '14')
        , 14, ' test4="14"');
 
 $error = error_r($schema, test5 => '<test5>15</test5>');
-is($error, "use of simpleType `{$OtherNS}t5' blocked at {$TestNS}test5#sres");
+is($error, "use of simpleType `other:t5' blocked at {$TestNS}test5#sres");
 
 $error = error_w($schema, test5 => 15);
-is($error, "use of simpleType `{$OtherNS}t5' blocked at {$TestNS}test5#sres");
+is($error, "use of simpleType `other:t5' blocked at {$TestNS}test5#sres");
 
 #
 # complexType choice
 #
 
 $error = error_r($schema, test6 => '<test6><a>16</a></test6>');
-is($error, "use of `{$OtherNS}t6' blocked at {$TestNS}test6/a");
+is($error, "use of `other:t6' blocked at {$TestNS}test6/a");
 
 $error = error_w($schema, test6 => { a => 16 });
-is($error, "use of `{$OtherNS}t6' blocked at {$TestNS}test6/a");
+is($error, "use of `other:t6' blocked at {$TestNS}test6/a");
 
 test_rw($schema, test6 => '<test6><b>16</b></test6>', {b => 16});
 
@@ -160,10 +160,10 @@ $error = error_w($schema, test9 => { t9 => 90 });
 is($error, "no match for required block `cho_test1' at {$TestNS}test9");
 
 $error = error_r($schema, test9 => '<test9><test1>91</test1></test9>');
-is($error, "use of `{$OtherNS}t1' blocked at {$TestNS}test9/test1");
+is($error, "use of `other:t1' blocked at {$TestNS}test9/me:test1");
 
 $error = error_w($schema, test9 => { test1 => 91 });
-is($error, "use of `{$OtherNS}t1' blocked at {$TestNS}test9/test1");
+is($error, "use of `other:t1' blocked at {$TestNS}test9/me:test1");
 
 test_rw($schema, test9 => '<test9><test2>92</test2></test9>', {test2 => 92});
 
@@ -178,9 +178,9 @@ $error = error_w($schema, test10 => { t10 => 100 });
 is($error, "tag `t10' not used at {$TestNS}test10");
 
 $error = error_r($schema, test10 => '<test10><test1>101</test1></test10>');
-is($error, "use of `{$OtherNS}t1' blocked at {$TestNS}test10/test1");
+is($error, "use of `other:t1' blocked at {$TestNS}test10/me:test1");
 
 $error = error_w($schema, test10 => { test1 => 101 });
-is($error, "use of `{$OtherNS}t1' blocked at {$TestNS}test10/test1");
+is($error, "use of `other:t1' blocked at {$TestNS}test10/me:test1");
 
 test_rw($schema, test10 => '<test10><test2>102</test2></test10>', {test2 => 102});

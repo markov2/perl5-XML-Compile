@@ -151,7 +151,7 @@ sub compile($@)
 {   my ($self, $item, %args) = @_;
     @$self{keys %args} = values %args;  # dirty
 
-    my $path   = $item;
+    my $path   = $self->prefixed($item) || $item;
     ref $item
         and panic "expecting an item as point to start at $path";
 
@@ -238,14 +238,13 @@ sub nsContext($)
 
     # top elements are to be qualified unless there is no targetNamespace
     my %context  = (tns => $tns, qual_top => ($tns ? 1 : 0));
-#use Data::Dumper;
-#warn "DEF=",Dumper $def;
 
     my $el_qual  = $def->{efd} eq 'qualified';
     if(exists $self->{elements_qualified})
     {   my $qual = $self->{elements_qualified} || 0;
         if($qual eq 'TOP')
-        {   $tns or error __x"application requires that element `{name}' has a targetNamespace", name => $def->{full};
+        {   $tns or error __x"application requires that element `{name}' has a targetNamespace"
+              , name => $def->{full};
         }
         else
         {   $el_qual = $qual eq 'ALL' ? 1 : $qual eq 'NONE' ? 0 : $qual;
@@ -265,7 +264,6 @@ sub nsContext($)
         }
     }
     $context{qual_attr}  = $at_qual;
-#warn Dumper \%context;
 
     \%context;
 }
@@ -617,21 +615,6 @@ sub element($)
      && $parent->localname eq 'schema';
 
     my $where    = $tree->path;
-#warn "ELEMENT $where, $is_global";
-
-    if(my $ref   = $node->getAttribute('ref'))
-    {   my $where   = $tree->path . "/$ref";
-        (my $ln     = $ref) =~ s/.*://;
-        my $refname = $self->rel2abs($tree, $node, $ref);
-        return () if $self->blocked($where, ref => $refname);
-
-        my $def     = $self->namespaces->find(element => $refname)
-            or error __x"cannot find ref element '{name}' at {where}"
-                   , name => $refname, where => $where, _class => 'schema';
-
-        my $refnode = $def->{node};
-        return $self->element($tree->descend($refnode, $ln));
-    }
 
     my $name     = $node->getAttribute('name')
         or error __x"element has no name nor ref at {where}"
@@ -642,8 +625,6 @@ sub element($)
     # or a local name.
 
     my $context  = $self->{_context};
-#use Data::Dumper;
-#warn "CONTEXT=",Dumper $context;
 
     # Determine the context of this element.  When it is a global, we need
     # to set-up a new context until end-of-function.
@@ -652,12 +633,10 @@ sub element($)
     my ($qual, $ns, $fullname);
 
     if($is_global)
-    {   $ns      = $node->getAttribute('targetNamespace')
-                || $parent->getAttribute('targetNamespace');
+    {   $ns       = $node->getAttribute('targetNamespace')
+                 || $parent->getAttribute('targetNamespace');
         $fullname= pack_type $ns, $name;
-        my $def  = $self->namespaces->find(element => $fullname);
-#use Data::Dumper;
-#warn "FULLNAME $fullname, ", Dumper $def;
+        my $def   = $self->namespaces->find(element => $fullname);
         $context  = $self->nsContext($def);
         $qual     = $context->{qual_top};
 
@@ -678,14 +657,15 @@ sub element($)
               , form => $form, where => $where, _class => 'schema';
     }
 
-#warn "QUAL $name? $qual";
     local $self->{_context} = $context if $is_global;
     my $nodetype = $qual ? $fullname : $name;
 
     # Handle re-usable fragments, fight against combinatorial explosions
 
-    my $nodeid   = $node->nodePath.'#'.$fullname;
+    my $nodeid   = $node->unique_key; #$node->nodePath.'#'.$fullname;
     my $already  = $self->{_created}{$nodeid};
+#warn "$nodeid; ", $node+0,"\n" if $already;
+#undef $already;
     return ($nodetype, $already) if $already;
 
     # Detect recursion
@@ -859,9 +839,8 @@ sub particle($)
     return $self->anyElement($tree, $min, $max)
         if $local eq 'any';
 
-    my $name = $node->getAttribute('name');
     my ($label, $process)
-      = $local eq 'element'        ? $self->element($tree->descend($node,$name))
+      = $local eq 'element'        ? $self->particleElement($tree)
       : $local eq 'group'          ? $self->particleGroup($tree)
       : $local =~ $particle_blocks ? $self->particleBlock($tree)
       : error __x"unknown particle type '{name}' at {where}"
@@ -884,6 +863,27 @@ sub particle($)
 
     ($self->actsAs('READER') ? $label : $key) =>
         $self->makeElementHandler($where, $key, $min,$max, $required, $process);
+}
+
+sub particleElement($)
+{   my ($self, $tree) = @_;
+
+    my $node   = $tree->node;
+    if(my $ref = $node->getAttribute('ref'))
+    {   my $where   = $tree->path . "/$ref";
+        my $refname = $self->rel2abs($tree, $node, $ref);
+        return () if $self->blocked($where, ref => $refname);
+
+        my $def     = $self->namespaces->find(element => $refname)
+            or error __x"cannot find ref element '{name}' at {where}"
+                   , name => $refname, where => $where, _class => 'schema';
+
+        return $self->element($tree->descend($def->{node}
+          , $self->prefixed($refname)));
+    }
+
+    my $name = $node->getAttribute('name');
+    $self->element($tree->descend($node, $name));
 }
 
 # blockLabel KIND, LABEL
@@ -928,7 +928,7 @@ sub particleGroup($)
         or error __x"cannot find group `{name}' at {where}"
              , name => $typename, where => $where, _class => 'schema';
 
-    my $group = $tree->descend($dest->{node}, $dest->{local});
+    my $group = $tree->descend($dest->{node}, $self->prefixed($typename));
     return () if $group->nrChildren==0;
 
     $group->nrChildren==1
@@ -999,7 +999,7 @@ sub substitutionGroup($$$$$)
         my $longest = max map length, @full;
         my @c = map sprintf("%-${longest}s %s",$_,$self->keyRewrite($_)), @full;
         local $"    = "\n  ";
-        trace "substitutionGroup $fullname$\"SG=$label ($labelrw)$\"@c";
+        trace "substitutionGroup $fullname$\"BASE=$label ($labelrw)$\"@c";
     }
 
     my @elems;
