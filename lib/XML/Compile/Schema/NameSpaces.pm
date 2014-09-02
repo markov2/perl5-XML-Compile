@@ -167,12 +167,12 @@ sub doesExtend($$)
 {   my ($self, $ext, $base) = @_;
     return 1 if $ext eq $base;
 
-    my ($node, $super);
+    my ($node, $super, $subnode);
     if(my $st = $self->find(simpleType => $ext))
     {   # pure simple type
         $node = $st->{node};
-        if(my($res) = $node->getChildrenByLocalName('restriction'))
-        {   $super = $res->getAttribute('base');
+        if(($subnode) = $node->getChildrenByLocalName('restriction'))
+        {   $super = $subnode->getAttribute('base');
         }
         # list an union currently ignored
     }
@@ -181,20 +181,20 @@ sub doesExtend($$)
         # getChildrenByLocalName returns list, we know size one
         if(my($sc) = $node->getChildrenByLocalName('simpleContent'))
         {   # tagged
-            if(my($ex) = $sc->getChildrenByLocalName('extension'))
-            {   $super = $ex->getAttribute('base');
+            if(($subnode) = $sc->getChildrenByLocalName('extension'))
+            {   $super = $subnode->getAttribute('base');
             }
-            elsif(my($res) = $sc->getChildrenByLocalName('restriction'))
-            {   $super = $res->getAttribute('base');
+            elsif(($subnode) = $sc->getChildrenByLocalName('restriction'))
+            {   $super = $subnode->getAttribute('base');
             }
         }
         elsif(my($cc) = $node->getChildrenByLocalName('complexContent'))
         {   # real complex
-            if(my($ex) = $cc->getChildrenByLocalName('extension'))
-            {   $super = $ex->getAttribute('base');
+            if(($subnode) = $cc->getChildrenByLocalName('extension'))
+            {   $super = $subnode->getAttribute('base');
             }
-            elsif(my($res) = $cc->getChildrenByLocalName('restriction'))
-            {   $super = $res->getAttribute('base');
+            elsif(($subnode) = $cc->getChildrenByLocalName('restriction'))
+            {   $super = $subnode->getAttribute('base');
             }
         }
     }
@@ -218,7 +218,7 @@ sub doesExtend($$)
         or return 0;
 
     my ($prefix, $local) = $super =~ m/:/ ? split(/:/,$super,2) : ('',$super);
-    my $supertype = pack_type $node->lookupNamespaceURI($prefix), $local;
+    my $supertype = pack_type $subnode->lookupNamespaceURI($prefix), $local;
 
     $base eq $supertype ? 1 : $self->doesExtend($supertype, $base);
 }

@@ -6,6 +6,14 @@ Mark Overmeer.
 
 Plans and unwanted limitations? see README.todo
 
+version 1.46: Tue Sep  2 09:30:22 CEST 2014
+
+	Fixes:
+	- xsi:type AUTO with very local namespace declarations.
+	- template: sometimes output got cleaned-up a little too much.
+	- translated: calls to prefixed() for documentation/error
+	  purposes should not cause xmlns in the result XML.
+
 version 1.45: Mon Aug 11 09:16:56 CEST 2014
 
 	Fixes:

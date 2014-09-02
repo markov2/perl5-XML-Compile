@@ -151,7 +151,7 @@ sub compile($@)
 {   my ($self, $item, %args) = @_;
     @$self{keys %args} = values %args;  # dirty
 
-    my $path   = $self->prefixed($item) || $item;
+    my $path   = $self->prefixed($item, 1) || $item;
     ref $item
         and panic "expecting an item as point to start at $path";
 
@@ -879,7 +879,7 @@ sub particleElement($)
                    , name => $refname, where => $where, _class => 'schema';
 
         return $self->element($tree->descend($def->{node}
-          , $self->prefixed($refname)));
+          , $self->prefixed($refname, 1)));
     }
 
     my $name = $node->getAttribute('name');
@@ -928,7 +928,7 @@ sub particleGroup($)
         or error __x"cannot find group `{name}' at {where}"
              , name => $typename, where => $where, _class => 'schema';
 
-    my $group = $tree->descend($dest->{node}, $self->prefixed($typename));
+    my $group = $tree->descend($dest->{node}, $self->prefixed($typename, 1));
     return () if $group->nrChildren==0;
 
     $group->nrChildren==1
@@ -1057,13 +1057,13 @@ sub keyRewrite($;$)
     $key;
 }
 
-sub prefixed($)
-{   my ($self, $qname) = @_;
+sub prefixed($;$)
+{   my ($self, $qname, $hide) = @_;
     my ($ns, $local) = unpack_type $qname;
     defined $ns or return $qname;
 
     my $pn = $self->{prefixes}{$ns} or return;
-    $pn->{used}++;
+    $pn->{used}++ unless $hide ;
     length $pn->{prefix} ? "$pn->{prefix}:$local" : $local;
 }
 

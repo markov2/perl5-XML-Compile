@@ -685,7 +685,7 @@ sub toPerl($%)
     # remove leading  'type =>'
     for(my $linenr = 0; $linenr < @lines; $linenr++)
     {   next if $lines[$linenr] =~ m/^\s*\#/;
-        next unless $lines[$linenr] =~ s/.* \=\>\s*//;
+        next unless $lines[$linenr] =~ s/.*? \=\>\s*//;
         $lines[$linenr] =~ m/\S/ or splice @lines, $linenr, 1;
         last;
     }
