@@ -983,8 +983,7 @@ sub xsiType($$$$$)
         $altnode->setAttribute(name => $name);
         $altnode->setAttribute(type => $type);
 
-        my $altnodeid = $altnode->nodePath.'#'.$name;
-        delete $self->{_created}{$altnodeid}; # clean nesting cache
+        delete $self->{_created}{$altnode->unique_key}; # clean nesting cache
         (undef, $alt{$alttype}) = $self->element($tree->descend($altnode));
     }
     $self->makeXsiTypeSwitch($tree->path, $name, $type, \%alt);

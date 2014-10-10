@@ -6,6 +6,11 @@ Mark Overmeer.
 
 Plans and unwanted limitations? see README.todo
 
+version 1.47: Sat Oct 11 01:33:15 CEST 2014
+
+	Fixes:
+	- xsi:type compilation cache problem [Lloyd Roles]
+
 version 1.46: Tue Sep  2 09:30:22 CEST 2014
 
 	Fixes:
