@@ -542,10 +542,10 @@ error in the XML-Scheme tree.
 
 =option  elements_qualified C<TOP>|C<ALL>|C<NONE>|BOOLEAN
 =default elements_qualified <undef>
-When defined, this will overrule the namespace use on elements in
-all schemas.  When C<ALL> or a true value is given, then all elements
-will be used qualified.  When C<NONE> or a false value is given, the
-XML will not produce or process prefixes on any element.
+When defined, this will overrule the use of namespaces (as prefix) on
+elements in all schemas.  When C<ALL> or a true value is given, then all
+elements will be used qualified.  When C<NONE> or a false value is given,
+the XML will not produce or process prefixes on any element.
 
 All top-level elements (and attributes) will be used in a name-space
 qualified way, if they have a targetNamespace.  Some applications require
@@ -590,11 +590,11 @@ prefix, uri PAIRS is simpler.
 
 =option  include_namespaces BOOLEAN|CODE
 =default include_namespaces <true>
-Indicates whether the WRITER should include the prefix to namespace
-translation on the top-level element of the returned tree.  If not,
-you may continue with the same name-space table to combine various
-XML components into one, and add the namespaces later.  No namespace
-definition can be added the production rule produces an attribute.
+[writer] Indicates whether the namespace declaration should be included
+on the top-level element.  If not, you may continue with the same
+name-space table to combine various XML components into one, and add the
+namespaces later.  No namespace definition can be added the production
+rule produces an attribute.
 
 When a CODE reference is passed, it will be called for each namespace
 to decide whether it should be included or not. When true, it will
@@ -603,18 +603,18 @@ number of times it was used for that schema element translator.
 
 =option  namespace_reset BOOLEAN
 =default namespace_reset <false>
-Use the same prefixes in C<prefixes> as with some other compiled
+[writer] Use the same prefixes in C<prefixes> as with some other compiled
 piece, but reset the counts to zero first.
 
 =option  use_default_namespace BOOLEAN
 =default use_default_namespace <false>
-[0.91] When mixing qualified and unqualified namespaces, then the use of
+[0.91, writer] When mixing qualified and unqualified namespaces, then the use of
 a default namespace can be quite confusing: a name-space without prefix.
 Therefore, by default, all qualified elements will have an explicit prefix.
 
 =option  sloppy_integers BOOLEAN
 =default sloppy_integers <false>
-The XML C<integer> data-types must support at least 18 digits,
+[reader] The XML C<integer> data-types must support at least 18 digits,
 which is larger than Perl's 32 bit internal integers.  Therefore, the
 implementation will use M<Math::BigInt> objects to handle them.  However,
 often an simple C<int> type whould have sufficed, but the XML designer
@@ -634,23 +634,23 @@ top of your main script to get more performance.
 
 =option  sloppy_floats BOOLEAN
 =default sloppy_floats <false>
-The float types of XML are all quite big, and support NaN, INF, and -INF.
-Perl's normal floats do not, and therefore M<Math::BigFloat> is used.  This,
-however, is slow.  When true, you will crash on any value which is not
-understood by Perl's default float... but run much faster.  See also
-C<sloppy_integers>.
+[reader] The float types of XML are all quite big, and support NaN, INF,
+and -INF.  Perl's normal floats do not, and therefore M<Math::BigFloat>
+is used.  This, however, is slow.  When true, you will crash on any value
+which is not understood by Perl's default float... but run much faster.
+See also C<sloppy_integers>.
 
 =option  any_element CODE|'TAKE_ALL'|'SKIP_ALL'
 =default any_element C<undef>
-[0.89] In general, C<any> schema components cannot be handled automatically.
-If  you need to create or process any information, then read about
-wildcards in the DETAILS chapter of the manual-page for the specific
-back-end.
+[0.89, reader] In general, C<any> schema components cannot be handled
+automatically.  If  you need to create or process any information, then
+read about wildcards in the DETAILS chapter of the manual-page for the
+specific back-end.
 [pre-0.89] this option was named C<anyElement>, which will still work.
 
 =option  any_attribute CODE|'TAKE_ALL'|'SKIP_ALL'
 =default any_attribute C<undef>
-[0.89] In general, C<anyAttribute> schema components cannot be handled
+[0.89, reader] In general, C<anyAttribute> schema components cannot be handled
 automatically.  If  you need to create or process anyAttribute
 information, then read about wildcards in the DETAILS chapter of the
 manual-page for the specific back-end.
@@ -658,7 +658,8 @@ manual-page for the specific back-end.
 
 =option  any_type CODE
 =default any_type <returns string or node>
-[1.07] how to handle "anyType" type elements.  Depends on the backend.
+[1.07] how to handle "anyType" type elements.  Supported values depends
+on the backend, specializations of M<XML::Compile::Translate>.
 
 =option  hook HOOK|ARRAY-OF-HOOKS
 =default hook C<undef>
@@ -674,14 +675,14 @@ Alternative for option C<hook>.
 
 =option  permit_href BOOLEAN
 =default permit_href <false>
-When parsing SOAP-RPC encoded messages, the elements may have a C<href>
-attribute pointing to an object with C<id>.  The READER will return the
-unparsed, unresolved node when the attribute is detected, and the SOAP-RPC
-decoder will have to discover and resolve it.
+[reader] When parsing SOAP-RPC encoded messages, the elements may have
+a C<href> attribute pointing to an object with C<id>.  The READER will
+return the unparsed, unresolved node when the attribute is detected,
+and the SOAP-RPC decoder will have to discover and resolve it.
 
 =option  ignore_unused_tags BOOLEAN|REGEXP
 =default ignore_unused_tags <false>
-Overrules what is set with M<new(ignore_unused_tags)>.
+[writer] Overrules what is set with M<new(ignore_unused_tags)>.
 
 =option  interpret_nillable_as_optional BOOLEAN
 =default interpret_nillable_as_optional <false>
@@ -697,7 +698,7 @@ M<addTypemaps()>
 
 =option  mixed_elements CODE|PREDEFINED
 =default mixed_elements 'ATTRIBUTES'
-What to do when mixed schema elements are to be processed.  Read
+[reader] What to do when mixed schema elements are to be processed.  Read
 more in the L</DETAILS> section below.
 
 =option  key_rewrite HASH|CODE|ARRAY
@@ -707,7 +708,7 @@ M<new(key_rewrite)> and M<addKeyRewrite()>.  See L</Key rewrite>
 
 =option  default_values 'MINIMAL'|'IGNORE'|'EXTEND'
 =default default_values <depends on backend>
-How to treat default values as provided by the schema.
+[reader] How to treat default values as provided by the schema.
 With C<IGNORE> (the writer default), you will see exactly what is
 specified in the XML or HASH.  With C<EXTEND> (the reader default) will
 show the default and fixed values in the result.  C<MINIMAL> does remove
@@ -724,15 +725,28 @@ them as non-abstract types.
 
 =option  block_namespace NAMESPACE|TYPE|HASH|CODE|ARRAY
 =default block_namespace []
-See M<blockNamespace()>.
+[reader] See M<blockNamespace()>.
 
 =option  xsi_type HASH
 =default xsi_type {}
 See L</Handling xsi:type>.  The HASH maps types as mentioned in the schema,
 to extensions of those types which are addressed via the horrible C<xsi:type>
-construct.  When you specify C<AUTO> as value, the translator tries to
-auto-detect. This may be slow and may produce incomplete results.
+construct.  When you specify C<AUTO> as value for some type, the translator
+tries collect possible xsi:type values from the loaded schemas. This may be
+slow and may produce imperfect results.
 
+=option  xsi_type_everywhere BOOLEAN
+=default xsi_type_everywhere <false>
+[1.48, writer] Add an C<xsi:type> attribute to all elements, for instance as
+used in SOAP RPC/encoded.  The type added is the type according to the
+schema, unless the C<xsi:type> is already present on an element for
+some other reason.
+
+Be aware that this option has a different purpose from C<xsi_type>.
+In this case, we do add exactly the type specified in the xsd to each
+element which does not have an C<xsi:type> attribute yet.  The C<xsi_type>
+on the other hand, implements the (mis-)feature that the element's
+content may get replaced by any extended type with this dynamic flag.
 =cut
 
 sub compile($$@)
@@ -745,8 +759,8 @@ sub compile($$@)
         $args{ignore_facets} = ! $args{validation};
     }
     else
-    {   exists $args{check_values}   or $args{check_values} = 1;
-        exists $args{check_occurs}   or $args{check_occurs} = 1;
+    {   exists $args{check_values} or $args{check_values} = 1;
+        exists $args{check_occurs} or $args{check_occurs} = 1;
     }
 
     my $iut = exists $args{ignore_unused_tags}
@@ -840,13 +854,17 @@ sub _namespaceTable($;$$)
     $table;
 }
 
-# undocumented, on purpose: do we like this interface?
+=method compileType <'READER'|'WRITER'>, $type, %options
+This is a hack to be able to process components of SOAP messages, which
+are only specified by type.  Probably (hopefully) you do no need it.
+All %options are the same as for M<compile()>.
+=cut
+
 sub compileType($$@)
 {   my ($self, $action, $type, %args) = @_;
 
     # translator can only create elements, not types.
-    my $elem           = delete $args{element}
-       or error __x"compileType requires an element name to be created";
+    my $elem           = delete $args{element} || $type;
     my ($ens, $elocal) = unpack_type $elem;
     my ($ns, $local)   = unpack_type $type;
 
@@ -854,8 +872,7 @@ sub compileType($$@)
     $self->importDefinitions( <<_DIRTY_TRICK );
 <schema xmlns="$SchemaNS"
    targetNamespace="$ens"
-   xmlns:tns="$ns"
-   elementFormDefault="qualified">
+   xmlns:tns="$ns">
   <element name="$elocal" type="tns:$local" />
 </schema>
 _DIRTY_TRICK
@@ -1838,6 +1855,7 @@ elements.
 Available selectors (see below for details on each of them):
 =over 4
 =item . type
+=item . extends
 =item . id
 =item . path
 =back
@@ -1861,7 +1879,7 @@ C<before>, C<replace>, and C<after>.
 The C<type> selector specifies a complexType of simpleType by name.
 Best is to base the selection on the full name, like C<{ns}type>,
 which will avoid all kinds of name-space conflicts in the future.
-However, you may also specify only the C<type> (in any name-space).
+However, you may also specify only the C<local type> (in any name-space).
 Any REGEX will be matched to the full type name. Be careful with the
 pattern archors.
 
@@ -1891,6 +1909,20 @@ define prefix to namespace beforehand.
  $schemas->addHook(type => 'xsd:int', ...);
  $schemas->addHook(type => 'mine:sometype', ...);
  
+=subsection Hooks on extended type
+
+[1.48] This hook will match all elements which use a type which is equal or
+based on the given type.  In the schema, you will find extension and
+restriction constructs.  You may only pass a single full type (no arrays
+of types or local names) per 'extend' hook.
+
+Using a hooks on extended types is quite expensive for the compiler.
+
+example:
+
+ $schemas->addHook(extends => "{ns}local", ...);
+ $schemas->addHook(extends => 'mine:sometype', ...);  # need ::Cache
+
 =subsection Hooks on matching ids
 
 Matching based on IDs can reach more schema elements: some types are

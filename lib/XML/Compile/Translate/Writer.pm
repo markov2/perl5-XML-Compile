@@ -10,7 +10,7 @@ use Log::Report   qw/xml-compile/;
 use List::Util    qw/first/;
 use Scalar::Util  qw/blessed weaken/;
 use XML::Compile::Util qw/pack_type unpack_type type_of_node SCHEMA2001i
-  odd_elements even_elements/;
+  SCHEMA2001 odd_elements even_elements/;
 
 =chapter NAME
 
@@ -1067,8 +1067,8 @@ sub makeXsiTypeSwitch($$$$)
     };
 }
 
-sub makeHook($$$$$$)
-{   my ($self, $path, $r, $tag, $before, $replace, $after) = @_;
+sub makeHook($$$$$$$)
+{   my ($self, $path, $r, $tag, $before, $replace, $after, $fulltype) = @_;
     return $r unless $before || $replace || $after;
 
     error __x"writer only supports one production (replace) hook"
@@ -1084,17 +1084,17 @@ sub makeHook($$$$$$)
     {  my ($doc, $val) = @_;
        defined $val or return;
        foreach (@before)
-       {   $val = $_->($doc, $val, $path);
+       {   $val = $_->($doc, $val, $path, $fulltype);
            defined $val or return ();
        }
 
        my $xml = @replace
-               ? $replace[0]->($doc, $val, $path, $tag, $r)
+               ? $replace[0]->($doc, $val, $path, $tag, $r, $fulltype)
                : $r->($doc, $val);
        defined $xml or return ();
 
        foreach (@after)
-       {   $xml = $_->($doc, $xml, $path, $val);
+       {   $xml = $_->($doc, $xml, $path, $val, $fulltype);
            defined $xml or return ();
        }
 
@@ -1151,6 +1151,22 @@ sub makeBlocked($$$)
     : panic "blocking of $class for $type not implemented";
 }
 
+sub addTypeAttribute($$)
+{   my ($self, $type, $do) = @_;
+    my $xsi   = $self->_registerNSprefix(xsi => SCHEMA2001i, 1) . ':type';
+    my $xsd   = $self->_registerNSprefix(xsd => SCHEMA2001, 1);
+    my $typed = $self->prefixed($type);
+
+    sub {
+        my $r = $do->(@_);
+        $type && $r && UNIVERSAL::isa($r, 'XML::LibXML::Element') or return $r;
+        return $r if $r->getAttributeNS(SCHEMA2001i, 'type');
+        $r->setAttribute($xsi, $typed);
+        $r;
+    };
+}
+
+#------------
 =chapter DETAILS
 
 =section Processing Wildcards
@@ -1209,6 +1225,10 @@ can be a SCALAR or a HASH, dependent on the type.  You can intervene
 on higher data-structure levels, to repair lower levels, if you want
 to.
 
+[1.48] The hooks get a long list of parameters.  The C<$fulltype>
+indicates the type of object which is being processed, which is
+especially usefull with the 'extends' selector.
+
 =subsection hooks executed before normal processing
 
 The C<before> hook gives you the opportunity to fix the user
@@ -1223,8 +1243,8 @@ node will be cancelled.
 On the moment, the only predefined C<before> hook is C<PRINT_PATH>.
 
 =example before hook on user-provided HASH.
- sub beforeOnComplex($$$)
- {   my ($doc, $values, $path) = @_;
+ sub beforeOnComplex($$$$)
+ {   my ($doc, $values, $path, $fulltype) = @_;
 
      my %copy = %$values;
      $copy{extra} = 42;
@@ -1234,14 +1254,14 @@ On the moment, the only predefined C<before> hook is C<PRINT_PATH>.
  }
 
 =example before hook on simpleType data
- sub beforeOnSimple($$$)
- {   my ($doc, $value, $path) = @_;
+ sub beforeOnSimple($$$$)
+ {   my ($doc, $value, $path, $fulltype) = @_;
      $value * 100;    # convert euro to euro-cents
  }
 
 =example before hook with object for complexType
- sub beforeOnObject($$$)
- {   my ($doc, $obj, $path) = @_;
+ sub beforeOnObject($$$$)
+ {   my ($doc, $obj, $path, $fulltype) = @_;
 
      +{ name     => $obj->name
       , price    => $obj->euro
@@ -1266,7 +1286,7 @@ On the moment, the only predefined C<replace> hook is C<SKIP>.
 
 =example replace hook
  sub replace($$$$$)
- {  my ($doc, $values, $path, $tag, $r) = @_
+ {  my ($doc, $values, $path, $tag, $r, $fulltype) = @_
     my $node = $doc->createElement($tag);
     $node->appendText($values->{text});
     $node;
@@ -1282,7 +1302,7 @@ On the moment, the only predefined C<after> hook is C<PRINT_PATH>.
 
 =example add an extra sibbling after the usual process
  sub after($$$$)
- {   my ($doc, $node, $path, $values) = @_;
+ {   my ($doc, $node, $path, $values, $fulltype) = @_;
      my $child = $doc->createAttributeNS($myns, earth => 42);
      $node->addChild($child);
      $node;
@@ -1405,4 +1425,3 @@ writer considerably.
 =cut
 
 1;
-

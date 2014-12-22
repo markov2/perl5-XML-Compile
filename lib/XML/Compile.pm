@@ -262,7 +262,9 @@ sub dataToXML($)
     }
     else
     {   my $data = "$raw";
-        $data = substr($data, 0, 59) . '...' if length($data) > 60;
+        $data = substr($data, 0, 59) . '...'
+            if length($data) > 60 && $data =~ m/\</;
+
         error __x"don't known how to interpret XML data\n   {data}"
            , data => $data;
     }

@@ -149,7 +149,7 @@ a table of types.
 
 sub compile($@)
 {   my ($self, $item, %args) = @_;
-    @$self{keys %args} = values %args;  # dirty
+    @$self{keys %args} = values %args;  # dirty.  Always all the same fields
 
     my $path   = $self->prefixed($item, 1) || $item;
     ref $item
@@ -768,43 +768,40 @@ sub element($)
       : $fixed    ? 'makeElementFixed'
       :             'makeElement';
 
-    my $do1 = $self->$generate($where, $ns, $nodetype, $r, $value, $tag);
+    my $do = $self->$generate($where, $ns, $nodetype, $r, $value, $tag);
 
     # hrefs are used by SOAP-RPC
-    my $do2 = $self->{permit_href} && $self->actsAs('READER')
-      ? $self->makeElementHref($where, $ns, $nodetype, $do1) : $do1;
+    $do = $self->makeElementHref($where, $ns, $nodetype, $do)
+        if $self->{permit_href} && $self->actsAs('READER');
 
     # Implement hooks
     my ($before, $replace, $after)
-      = $self->findHooks($where, $comptype, $node);
+        = $self->findHooks($where, $comptype, $node);
 
-    my $do3
-      = ($before || $replace || $after)
-      ? $self->makeHook($where, $do2, $tag, $before, $replace, $after)
-      : $do2;
+    $do = $self->makeHook($where,$do,$tag,$before,$replace,$after,$comptype)
+        if $before || $replace || $after;
 
-    my $do4 = $do3;
-    if($comptype && $self->{xsi_type}{$comptype})
-    {   # Ugly xsi:type switch needed
-        $do4 = $self->xsiType($tree, $node, $name, $comptype, $do3);
-    }
+    $do = $self->xsiType($tree, $node, $name, $comptype, $do)
+        if $comptype && $self->{xsi_type}{$comptype};
 
-    my $do5 = $do4;
     if($is_global)
     {   my @sgs = $self->namespaces->findSgMembers($node->localName, $fullname);
-        $do5 = $self->substitutionGroup($tree, $fullname, $nodetype, $do4,\@sgs)
+        $do = $self->substitutionGroup($tree, $fullname, $nodetype, $do, \@sgs)
             if @sgs;
     }
+
+    $do = $self->addTypeAttribute($comptype, $do)
+        if $self->{xsi_type_everywhere} && $comptype !~ /^unnamed /;
 
     # handle recursion
     # this must look very silly to you... however, this is resolving
     # recursive schemas: this way nested use of the same element
     # definition will catch the code reference of the outer definition.
-    $self->{_nest}{$nodeid}    = $do5;
+    $self->{_nest}{$nodeid} = $do;
     delete $self->{_nest}{$nodeid};  # clean the outer definition
 
-    $self->{_created}{$nodeid} = $do5;
-    ($nodetype, $do5);
+    $self->{_created}{$nodeid} = $do;
+    ($nodetype, $do);
 }
 
 sub particle($)
@@ -1605,7 +1602,8 @@ sub findHooks($$$)
     {   my $match;
 
         $match++
-            if !$hook->{path} && !$hook->{id} && !$hook->{type};
+            if !$hook->{path} && !$hook->{id}
+            && !$hook->{type} && !$hook->{extends};
 
         if(!$match && $hook->{path})
         {   my $p = $hook->{path};
@@ -1630,6 +1628,10 @@ sub findHooks($$$)
                          : substr($_,0,1) eq '{' ? $type  eq $_
                          :                         $local eq $_
                          } ref $t eq 'ARRAY' ? @$t : $t;
+        }
+
+        if(!$match && defined $type && $hook->{extends})
+        {   $match++ if $self->{nss}->doesExtend($type, $hook->{extends});
         }
 
         $match or next;
@@ -1679,6 +1681,12 @@ sub blocked($$$)
     $self->makeBlocked($path, $class, $type);
 }
 
+sub addTypeAttribute($$)
+{   my ($self, $type, $call) = @_;
+    $call;
+}
+
+#------------
 =chapter DETAILS
 
 =section Translator options

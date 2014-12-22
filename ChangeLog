@@ -6,6 +6,19 @@ Mark Overmeer.
 
 Plans and unwanted limitations? see README.todo
 
+version 1.48: Mon Dec 22 08:22:03 CET 2014
+
+	Improvements:
+	- ::dataToXML will show more about the input it does not understand
+	  unless it is XML [Jan-willem van Eys]
+	- writer: new ::Schema::compile() option xsi_type_everywhere
+	  with tests in t/64xsi.t
+	- ::Schema::compile() options show which are limited to use in
+	  readers resp writers only.
+	- add hooks selector 'extends'
+	- writer: hooks get fulltype parameter, otherwise you cannot see
+	  the type for 'extends' selectors.
+
 version 1.47: Sat Oct 11 01:33:15 CEST 2014
 
 	Fixes:

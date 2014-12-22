@@ -55,7 +55,7 @@ isa_ok($r1, 'CODE', 'after read');
 my $h1 = $r1->('<test1>one</test1>');
 is($h1, 'one', 'reader works');
 
-cmp_ok(scalar @out, '==', 3, 'hook called with 3 params');
+cmp_ok(scalar @out, '==', 4, 'hook called with 4 params');
 isa_ok($out[0], 'XML::LibXML::Node', 'got node');
 is($out[1], 'one', 'parsed data');
 
@@ -67,7 +67,7 @@ isa_ok($w1, 'CODE', 'after read');
 my $w1h = $w1->($doc, 'two');
 isa_ok($w1h, 'XML::LibXML::Element', 'writer works');
 
-cmp_ok(scalar @out, '==', 4, 'hook called with 4 params');
+cmp_ok(scalar @out, '==', 5, 'hook called with 5 params');
 is($out[0], $doc, 'document');
 isa_ok($out[1], 'XML::LibXML::Element', 'generated node');
 is($out[2], $t1, 'type');

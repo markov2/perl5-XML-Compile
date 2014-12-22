@@ -80,6 +80,7 @@ t/60hooks_r.t
 t/61hooks_w.t
 t/62recurse.t
 t/63mixed.t
+t/64xsi.t
 t/70templ.t
 t/72typemap.t
 t/73rewrite.t
