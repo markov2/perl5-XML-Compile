@@ -994,7 +994,7 @@ sub makeAnyElement
               elsif(index($label, ':') >= 0)
               {   (my $prefix, $local) = split ':', $label, 2;
                   my $match = first {$_->{prefix} eq $prefix} values %$prefs;
-                  my $ns    = $match ? $match->{uri} : undef;
+                  $ns    = $match ? $match->{uri} : undef;
                   $type  = pack_type $ns, $local;
               }
               else {next}  # not fully qualified, not an 'any'
@@ -1227,7 +1227,7 @@ to.
 
 [1.48] The hooks get a long list of parameters.  The C<$fulltype>
 indicates the type of object which is being processed, which is
-especially usefull with the 'extends' selector.
+especially useful with the 'extends' selector.
 
 =subsection hooks executed before normal processing
 

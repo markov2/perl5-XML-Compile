@@ -6,6 +6,14 @@ Mark Overmeer.
 
 Plans and unwanted limitations? see README.todo
 
+version 1.49: Thu Jun 11 09:40:55 CEST 2015
+
+	Fixes:
+	- writer: use of prefix in key field for any.
+	- doc spelling, rt.cpan.org #104333 [gregor herrmann]
+	- do not attempt to find hooks on "unnamed complex"
+	  rt.cpan.org#105161 [Nick Wellnhofer]
+
 version 1.48: Mon Dec 22 08:22:03 CET 2014
 
 	Improvements:

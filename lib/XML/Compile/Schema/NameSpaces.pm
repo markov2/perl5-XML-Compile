@@ -166,6 +166,7 @@ Returns true when $exttype extends $basetype.
 sub doesExtend($$)
 {   my ($self, $ext, $base) = @_;
     return 1 if $ext eq $base;
+    return 0 if $ext =~ m/^unnamed /;
 
     my ($node, $super, $subnode);
     if(my $st = $self->find(simpleType => $ext))

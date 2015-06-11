@@ -98,7 +98,7 @@ in a secure mode.  See M<initParser()>.
 
 =cut
 
-sub new($@)
+sub new(@)
 {   my $class = shift;
     my $top   = @_ % 2 ? shift : undef;
 

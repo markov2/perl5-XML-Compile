@@ -776,7 +776,7 @@ sub element($)
 
     # Implement hooks
     my ($before, $replace, $after)
-        = $self->findHooks($where, $comptype, $node);
+      = $self->findHooks($where, $comptype, $node);
 
     $do = $self->makeHook($where,$do,$tag,$before,$replace,$after,$comptype)
         if $before || $replace || $after;
