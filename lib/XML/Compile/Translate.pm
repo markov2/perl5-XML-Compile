@@ -176,7 +176,7 @@ sub compile($@)
     }
 
     delete $self->{_created};
-    my $produce = $self->topLevel($path, $item);
+    my $produce = $self->topLevel($path, $item, 1);
     delete $self->{_created};
 
     my $in = $self->{include_namespaces}
@@ -270,8 +270,8 @@ sub nsContext($)
 
 sub namespaces() { $_[0]->{nss} }
 
-sub topLevel($$)
-{   my ($self, $path, $fullname) = @_;
+sub topLevel($$;$)
+{   my ($self, $path, $fullname, $is_root) = @_;
 
     # built-in types have to be handled differently.
     my $internal = XML::Compile::Schema::Specs->builtInType(undef, $fullname
@@ -311,7 +311,7 @@ sub topLevel($$)
     my $name = $node->localName;
     my $data;
     if($name eq 'element')
-    {   my ($label, $make) = $self->element($tree);
+    {   my ($label, $make) = $self->element($tree, $is_root);
         $data    = $self->makeElementWrapper($path, $make) if $make;
     }
     elsif($name eq 'attribute')
@@ -598,8 +598,8 @@ sub applySimpleFacets($$$$)
     : $self->makeFacets($where, $st, \%facets_info, @early, @late);
 }
 
-sub element($)
-{   my ($self, $tree) = @_;
+sub element($;$)
+{   my ($self, $tree, $is_root) = @_;
 
     # attributes: abstract, default, fixed, form, id, maxOccurs, minOccurs
     #    , name, nillable, ref, substitutionGroup, targetNamespace, type
@@ -660,19 +660,39 @@ sub element($)
     local $self->{_context} = $context if $is_global;
     my $nodetype = $qual ? $fullname : $name;
 
+    # SubstitionGroups
+    # We know the type of the message root, so do not need to look for
+    # alternative sgs (and it wouldn't work anyway)
+
+    my @sgs;
+    @sgs = $self->namespaces->findSgMembers($node->localName, $fullname)
+        unless $is_root;
+
     # Handle re-usable fragments, fight against combinatorial explosions
 
     my $nodeid   = $node->unique_key; #$node->nodePath.'#'.$fullname;
-    my $already  = $self->{_created}{$nodeid};
-#warn "$nodeid; ", $node+0,"\n" if $already;
-#undef $already;
-    return ($nodetype, $already) if $already;
+    if(my $already  = $self->{_created}{$nodeid})
+    {    # We cannot cache compile subst-group handlers, because sgs using
+         # elements which were already compiled into sgs does not work.
+         $already = $self->substitutionGroup($tree, $fullname, $nodetype
+           , $already, \@sgs) if @sgs;
+         return ($nodetype, $already);
+    }
 
     # Detect recursion
+    # Very complicated: recursively nested structures.  It is less of a
+    # problem when you handle in run-time what you see... but we here
+    # have to be prepared for everything.
 
     if(exists $self->{_nest}{$nodeid})
-    {   my $outer = \$self->{_nest}{$nodeid};
-        return ($nodetype, sub { $$outer->(@_) });
+    {   my $outer  = \$self->{_nest}{$nodeid};
+        my $nested = sub { $$outer->(@_) };
+
+        # The code must be blessed in the right class, to be compiled
+        # correctly inside its parent.
+        bless $nested, 'BLOCK' if @sgs;
+
+        return ($nodetype, $nested);
     }
     $self->{_nest}{$nodeid} = undef;
 
@@ -696,16 +716,21 @@ sub element($)
                  || $self->typeByName($where, $tree, $comptype);
     }
     elsif($nr_childs==0)
-    {   if(my $subst = $node->getAttribute('substitutionGroup'))
-        {   # default type for substGroups is type of base-class
-            my $subst_elem = $self->rel2abs($where, $node, $subst);
+    {   # default type for substGroups is type of base-class
+        my $base_node = $node;
+        local $self->{_context};
+        while(my $subst = $base_node->getAttribute('substitutionGroup'))
+        {   my $subst_elem = $self->rel2abs($where, $base_node, $subst);
             my $base_elem  = $self->namespaces->find(element => $subst_elem);
-            my $node       = $base_elem->{node};
-            if(my $isa = $node->getAttribute('type'))
-            {   $comptype  = $self->rel2abs($where, $node, $isa);
-                $comps     = $self->blocked($where, complexType => $comptype)
-                          || $self->typeByName($where, $tree, $comptype);
-            }
+            $self->{_context} = $self->nsContext($base_elem);
+            $base_node     = $base_elem->{node};
+            my $isa        = $base_node->getAttribute('type')
+                or next;
+
+            $comptype  = $self->rel2abs($where, $base_node, $isa);
+            $comps     = $self->blocked($where, complexType => $comptype)
+                      || $self->typeByName($where, $tree, $comptype);
+            last;
         }
         unless($comptype)
         {   # no type found, so anyType
@@ -784,14 +809,13 @@ sub element($)
     $do = $self->xsiType($tree, $node, $name, $comptype, $do)
         if $comptype && $self->{xsi_type}{$comptype};
 
-    if($is_global)
-    {   my @sgs = $self->namespaces->findSgMembers($node->localName, $fullname);
-        $do = $self->substitutionGroup($tree, $fullname, $nodetype, $do, \@sgs)
-            if @sgs;
-    }
-
     $do = $self->addTypeAttribute($comptype, $do)
         if $self->{xsi_type_everywhere} && $comptype !~ /^unnamed /;
+
+    $self->{_created}{$nodeid} = $do;
+
+    $do = $self->substitutionGroup($tree, $fullname, $nodetype, $do, \@sgs)
+        if @sgs;
 
     # handle recursion
     # this must look very silly to you... however, this is resolving
@@ -800,7 +824,6 @@ sub element($)
     $self->{_nest}{$nodeid} = $do;
     delete $self->{_nest}{$nodeid};  # clean the outer definition
 
-    $self->{_created}{$nodeid} = $do;
     ($nodetype, $do);
 }
 
@@ -1002,7 +1025,7 @@ sub substitutionGroup($$$$$)
     push @elems, $label => [$self->keyRewrite($label), $base] if $base;
 
     foreach my $subst (@$sgs)
-    {   my ($l, $d) = $self->element($tree->descend($subst->{node}));
+    {   my ($l, $d) = $self->element($tree->descend($subst->{node}), 1);
         push @elems, $l => [$self->keyRewrite($l), $d] if defined $d;
     } 
 

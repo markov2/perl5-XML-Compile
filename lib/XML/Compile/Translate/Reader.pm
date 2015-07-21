@@ -7,7 +7,7 @@ no warnings 'once', 'recursion';
 
 use Log::Report 'xml-compile', syntax => 'SHORT';
 use List::Util   qw/first/;
-use Scalar::Util qw/weaken/;
+use Scalar::Util qw/weaken blessed/;
 
 use XML::Compile::Util qw/pack_type odd_elements type_of_node SCHEMA2001i/;
 use XML::Compile::Iterator ();
@@ -88,7 +88,7 @@ sub makeElementWrapper
 {   my ($self, $path, $processor) = @_;
     # no copy of $_[0], because it may be a large string
     sub { my $tree;
-          if(ref $_[0] && UNIVERSAL::isa($_[0], 'XML::LibXML::Iterator'))
+          if(blessed $_[0] && $_[0]->isa('XML::LibXML::Iterator'))
           {   $tree = $_[0];
           }
           else
@@ -149,6 +149,7 @@ sub makeSequence($@)
     sub { my $tree = shift;
           my @res;
           my @do = @pairs;
+
           while(@do)
           {   my ($take, $do) = (shift @do, shift @do);
               push @res, ref $do eq 'BLOCK'
@@ -234,8 +235,9 @@ sub makeChoice($@)
               or error __x"choice needs more elements at {path}"
                    , path => $path, _class => 'misfit';
 
+
           my @elems = sort keys %do;
-          trace "choose element from @elems or fix special" if @elems;
+          trace "choose element from @elems or fix special at $path" if @elems;
           trace "failed specials in choice: $_" for @special_errors;
 
           error __x"no applicable choice for `{tag}' at {path}"
@@ -598,7 +600,7 @@ sub _not_processed($$)
 
 sub makeComplexElement
 {   my ($self, $path, $tag, $elems, $attrs, $attrs_any,undef,$is_nillable) = @_;
-my @e = @$elems; my @a = @$attrs;
+#my @e = @$elems; my @a = @$attrs;
 
     my @elems = odd_elements @$elems;
     my @attrs = (odd_elements(@$attrs), @$attrs_any);
@@ -941,7 +943,7 @@ sub makeSubstgroup
     sub { my $tree  = shift;
           my $type  = ($tree ? $tree->currentType : undef)
               or error __x"no data for substitution group {type} at {path}"
-                    , type => $base, path => $path;
+                    , type => $base, path => $path, class => 'misfit';
 
           my $do    = $do{$type} or return ();
           my @subst = $do->[1]($tree->descend);
@@ -1123,7 +1125,7 @@ sub makeHook($$$$$$$)
          : $process->();
 
        @h or return ();
-       my $h = @h==1 && !ref $h[0] ? {_ => $h[0]} : $h[1];  # detect simpleType
+       my $h = @h==1 ? $h[0] : $h[1];  # detect simpleType
        foreach my $after (@after)
        {   $h = $after->($xml, $h, $path, $fulltype);
            defined $h or return ();

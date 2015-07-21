@@ -492,7 +492,6 @@ sub nil($)
 
 sub makeComplexElement
 {   my ($self, $path, $tag, $elems, $attrs, $any_attr,undef, $is_nillable) = @_;
-my @e = @$elems;
     my @elems   = odd_elements @$elems;
     my @attrs   = @$attrs;
     my $tags    = join ', ', grep defined
@@ -1071,29 +1070,35 @@ sub makeHook($$$$$$$)
 {   my ($self, $path, $r, $tag, $before, $replace, $after, $fulltype) = @_;
     return $r unless $before || $replace || $after;
 
-    error __x"writer only supports one production (replace) hook"
-        if $replace && @$replace > 1;
+    my $do_replace;
+    if($replace)
+    {   return sub {()} if grep $_ eq 'SKIP', @$replace;
 
-    return sub {()} if $replace && grep $_ eq 'SKIP', @$replace;
+        # Input for replace is Perl, output is XML... so we cannot stack them
+        error __x"writer only supports one replace hook (for {type})"
+          , type => $fulltype
+            if @$replace > 1;
 
-    my @replace = $replace ? map $self->_decodeReplace($path,$_), @$replace :();
-    my @before  = $before  ? map $self->_decodeBefore($path,$_),  @$before  :();
-    my @after   = $after   ? map $self->_decodeAfter($path,$_),   @$after   :();
+        $do_replace = $self->_decodeReplace($path, $replace->[0]);
+    }
+
+    my @do_before = $before ? map $self->_decodeBefore($path,$_), @$before :();
+    my @do_after  = $after  ? map $self->_decodeAfter($path,$_),  @$after  :();
 
     sub
     {  my ($doc, $val) = @_;
        defined $val or return;
-       foreach (@before)
+       foreach (@do_before)
        {   $val = $_->($doc, $val, $path, $fulltype);
            defined $val or return ();
        }
 
-       my $xml = @replace
-               ? $replace[0]->($doc, $val, $path, $tag, $r, $fulltype)
+       my $xml = $do_replace
+               ? $do_replace->($doc, $val, $path, $tag, $r, $fulltype)
                : $r->($doc, $val);
        defined $xml or return ();
 
-       foreach (@after)
+       foreach (@do_after)
        {   $xml = $_->($doc, $xml, $path, $val, $fulltype);
            defined $xml or return ();
        }

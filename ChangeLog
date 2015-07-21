@@ -6,6 +6,19 @@ Mark Overmeer.
 
 Plans and unwanted limitations? see README.todo
 
+version 1.50: di jul 21 17:35:33 CEST 2015
+
+	Changes:
+	- input of simpletype hooks is now a simpletype
+
+	Fixes:
+	- root elements cannot be substituted
+	- nested substitutionGroup's (broken since 1.44)
+	- multi-level fallback type inheritance for substGroups
+
+	Improvements:
+	- writer: minor improvements in hooks
+
 version 1.49: Thu Jun 11 09:40:55 CEST 2015
 
 	Fixes:
@@ -68,7 +81,7 @@ version 1.44: Wed May 28 09:23:24 CEST 2014
 	- template XML: show attributes not as elements
 	- template XML: XML compatible example for list elements
 	- memory-leak keeping ::Reader and ::Writer objects [Michiel Ootjers]
-	- no not accept to read NIL when not nillable
+	- do not accept to read NIL when not nillable
 
 	Improvements:
 	- ::Util new functions add_duration() and duration2secs()  tests
