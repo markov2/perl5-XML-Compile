@@ -869,15 +869,24 @@ sub compileType($$@)
     my ($ns, $local)   = unpack_type $type;
 
     my $SchemaNS = SCHEMA2001;
-    $self->importDefinitions( <<_DIRTY_TRICK );
+
+    my $defs     = $ns ? <<_DIRTY_TRICK1 : <<_DIRTY_TRICK2;
 <schema xmlns="$SchemaNS"
    targetNamespace="$ens"
    xmlns:tns="$ns">
   <element name="$elocal" type="tns:$local" />
 </schema>
-_DIRTY_TRICK
+_DIRTY_TRICK1
+<schema xmlns="$SchemaNS"
+   targetNamespace="$ens"
+   elementFormDefault="unqualified"
+   >
+  <element name="$elocal" type="$local" />
+</schema>
+_DIRTY_TRICK2
 
-     $self->compile($action, $elem, %args);
+    $self->importDefinitions($defs);
+    $self->compile($action, $elem, %args);
 }
 
 =method template <'XML'|'PERL'|'TREE'>, $element, %options
@@ -1724,26 +1733,26 @@ The HASH repesentation is respectively
  product => {name => 'Ball', euro  => 12}
  product => {name => 'Ball', dollar => 6}
  
-=subsection Wildcards any and anyAttribute
+=subsection Wildcards via any and anyAttribute
 
 The C<any> and C<anyAttribute> elements are referred to as C<wildcards>:
-they specify groups of elements and attributes which can be used, in
-stead of being explicit.
+they specify (huge, generic) groups of elements and attributes which
+are accepted, instead of being explicit.
 
 The author of this module advices B<against the use of wildcards> in
-schemas, because the purpose of schemas is to be explicit about the
-structure of the message, and that basic idea is simply thrown away by
+schemas: the purpose of schemas is to be I<explicit> about the
+message in the interface, and that basic idea is simply thrown away by
 these wildcards.  Let people cleanly extend the schema with inheritance!
-If you use a standard schema which facilitates these wildcards, then
-please do not use them!
+There is always a substitutionGroup alternative possible.
 
 Because wildcards are not explicit about the types to expect, the
-C<XML::Compile> module can not prepare for them automatically.
-However, as user of the schema you probably know better about the possible
-contents of these fields.  Therefore, you can translate that
-knowledge into code explicitly.  Read about the processing of wildcards
-in the manual page for each of the back-ends, because it is different
-in each case.
+C<XML::Compile> module can not prepare for them at run-time.  You need
+to go read the documentation and do some tricky manual work to get it
+to work.
+
+Read about the processing of wildcards in the manual page for each of
+the back-ends (M<XML::Compile::Translate::Reader>,
+M<XML::Compile::Translate::Writer>, ...).
 
 =subsection ComplexType with "mixed" attribute
 

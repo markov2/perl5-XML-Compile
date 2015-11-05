@@ -440,7 +440,15 @@ base64 encoded.
 
 $builtin_types{base64Binary} =
  { parse   => sub { eval { decode_base64 $_[0] } }
- , format  => sub { eval { encode_base64 $_[0], '' } }
+ , format  => sub {
+       my $a = $_[0];
+       eval { utf8::downgrade($a) };
+       if($@)
+       {   error __x"use Encode::encode() for base64Binary field at {path}"
+             , path => $_[2];
+       }
+       encode_base64 $a, '';
+    }
  , check   => sub { !$@ }
  , example => 'decoded bytes'
  , extends => 'anyAtomicType'
@@ -486,7 +494,7 @@ my $date = qr/^ $yearFrag \- $monthFrag \- $dayFrag $timezoneFrag? $/x;
 
 $builtin_types{date} =
  { parse   => \&_collapse
- , format  => sub { $_[0] =~ /\D/ ? $_[0] : strftime("%Y-%m-%d", gmtime $_[0])}
+ , format  => sub { $_[0] =~ /^[0-9]+$/ ? strftime("%Y-%m-%d", gmtime $_[0]) : $_[0]}
  , check   => sub { (my $val = $_[0]) =~ s/\s+//g; $val =~ $date }
  , example => '2006-10-06'
  , extends => 'anyAtomicType'

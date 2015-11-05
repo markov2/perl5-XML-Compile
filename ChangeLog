@@ -6,6 +6,18 @@ Mark Overmeer.
 
 Plans and unwanted limitations? see README.todo
 
+version 1.51: Thu  5 Nov 17:50:06 CET 2015
+
+	Fixes:
+	- stricter check for date field [Rolf Schaufelberger]
+	- base64Binary writer will check for wide characters
+	  rt.cpan.org#108410 [Mark Gardner]
+
+	Improvements:
+	- reader: added replace hook XML_NODE
+	- writer: mixed_elements => 'ATTRIBUTES' became much smarter
+	- writer: compileType for types without namespace
+
 version 1.50: di jul 21 17:35:33 CEST 2015
 
 	Changes:

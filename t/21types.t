@@ -10,7 +10,8 @@ use XML::Compile::Schema;
 use XML::Compile::Tester;
 use Math::BigFloat;
 
-use Test::More tests => 170;
+use Test::More tests => 175;
+use utf8;
 
 my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
 <schema xmlns="$SchemaNS"
@@ -86,7 +87,10 @@ test_rw($schema, test5 => '<test5>4320239</test5>', 4320239);
 ### Base64Binary
 ###
 
-test_rw($schema, test6 => '<test6>SGVsbG8sIFdvcmxkIQ==</test6>', 'Hello, World!'); 
+test_rw($schema,test6 => '<test6>SGVsbG8sIFdvcmxkIQ==</test6>','Hello, World!');
+
+$error = error_w($schema, test6 => "€");
+is($error, 'use Encode::encode() for base64Binary field at {http://test-types}test6');
 
 ###
 ### dateTime validation

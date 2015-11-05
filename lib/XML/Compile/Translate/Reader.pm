@@ -321,7 +321,6 @@ sub makeAll($@)
 sub makeBlockHandler
 {   my ($self, $path, $label, $min, $max, $process, $kind, $multi) = @_;
 
-#warn "BLOCK $label $min $max";
     # flatten the HASH: when a block appears only once, there will
     # not be an additional nesting in the output tree.
     if($max ne 'unbounded' && $max==1)
@@ -1103,7 +1102,7 @@ sub makeHook($$$$$$$)
     return $r unless $before || $replace || $after;
 
     return sub { ($_[0]->node->localName => 'SKIPPED') }
-        if $replace && grep {$_ eq 'SKIP'} @$replace;
+        if $replace && grep $_ eq 'SKIP', @$replace;
 
     my @replace = $replace ? map $self->_decodeReplace($path,$_),@$replace : ();
     my @before  = $before  ? map $self->_decodeBefore($path,$_), @$before  : ();
@@ -1146,7 +1145,8 @@ sub _decodeReplace($$)
 {   my ($self, $path, $call) = @_;
     return $call if ref $call eq 'CODE';
 
-    error __x"labeled replace hook `{call}' undefined for READER", call=>$call;
+      $call eq 'XML_NODE'  ? sub { ($_[3] => $_[0]) }    # don't parse XML
+    : error __x"labeled replace hook `{call}' undefined for READER",call=>$call;
 }
 
 my %after = 
@@ -1436,6 +1436,10 @@ HASH, the path, and the localname.
 This hook has a predefined C<SKIP>, which will not process the
 found element, but simply return the string "SKIPPED" as value.
 This way, a whole tree of unneeded translations can be avoided.
+
+[1.51] The predefined hook C<XML_NODE> will not attempt to parse the
+selected element, but returns the M<XML::LibXML::Element> node instead.
+This may break on some schema-contained validations.
 
 Sometimes, the Schema spec is such a mess, that XML::Compile cannot
 automatically translate it.  I have seen cases where confusion

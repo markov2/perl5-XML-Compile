@@ -12,6 +12,9 @@ use Scalar::Util  qw/blessed weaken/;
 use XML::Compile::Util qw/pack_type unpack_type type_of_node SCHEMA2001i
   SCHEMA2001 odd_elements even_elements/;
 
+use XML::LibXML;
+use Encode        qw/encode/;
+
 =chapter NAME
 
 XML::Compile::Translate::Writer - translate HASH to XML
@@ -622,6 +625,7 @@ sub makeMixedElement
     my @attrs   = @$attrs;
     my @anya    = @$attrs_any;
     my $nilattr = $is_nillable ? $self->nil($path) : undef;
+    (my $locname = $tag) =~ s/.*\://;
 
     my $mixed = $self->{mixed_elements};
     if($mixed eq 'ATTRIBUTES') { ; }
@@ -653,14 +657,38 @@ sub makeMixedElement
           my $content = delete $copy->{_};
           defined $content or return;
 
-          if(UNIVERSAL::isa($content, 'XML::LibXML::Node')) {}
-          elsif($content eq 'NIL')
-          {   $content = $doc->createAttribute($nilattr => 'true')
+          #XXX there are no regression test for these options
+          my $node;
+          if(blessed $content && $content->isa('XML::LibXML::Node'))
+          {   $node    = $doc->importNode($content);
+          }
+          elsif($is_nillable && $content eq 'NIL')
+          {   # nillable element
+              $node    = $doc->createElement($tag);
+              $node->setAttribute($nilattr => 'true');
+          }
+          elsif($content =~ /\<.*?\>|\&\w+\;/)
+          {   # XXX I do not know a way to fill text nodes without getting
+              # entity encoding on them.  Apparently, libxml2 has a
+              # xmlStringTextNoenc, which is not provided in XML::LibXML.
+              # Now, we need the expensive roundtrip, via the parser.
+
+              my $frag = XML::LibXML->new
+                ->parse_balanced_chunk(encode utf8 => $content);
+
+              $node = $frag->firstChild;
+              if($node->localName ne $locname)
+              {   # <nodes>  -->   <$locname>$nodes</$locname>
+                  my $c = $node;
+                  $node = $doc->createElement($tag);
+                  $node->appendChild($frag);
+              }
           }
           else
-          {   $content = $doc->createTextNode($content);
+          {   # Plain text
+              $node    = $doc->createElement($tag);
+              $node->appendText($content);
           }
-          my $node = $doc->importNode($content);
 
           my @childs;
           for(my $i=0; $i<@attrs; $i+=2)
@@ -737,7 +765,7 @@ sub makeBuiltin
     $check
     ? ( defined $format
       ? sub { defined $_[1] or return undef;
-              my $value = $format->($_[1], $trans);
+              my $value = $format->($_[1], $trans, $path);
               return $value if defined $value && $check->($value);
               error __x$err, value => $value, type => $type, path => $path;
             }
@@ -746,7 +774,7 @@ sub makeBuiltin
             }
       )
     : ( defined $format
-      ? sub { defined $_[1] ? $format->($_[1], $trans) : undef }
+      ? sub { defined $_[1] ? $format->($_[1], $trans, $path) : undef }
       : sub { $_[1] }
       );
 }
@@ -1216,7 +1244,20 @@ node.
 M<XML::Compile::Schema::compile(mixed_elements)> can be set to
 =over 4
 =item ATTRIBUTES (default)
-Add attributes to the provided node.
+Add attributes to the provided node.  When you provide a HASH, it is
+taken as node content with attributes.  The content has to be stored
+with key '_'.  When it is not a HASH, the data is node content.
+
+There are various ways you can specify content.  Upto [1.51], you
+could only pass a matching M<XML::LibXML::Element>.  Release [1.51] added
+strings to the spectrum.  If the string does not contain encoded entities
+or E<lt> and E<gt>, then it is assumed to be a real perl string.  When
+the string contains an XML fragment which has the same localname as to be
+created, that will be used.  When the XML fragment is not wrapped in the
+expected node, this is created for you.
+
+In any case, attributes provided with the content will get added to the
+content data.
 
 =item STRUCTURAL
 [0.89] behaves as if the attribute is not there: a data-structure can be
