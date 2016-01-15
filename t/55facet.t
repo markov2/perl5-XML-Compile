@@ -11,7 +11,7 @@ use XML::Compile::Schema;
 use XML::Compile::Tester;
 use XML::Compile::Util qw/pack_type/;
 
-use Test::More tests => 374;
+use Test::More tests => 369;
 
 set_compile_defaults
     elements_qualified => 'NONE';
@@ -174,16 +174,6 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
       <fractionDigits value="2" />
     </restriction>
   </simpleType>
-</element>
-
-<!-- Question by andrew campbell, 2013-02-08 -->
-<element name="test18">
-  <simpleType>
-    <restriction base="dateTime">
-      <minInclusive value="1995-01-01T00:00:00Z"/>
-      <maxInclusive value="2120-12-31T00:00:00Z"/>
-    </restriction>
-  </simpleType>
 </element>
 
 </schema>
@@ -397,8 +387,6 @@ my $t16 = pack_type $TestNS, 'test16';
 my $r16 = reader_create $schema, "frac 2r", $t16;
 is($r16->(qq{<test16 xmlns="$TestNS">2.14</test16>}), "2.14");
 is($r16->(qq{<test16 xmlns="$TestNS">3.1</test16>}), "3.1");
-
-# this actually should cause an error!
 is($r16->(qq{<test16 xmlns="$TestNS">3.14152</test16>}), "3.14");
 
 my $w16 = writer_create $schema, 'frac 2w', $t16;
@@ -411,18 +399,9 @@ my $t17 = pack_type $TestNS, 'test17';
 my $r17 = reader_create $schema, "total 5, frac 2r", $t17;
 is($r17->(qq{<test17 xmlns="$TestNS">2.14</test17>}), "2.14");
 is($r17->(qq{<test17 xmlns="$TestNS">3.1</test17>}), "3.1");
-is($r17->(qq{<test17 xmlns="$TestNS">3.14152</test17>}), "3.14");
+$error = error_r($schema, test17 => qq{<test17 xmlns="$TestNS">3.14152</test17>});
+is($error, 'fractional part for 3.14152 too long, got 5 digits max 2 at a:test17#facet');
 
 my $w17 = writer_create $schema, 'total 5, frac 2w', $t17;
-my $x17 = writer_test $w17, '3.141526';
+my $x17 = writer_test $w17, '3.14';
 compare_xml($x17, qq{<a:test17 xmlns:a="$TestNS">3.14</a:test17>});
-
-### test18
-set_compile_defaults
-    include_namespaces    => 0
-  , elements_qualified    => 'NONE'
-  , use_default_namespace => 0;
-
-test_rw($schema, test18 => '<test18>2012-01-01T00:00:00Z</test18>'
-  , '2012-01-01T00:00:00Z');
-

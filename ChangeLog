@@ -6,6 +6,15 @@ Mark Overmeer.
 
 Plans and unwanted limitations? see README.todo
 
+version 1.52: Fri 15 Jan 08:48:32 CET 2016
+
+	Fixes:
+	- stricter check for totalFracDigits [Max Maischein]
+	- implement facets on duration [Anthony Yen]
+
+	Improvements:
+	- split t/55facet_date.t from t/55facet.t
+
 version 1.51: Thu  5 Nov 17:50:06 CET 2015
 
 	Fixes:

@@ -12,8 +12,10 @@ use Test::More tests => 13;
 my @show_versions =
  qw/Test::More
     Test::Deep
-    XML::LibXML
+    Log::Report
     Math::BigInt
+    String::Print
+    XML::LibXML
     XML::Compile
     XML::Compile::SOAP
     XML::Compile::Tester

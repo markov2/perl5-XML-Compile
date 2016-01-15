@@ -11,7 +11,7 @@ use Log::Report        'xml-compile', syntax => 'SHORT';
 use Math::BigInt;
 use Math::BigFloat;
 use XML::LibXML;  # for ::RegExp
-use XML::Compile::Util qw/SCHEMA2001 pack_type/;
+use XML::Compile::Util qw/SCHEMA2001 pack_type duration2secs/;
 use MIME::Base64       qw/decoded_base64_length/;
 
 use POSIX              qw/DBL_MAX_10_EXP DBL_DIG/;
@@ -63,31 +63,44 @@ my %facets_simple =
 
 my %facets_list =
   ( enumeration     => \&_enumeration
-  , length          => \&_l_length
-  , maxLength       => \&_l_maxLength
-  , minLength       => \&_l_minLength
+  , length          => \&_list_length
+  , maxLength       => \&_list_maxLength
+  , minLength       => \&_list_minLength
   , pattern         => \&_pattern
-  , whiteSpace      => \&_l_whiteSpace
+  , whiteSpace      => \&_list_whiteSpace
   );
 
 my %facets_date =  # inclusive or exclusive times is rather useless.
-  ( maxExclusive    => \&_d_max
-  , maxInclusive    => \&_d_max
-  , minExclusive    => \&_d_min
-  , minInclusive    => \&_d_min
-  , enumeration     => \&_enumeration
+  ( enumeration     => \&_enumeration
+  , explicitTimeZone=> \&_date_expl_tz
+  , maxExclusive    => \&_date_max
+  , maxInclusive    => \&_date_max
+  , minExclusive    => \&_date_min
+  , minInclusive    => \&_date_min
   , pattern         => \&_pattern
-  , whiteSpace      => \&_d_whitespace
-  , explicitTimeZone=> \&_d_expl_tz
+  , whiteSpace      => \&_date_whitespace
   );
+
+my %facets_duration =
+  ( enumeration     => \&_enumeration
+  , maxExclusive    => \&_dur_max_excl
+  , maxInclusive    => \&_dur_max_incl
+  , minExclusive    => \&_dur_min_excl
+  , minInclusive    => \&_dur_min_incl
+  , pattern         => \&_pattern
+  , whiteSpace      => \&_s_whiteSpace
+  );
+
+my $date_time_type = pack_type SCHEMA2001, 'dateTime';
+my $duration_type  = pack_type SCHEMA2001, 'duration';
 
 sub builtin_facet($$$$$$$$)
 {   my ($path, $args, $facet, $value, $is_list, $type, $nss, $action) = @_;
-    my $date_time_type = pack_type SCHEMA2001, 'dateTime';
 
     my $def
       = $is_list ? $facets_list{$facet}
       : $nss->doesExtend($type, $date_time_type) ? $facets_date{$facet}
+      : $nss->doesExtend($type, $duration_type)  ? $facets_duration{$facet}
       : $facets_simple{$facet};
 
     $def or error __x"facet {facet} not implemented at {where}"
@@ -96,7 +109,7 @@ sub builtin_facet($$$$$$$$)
     $def->($path, $args, $value, $type, $nss, $action);
 }
 
-sub _l_whiteSpace($$$)
+sub _list_whiteSpace($$$)
 {   my ($path, undef, $ws) = @_;
     $ws eq 'collapse'
         or error __x"list whiteSpace facet fixed to 'collapse', not '{ws}' in {path}"
@@ -113,7 +126,7 @@ sub _s_whiteSpace($$$)
           , ws => $ws, path => $path;
 }
 
-sub _d_whiteSpace($$$)
+sub _date_whiteSpace($$$)
 {   my ($path, undef, $ws) = @_;
 
     # whitespace processing already in the dateTime parser
@@ -257,12 +270,21 @@ sub _s_totalFracDigits($$$)
 {   my ($path, undef, $dig) = @_;
     my ($total, $frac) = @$dig;
     sub
-      { my $w = $_[0];    # frac is dwimming in shortening
-        $w =~ s/(\.[0-9]{$frac}).*/$1/;
+      { my $w = $_[0];
 
         my $v = $w;   # total is checking length
         $v =~ s/[eE].*//;
         $v =~ s/^[+-]?0*//;
+
+        if( $v !~ /^(?:[+-]?)(?:[0-9]*)(?:\.([0-9]*))?$/ )
+        {   error __x"Invalid numeric format, got {value} at {where}"
+              , value => $w, where => $path;
+        }
+
+        if($1 && length($1) > $frac)
+        {   error __x"fractional part for {value} too long, got {l} digits max {max} at {where}"
+              , value => $w, l => length($1), max => $frac, where => $path;
+        }
 
         return $w if $total >= ($v =~ tr/0-9//);
         error __x"decimal too long, got {length} digits max {max} at {where}"
@@ -313,7 +335,7 @@ sub _s_length($$$$$$)
     };
 }
 
-sub _l_length($$$)
+sub _list_length($$$)
 {   my ($path, $args, $len) = @_;
     sub { return $_[0] if defined $_[0] && @{$_[0]}==$len;
         error __x"list `{list}' does not have required length {len} at {where}"
@@ -352,7 +374,7 @@ sub _s_minLength($$$)
     };
 }
 
-sub _l_minLength($$$)
+sub _list_minLength($$$)
 {   my ($path, $args, $len) = @_;
     sub { return $_[0] if defined $_[0] && @{$_[0]} >=$len;
         error __x"list `{list}' does not have minimum length {len} at {where}"
@@ -391,7 +413,7 @@ sub _s_maxLength($$$)
     };
 }
 
-sub _l_maxLength($$$)
+sub _list_maxLength($$$)
 {   my ($path, $args, $len) = @_;
     sub { return $_[0] if defined $_[0] && @{$_[0]} <= $len;
         error __x"list `{list}' longer than maximum length {len} at {where}"
@@ -412,7 +434,7 @@ sub _pattern($$$)
     };
 }
 
-sub _d_min($$$)
+sub _date_min($$$)
 {   my ($path, $args, $min) = @_;
     sub { return $_[0] if $_[0] gt $min;
         error __x"too small inclusive {value}, min {min} at {where}"
@@ -420,15 +442,15 @@ sub _d_min($$$)
     };
 }
 
-sub _d_max($$$)
-{   my ($path, $args, $min) = @_;
-    sub { return $_[0] if $_[0] lt $min;
-        error __x"too large inclusive {value}, min {min} at {where}"
-          , value => $_[0], min => $min, where => $path;
+sub _date_max($$$)
+{   my ($path, $args, $max) = @_;
+    sub { return $_[0] if $_[0] lt $max;
+        error __x"too large inclusive {value}, max {max} at {where}"
+          , value => $_[0], max => $max, where => $path;
     };
 }
 
-sub _d_expl_tz($$$)
+sub _date_expl_tz($$$)
 {   my ($path, $args, $enum) = @_;
     my $tz = qr/Z$ | [+-](?:(?:0[0-9]|1[0-3])\:[0-5][0-9] | 14\:00)$/x;
 
@@ -445,6 +467,49 @@ sub _d_expl_tz($$$)
           }
     : error __x"illegal explicitTimeZone facet '{enum}' in {path}"
           , enum => $enum, path => $path;
+}
+
+sub _dur_min_incl($$$)
+{   my ($path, $args, $min) = @_;
+    my $secs = duration2secs $min;
+
+    sub { return $_[0] if duration2secs $_[0] >= $secs;
+       error __x"too small minInclusive duration {value}, min {min} at {where}"
+          , value => $_[0], min => $min, where => $path;
+    };
+}
+
+
+sub _dur_min_excl($$$)
+{   my ($path, $args, $min) = @_;
+    my $secs = duration2secs $min;
+
+    sub { return $_[0] if duration2secs $_[0] > $secs;
+       error __x"too small minExclusive duration {value}, min {min} at {where}"
+          , value => $_[0], min => $min, where => $path;
+    };
+}
+
+
+sub _dur_max_incl($$$)
+{   my ($path, $args, $max) = @_;
+    my $secs = duration2secs $max;
+
+    sub { return $_[0] if duration2secs $_[0] <= $secs;
+       error __x"too large maxInclusive duration {value}, max {max} at {where}"
+          , value => $_[0], max => $max, where => $path;
+    };
+}
+
+
+sub _dur_max_excl($$$)
+{   my ($path, $args, $max) = @_;
+    my $secs = duration2secs $max;
+
+    sub { return $_[0] if duration2secs $_[0] < $secs;
+       error __x"too large maxExclusive duration {value}, max {max} at {where}"
+          , value => $_[0], max => $max, where => $path;
+    };
 }
 
 1;
