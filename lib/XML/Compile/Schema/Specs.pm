@@ -102,7 +102,7 @@ my @builtin_extra_2001  = qw/
  gYearMonth
  hexBinary
  normalizedString
- precissionDecimal
+ precisionDecimal
  /;
 
 my %builtin_public_1999 = map { ($_ => $_) }
@@ -125,8 +125,8 @@ my %sloppy_int_version =
  , unsignedInt        => 'unsigned_int'
  );
 
-my %sloppy_float_version = map { ($_ => 'sloppy_float') }
-   qw/decimal precissionDecimal float double/;
+my %sloppy_float_version = map +($_ => 'sloppy_float'),
+   qw/decimal precisionDecimal float double/;
 
 my %schema_1999 =
  ( uri_xsd => SCHEMA1999

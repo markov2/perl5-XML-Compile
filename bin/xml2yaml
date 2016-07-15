@@ -110,7 +110,7 @@ schema components have to be provided explicitly.
 =item --bigints|-b  (boolean)
 
 By default, the translation is a little sloppy: Integer types are defined
-to support at least 18 digits in XML.  However, this is usually unneccesary
+to support at least 18 digits in XML.  However, this is usually unnecessary
 large and unreadible in YAML.
 
 =item --mixed HOW

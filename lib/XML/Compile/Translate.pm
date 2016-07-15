@@ -135,6 +135,7 @@ sub register($)
 # may disappear, so not documented publicly (yet)
 sub actsAs($) { panic "not implemented" }
 
+#--------
 =section Handlers
 
 =c_method compile $element|$attribute|$type, %options

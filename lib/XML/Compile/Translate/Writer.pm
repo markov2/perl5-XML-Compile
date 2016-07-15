@@ -1403,9 +1403,9 @@ is defined, they are treated smartly.  When some other data than an
 objects is found on a location which has a typemap definition, it will
 be used as such; objects are optional.
 
-The object (of present) will be checked to be of the expected class.
+The object (if present) will be checked to be of the expected class.
 It will be a compile-time error when the class does not implement the
-C<toXML>method.
+C<toXML> method.
 
  $schema->typemap($sometype => 'My::Perl::Class');
 

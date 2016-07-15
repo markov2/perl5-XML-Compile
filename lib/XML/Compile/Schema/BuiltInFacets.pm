@@ -92,6 +92,7 @@ my %facets_duration =
   );
 
 my $date_time_type = pack_type SCHEMA2001, 'dateTime';
+my $date_type      = pack_type SCHEMA2001, 'date';
 my $duration_type  = pack_type SCHEMA2001, 'duration';
 
 sub builtin_facet($$$$$$$$)
@@ -100,6 +101,7 @@ sub builtin_facet($$$$$$$$)
     my $def
       = $is_list ? $facets_list{$facet}
       : $nss->doesExtend($type, $date_time_type) ? $facets_date{$facet}
+      : $nss->doesExtend($type, $date_type)      ? $facets_date{$facet}
       : $nss->doesExtend($type, $duration_type)  ? $facets_duration{$facet}
       : $facets_simple{$facet};
 
@@ -184,8 +186,8 @@ sub _s_minInclusive($$$)
 {   my ($path, $args, $min) = @_;
     $min = _maybe_big $path, $args, $min;
     sub { return $_[0] if $_[0] >= $min;
-        error __x"too small inclusive {value}, min {min} at {where}"
-          , value => $_[0], min => $min, where => $path;
+          error __x"too small inclusive {value}, min {min} at {where}"
+            , value => $_[0], min => $min, where => $path;
     };
 }
 

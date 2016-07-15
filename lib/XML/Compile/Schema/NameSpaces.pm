@@ -200,7 +200,7 @@ sub doesExtend($$)
         }
     }
     else
-    {   # build-in
+    {   # built-in
         my ($ns, $local) = unpack_type $ext;
         $ns eq SCHEMA2001 && $builtin_types{$local}
             or error __x"cannot find {type} as simpleType or complexType"

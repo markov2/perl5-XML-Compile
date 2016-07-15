@@ -6,6 +6,16 @@ Mark Overmeer.
 
 Plans and unwanted limitations? see README.todo
 
+version 1.53: Sat 16 Jul 01:32:17 CEST 2016
+
+	Fixes:
+	- precissionDecimal --> precisionDecimal [Bernhard Reutner-Fischer]
+	- NMTOKENS has minLength=1
+	- support some facets on (extensions of) xs:Date
+
+	Improvements:
+	- spell fix Debian rt.cpan.org#111235 [Lucas Kanashiro]
+
 version 1.52: Fri 15 Jan 08:48:32 CET 2016
 
 	Fixes:

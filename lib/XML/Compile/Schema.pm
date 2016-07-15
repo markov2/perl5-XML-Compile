@@ -133,6 +133,11 @@ or
  my $hash   = $msgin->($xml_string);
  my $hash   = $msgin->($xml_node);
 
+with M<XML::Compile::Cache> as schema object:
+
+ $rules->addPrefix(m => 'myns');
+ my $hash   = $rules->reader('m:mytype')->($xml);
+
 =item C<< $schema->compile('WRITER', ...) >> translates HASH to XML
 
 The writer produces schema compliant XML, based on a Perl HASH.  To get
@@ -149,6 +154,11 @@ Create an XML writer
 alternative
 
  my $write  = $schema->compile(WRITER => 'myns#myid');
+
+with M<XML::Compile::Cache> as schema object:
+
+ $rules->addPrefix(m => 'myns');
+ my $xml    = $rules->writer('m:mytype')->($doc, $hash);
 
 =item C<< $schema->template('XML', ...) >> creates an XML example
 

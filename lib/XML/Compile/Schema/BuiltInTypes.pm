@@ -366,7 +366,7 @@ $builtin_types{decimal} =
  , extends => 'anyAtomicType'
  };
 
-=function precissionDecimal
+=function precisionDecimal
 Floating point value that closely corresponds to the floating-point
 decimal datatypes described by IEEE/ANSI-754.
 
@@ -375,14 +375,14 @@ A small floating-point value "m x 2**e" where m is an integer whose absolute
 value is less than 224, and e is an integer between −149 and 104, inclusive.
 
 The implementation does not limited the float in size, but maps it onto an
-precissionDecimal (M<Math::BigFloat>) unless C<sloppy_float> is set.
+precisionDecimal (M<Math::BigFloat>) unless C<sloppy_float> is set.
 
 =function double
 A floating-point value "m x 2**e", where m is an integer whose absolute
 value is less than 253, and e is an integer between −1074 and 971, inclusive.
 
 The implementation does not limited the double in size, but maps it onto an
-precissionDecimal (M<Math::BigFloat>) unless C<sloppy_float> is set.
+precisionDecimal (M<Math::BigFloat>) unless C<sloppy_float> is set.
 
 =cut
 
@@ -411,7 +411,7 @@ sub numcheck($)
        | NaN #x
 }
 
-$builtin_types{precissionDecimal} =
+$builtin_types{precisionDecimal} =
 $builtin_types{float}  =
 $builtin_types{double} =
  { parse   => \&str2num
@@ -791,6 +791,7 @@ $builtin_types{NMTOKEN} =
 
 $builtin_types{NMTOKENS} =
  { parse   => sub { [ split ' ', shift ] }
+ , check   => sub { $_[0] =~ /\S/ }
  , format  => sub { my $v = shift; ref $v eq 'ARRAY' ? join(' ',@$v) : $v }
  , example => 'nmtokens'
  , is_list => 1
