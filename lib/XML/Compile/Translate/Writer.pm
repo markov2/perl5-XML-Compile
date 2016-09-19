@@ -1248,7 +1248,7 @@ Add attributes to the provided node.  When you provide a HASH, it is
 taken as node content with attributes.  The content has to be stored
 with key '_'.  When it is not a HASH, the data is node content.
 
-There are various ways you can specify content.  Upto [1.51], you
+There are various ways you can specify content.  Up to [1.51], you
 could only pass a matching M<XML::LibXML::Element>.  Release [1.51] added
 strings to the spectrum.  If the string does not contain encoded entities
 or E<lt> and E<gt>, then it is assumed to be a real perl string.  When

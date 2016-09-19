@@ -632,7 +632,7 @@ was lazy.  A long is much faster to handle.  Set this flag to use C<int>
 as fast (but inprecise) replacements.
 
 Be aware that C<Math::BigInt> and C<Math::BigFloat> objects are nearly
-but not fully transparently mimicing the behavior of Perl's ints and
+but not fully transparently mimicking the behavior of Perl's ints and
 floats.  See their respective manual-pages.  Especially when you wish
 for some performance, you should optimize access to these objects to
 avoid expensive copying which is exactly the spot where the differences

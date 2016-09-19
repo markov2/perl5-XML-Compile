@@ -4,10 +4,10 @@ use 5.008;
 
 WriteMakefile
  ( NAME	 	=> 'XML::Compile'
- , VERSION	=> '1.53'
+ , VERSION	=> '1.54'
 
  , PREREQ_PM    =>
-   { XML::LibXML               => 2.0100
+   { XML::LibXML               => 2.0107
    , XML::Compile::Tester      => 0.90
    , IO                        => 1.22
    , Log::Report               => 1.03

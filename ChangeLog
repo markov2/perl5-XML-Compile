@@ -6,6 +6,16 @@ Mark Overmeer.
 
 Plans and unwanted limitations? see README.todo
 
+version 1.54: Mon Sep 19 22:26:02 CEST 2016
+
+	Fixes:
+	- dependency on XML::LibXML should be at lease 2.0107
+	  rt.cpan.org#117295 [Andreas Schipplock]
+	- examples where not included in the man-page [Andrew Beverley]
+
+	Improvements:
+	- spell fix Debian rt.cpan.org#116326 [Lucas Kanashiro]
+
 version 1.53: Sat 16 Jul 01:32:17 CEST 2016
 
 	Fixes:
