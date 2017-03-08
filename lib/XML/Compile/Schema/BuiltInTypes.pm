@@ -14,6 +14,7 @@ use POSIX           qw/strftime/;
 use Math::BigInt;
 use Math::BigFloat;
 use MIME::Base64;
+use Types::Serialiser;
 
 use XML::Compile::Util qw/pack_type unpack_type/;
 use POSIX              qw/floor log10/;
@@ -123,6 +124,8 @@ $builtin_types{anyAtomicType} =
 
 $builtin_types{error}   = {example => '[some error structure]'};
 
+#----------------
+
 =subsection Ungrouped types
 
 =function boolean
@@ -141,6 +144,16 @@ $builtin_types{boolean} =
  , check   => sub { $_[0] =~ m/^\s*(?:false|true|0|1)\s*$/i }
  , example => 'true'
  , extends => 'anyAtomicType'
+ };
+
+$builtin_types{boolean_with_Types_Serialiser} =
+ { %{$builtin_types{boolean}}
+ , parse => sub {
+       no warnings 'once';
+       $_[0] =~ m/^\s*(false|0)\s*/i
+       ? $Types::Serialiser::false
+       : $Types::Serialiser::true;
+    }
  };
 
 =function pattern
@@ -167,7 +180,7 @@ digits.
 sub bigint
 {   my $v = shift;
     $v =~ s/\s+//g;
-    return $v if $v =~ $fits_iv;
+    return $v+0 if $v =~ $fits_iv;
 
     my $big = Math::BigInt->new($v);
     error __x"Value `{val}' is not a (big) integer", val => $big
@@ -429,6 +442,11 @@ $builtin_types{sloppy_float} =
     }
  , example => '3.1415'
  , extends => 'anyAtomicType'
+ };
+
+$builtin_types{sloppy_float_force_NV} =
+ { %{$builtin_types{sloppy_float}}
+ , parse => sub { $_[0] + 0 }
  };
 
 =subsection Encoding

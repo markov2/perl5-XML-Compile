@@ -183,6 +183,12 @@ The float types of XML are all quite big, and support NaN, INF, and -INF.
 Perl's normal floats do not, and therefore M<Math::BigFloat> is used.  This,
 however, is slow.  When true, your application will crash on any value which
 is not understood by Perl's default float... but run much faster.
+
+=option  json_friendly BOOLEAN
+=default json_friendly <false>
+The READER is slightly different, to produce output which can be passed
+on to JSON serializers without need for conversion.  Implies C<sloppy_floats>.
+
 =cut
 
 sub builtInType($$;$@)
@@ -196,11 +202,18 @@ sub builtInType($$;$@)
 
     my %args = @_;
 
+    return $builtin_types{boolean_with_Types_Serialiser}
+		if $args{json_friendly} && $name eq 'boolean';
+
     return $builtin_types{$sloppy_int_version{$name}}
         if $args{sloppy_integers} && exists $sloppy_int_version{$name};
 
-    return $builtin_types{$sloppy_float_version{$name}}
-        if $args{sloppy_floats} && exists $sloppy_float_version{$name};
+    if($args{sloppy_floats} && (my $maptype = $sloppy_float_version{$name}))
+    {   return $builtin_types{sloppy_float_force_NV}
+            if $args{json_friendly} && $maptype eq 'sloppy_float';
+
+        return $builtin_types{$maptype};
+    }
 
     # only official names are exported this way
     my $public = $schema->{builtin_public}{$name};

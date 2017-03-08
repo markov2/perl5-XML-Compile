@@ -6,6 +6,16 @@ Mark Overmeer.
 
 Plans and unwanted limitations? see README.todo
 
+version 1.55: Wed  8 Mar 08:28:02 CET 2017
+
+	Changes:
+	- xml2yaml: new option --keep-root, default true.
+
+	Improvements:
+	- spell fix Debian rt.cpan.org#118569 [Lucas Kanashiro, Debian]
+	- add json_friendly, patch by Slaven Rezic.
+	- added bin/xml2json
+
 version 1.54: Mon Sep 19 22:26:02 CEST 2016
 
 	Fixes:
@@ -14,7 +24,7 @@ version 1.54: Mon Sep 19 22:26:02 CEST 2016
 	- examples where not included in the man-page [Andrew Beverley]
 
 	Improvements:
-	- spell fix Debian rt.cpan.org#116326 [Lucas Kanashiro]
+	- spell fix Debian rt.cpan.org#116326 [Lucas Kanashiro, Debian]
 
 version 1.53: Sat 16 Jul 01:32:17 CEST 2016
 

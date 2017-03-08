@@ -757,6 +757,13 @@ In this case, we do add exactly the type specified in the xsd to each
 element which does not have an C<xsi:type> attribute yet.  The C<xsi_type>
 on the other hand, implements the (mis-)feature that the element's
 content may get replaced by any extended type with this dynamic flag.
+
+=option  json_friendly BOOLEAN
+=default json_friendly <false>
+[1.55] When enabled, booleans will be blessed in M<Types::Serializer>
+booleans.  Floats get nummified.  Together, this will make the output
+of the reader usable as JSON without any further conversion.
+
 =cut
 
 sub compile($$@)
@@ -791,6 +798,11 @@ sub compile($$@)
     if($args{sloppy_floats} ||= 0)
     {   eval "require Math::BigFloat";
         panic "require Math::BigFloat by sloppy_floats:\n$@" if $@;
+    }
+
+    if($args{json_friendly} ||= 0)
+    {   eval "require Types::Serialiser";
+        panic "require Types::Serialiser by json_friendly:\n$@" if $@;
     }
 
     $args{prefixes} = $self->_namespaceTable
@@ -2176,7 +2188,7 @@ for short:
 
 =subsection key_rewrite when localNames collide
 
-Let's start with an appology: we cannot auto-detect when these rewrite
+Let's start with an apology: we cannot auto-detect when these rewrite
 rules are needed, because the colliding keys are within the same HASH,
 but the processing is fragmented over various (sequence) blocks: the
 parser does not have the overview on which keys of the HASH are used

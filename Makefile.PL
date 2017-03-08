@@ -4,7 +4,7 @@ use 5.008;
 
 WriteMakefile
  ( NAME	 	=> 'XML::Compile'
- , VERSION	=> '1.54'
+ , VERSION	=> '1.55'
 
  , PREREQ_PM    =>
    { XML::LibXML               => 2.0107
@@ -18,6 +18,7 @@ WriteMakefile
    , Digest::MD5               => 2.36
    , List::Util                => 0
    , MIME::Base64              => 3.10
+   , Types::Serialiser         => 0
 
    , Test::More                => 0.54
    , Test::Deep                => 0.095
@@ -25,6 +26,7 @@ WriteMakefile
 
  , EXE_FILES    =>
    [ 'bin/xml2yaml'
+   , 'bin/xml2json'
    , 'bin/schema2example'
    ]
  , AUTHOR       => 'Mark Overmeer'
@@ -39,14 +41,14 @@ sub MY::postamble { <<'__POSTAMBLE' }
 RAWDIR          = ../public_html/xml-compile/raw
 DISTDIR         = ../public_html/xml-compile/source
 LICENSE         = artistic
-SKIP_LINKS	= XML::LibXML
+SKIP_LINKS      = XML::LibXML
 
 # for POD
 EXTENDS		= ../XMLSOAP:../XMLSOAP12:../XMLDaemon:../XMLDumper:../XMLCache:../XMLSimple:../XMLTester:../XMLRewrite:../XMLRPC:../XMLSOAPEv:../XMLC14N:../XMLWSS:../WSSSIG:../XMLWSDL:../XMLSOAPMo:../XMLSOAPLi
 FIRST_YEAR      = 2006
 EMAIL           = perl@overmeer.net
 WEBSITE         = http://perl.overmeer.net/xml-compile/
-PODTAIL		= ../XML-shared-podtail
+PODTAIL         = ../XML-shared-podtail
 
 # for HTML
 HTML_OUTPUT     = ../public_html/xml-compile/html

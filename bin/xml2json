@@ -6,25 +6,25 @@ use strict;
 use XML::Compile::Schema ();
 use XML::Compile::Util   qw/type_of_node/;
 use Getopt::Long         qw/GetOptions :config gnu_compat bundling/;
-use YAML                 qw/Dump/;
+use JSON::XS             qw/encode_json/;
 
-my ($xml_input, $root_type, @schemas, $bigints, $bigfloats, $yaml_out);
-my $mixed     = 'TEXTUAL';
+my ($xml_input, $root_type, @schemas, $bigints, $bigfloats, $json_out);
+my $mixed  = 'TEXTUAL';
 my $keep_root = 1;
 
 GetOptions
    'bigints|bi|b!' => \$bigints
  , 'bigfloats|bf'  => \$bigfloats
- , 'keep-root|r!'  => \$keep_root
- , 'output|o=s'    => \$yaml_out
+ , 'output|o=s'    => \$json_out
  , 'schema|s=s'    => \@schemas
  , 'type|t=s'      => \$root_type
  , 'xml|x=s'       => \$xml_input
  , 'mixed=s'       => \$mixed
+ , 'keep-root|r!'  => \$keep_root
    or exit 1;
 
 $xml_input = '-' if @schemas && !defined $xml_input;
-$yaml_out  = '-' unless defined $yaml_out;
+$json_out  = '-' unless defined $json_out;
 
 if(@ARGV)
 {   die "ERROR: either use options or no options, not mixed\n"
@@ -55,26 +55,27 @@ my $read   = $schema->compile
   ( READER          => $root_type
   , sloppy_integers => !$bigints
   , sloppy_floats   => !$bigfloats
+  , json_friendly   => 1
   , mixed_elements  => $mixed
   );
 
-my $ast    =  $read->($top);
+my $ast  = $read->($top);
 
-$ast       = { $top->localname => $ast }
+$ast     = { $top->localname => $ast }
     if $keep_root;
 
-my $data   = Dump $ast;
+my $data = encode_json $ast;
 
-if($yaml_out eq '-')
+if($json_out eq '-')
 {   print $data;
 }
 else
-{   open OUT, ">:utf8", $yaml_out
-        or die "ERROR: cannot write yaml to $yaml_out: $!\n";
+{   open OUT, ">:utf8", $json_out
+        or die "ERROR: cannot write json to $json_out: $!\n";
 
     print OUT $data;
     close OUT
-        or die "ERROR: write error for $yaml_out: $!\n";
+        or die "ERROR: write error for $json_out: $!\n";
 }
 
 exit 0;
@@ -83,17 +84,17 @@ __END__
 
 =head1 NAME
 
-xml2yaml - convert an XML message with a schema into YAML
+xml2json - convert an XML message with a schema into JSON
 
 =head1 SYNOPSIS
 
- xml2yaml xml-file schema-file(s)  >yaml-file
+ xml2json xml-file schema-file(s)  >json-file
 
- xml2yaml -x xml-file -s schema-files -o yaml-file
+ xml2json -x xml-file -s schema-files -o json-file
 
 =head1 DESCRIPTION
 
-Convert an XML message into YAML with the same structure.  A schema
+Convert an XML message into JSON with the same structure.  A schema
 is required to enforce the correct syntax, especially for optionally
 repeated elements.
 
@@ -118,7 +119,7 @@ schema components have to be provided explicitly.
 
 By default, the translation is a little sloppy: Integer types are defined
 to support at least 18 digits in XML.  However, this is usually unnecessary
-large and unreadible in YAML.
+large and unreadible in JSON.
 
 =item --no-keep-root  (boolean)
 
@@ -153,7 +154,7 @@ Website: F<http://perl.overmeer.net/xml-compile/>
 
 =head1 LICENSE
 
-Copyrights 2008 by Slaven Rezic and Mark Overmeer. For other contributors
+Copyrights 2017 by Slaven Rezic and Mark Overmeer. For other contributors
 see ChangeLog.
 
 This program is free software; you can redistribute it and/or modify it
