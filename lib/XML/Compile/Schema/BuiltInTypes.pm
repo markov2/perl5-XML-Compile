@@ -373,7 +373,7 @@ slow but nearly seamlessly invisible in the application.
 =cut
 
 $builtin_types{decimal} =
- { parse   => sub {$_[0] =~ s/\s+//g; Math::BigFloat->new($_[0]) }
+ { parse   => sub {$_[0] =~ s/\s+//g; Math::BigFloat->new($_[0]) },
  , check   => sub {$_[0] =~ m/^(\+|\-)?([0-9]+(\.[0-9]*)?|\.[0-9]+)$/}
  , example => '3.1415'
  , extends => 'anyAtomicType'

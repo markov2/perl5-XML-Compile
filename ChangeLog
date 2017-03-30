@@ -6,6 +6,12 @@ Mark Overmeer.
 
 Plans and unwanted limitations? see README.todo
 
+version 1.56: Thu 30 Mar 08:54:49 CEST 2017
+
+	Fixes:
+	- disabled a few regression tests which involve json_friendly, because
+	  the modules changed behavior.
+
 version 1.55: Wed  8 Mar 08:28:02 CET 2017
 
 	Changes:
