@@ -15,9 +15,10 @@ use Math::BigInt;
 use Math::BigFloat;
 use MIME::Base64;
 use Types::Serialiser;
+use Scalar::Util    qw(dualvar);
+use POSIX           qw/floor log10/;
 
 use XML::Compile::Util qw/pack_type unpack_type/;
-use POSIX              qw/floor log10/;
 
 use Config '%Config';
 my $iv_bits   = $Config{ivsize} * 8 -1;
@@ -87,7 +88,7 @@ sub identity  { $_[0] }
 sub str2int   { $_[0] + 0 }
 
 # sprintf returns '0' if non-int, with warning. We need a validation error
-sub int2str   { $_[0] =~ m/^\s*[0-9]+\s*$/ ? sprintf("%ld", $_[0]) : $_[0] }
+sub int2str   { $_[0] =~ m/^\s*([0-9]+)\s*$/ ? $1 : $_[0] }
 
 sub str       { "$_[0]" }
 sub _replace  { $_[0] =~ s/[\t\r\n]/ /g; $_[0]}
@@ -180,7 +181,11 @@ digits.
 sub bigint
 {   my $v = shift;
     $v =~ s/\s+//g;
-    return $v+0 if $v =~ $fits_iv;
+
+	# The automatic rewrite into JSON wants real ints, not strings.  Therefore,
+	# we need to numify.  On the other hand, pattern matching/enumeration
+	# requires the original string.  Regression tests prove this trick works.
+    return dualvar($v+0, $v) if $v =~ $fits_iv;
 
     my $big = Math::BigInt->new($v);
     error __x"Value `{val}' is not a (big) integer", val => $big
@@ -404,7 +409,7 @@ sub str2num
     $s =~ s/\s//g;
 
       $s =~ m/[^0-9]/ ? Math::BigFloat->new($s eq 'NaN' ? $s : lc $s) # INF->inf
-    : length $s < 9   ? $s+0
+    : length $s < 9   ? dualvar($s+0, $s)
     :                   Math::BigInt->new($s);
 }
 
@@ -457,7 +462,7 @@ base64 encoded.
 =cut
 
 $builtin_types{base64Binary} =
- { parse   => sub { eval { decode_base64 $_[0] } }
+ { parse   => sub { eval { decode_base64 $_[0] }; }
  , format  => sub {
        my $a = $_[0];
        eval { utf8::downgrade($a) };
@@ -479,10 +484,10 @@ hex encoded, two hex digits per byte.
 
 # (Use of) an XS implementation would be nice
 $builtin_types{hexBinary} =
- { parse   => sub { $_[0] =~ s/\s+//g; pack 'H*', $_[0]}
+ { parse   => sub { (my $v = $_[0]) =~ s/\s+//g; pack 'H*', $v }
  , format  => sub { uc unpack 'H*', $_[0]}
- , check   =>
-     sub { $_[0] !~ m/[^0-9a-fA-F\s]/ && (($_[0] =~ tr/0-9a-fA-F//) %2)==0}
+ , check   => sub { (my $v = $_[0]) !~ m/[^0-9a-fA-F\s]/ or return 0;
+     ($v =~ tr/0-9a-fA-F//) % 2 == 0}
  , example => 'F00F'
  , extends => 'anyAtomicType'
  };

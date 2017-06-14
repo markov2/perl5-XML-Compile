@@ -521,8 +521,9 @@ sub simpleRestriction($$)
     +{ st => $do };
 }
 
-my %facets_early = map +($_ => 1), qw/whiteSpace pattern enumeration/;
-#my %facets_late = map +($_ => 1), qw/totalDigits maxScale minScale
+# Early=lexical space, Late=value space
+my %facets_early = map +($_ => 1), qw/whiteSpace pattern/;
+#my %facets_late = map +($_ => 1), qw/totalDigits maxScale minScale enumeration
 #   maxInclusive maxExclusive minInclusive minExclusive fractionDigits
 #   length minLength maxLength/;
 
@@ -600,7 +601,7 @@ sub applySimpleFacets($$$$)
 
       $is_list
     ? $self->makeFacetsList($where, $st, \%facets_info, \@early, \@late)
-    : $self->makeFacets($where, $st, \%facets_info, @early, @late);
+    : $self->makeFacets($where, $st, \%facets_info, \@early, \@late);
 }
 
 sub element($;$)

@@ -826,21 +826,26 @@ sub makeFacetsList
 }
 
 sub makeFacets
-{   my ($self, $path, $st, $info, @do) = @_;
-    @do or return $st;
+{   my ($self, $path, $st, $info, $early, $late) = @_;
+	@$early || @$late or return $st;
 
-    @do==1 or return sub
-      { defined $_[0] or return undef;
-        my $v = $st->(@_);
-        for(@do) { defined $v or return (); $v = $_->($v) }
-        $v;
-      };
-
-    my $do = shift @do;
-    sub { defined $_[0] or return undef;
-          my $v = $st->(@_);
-          defined $v ? $do->($v) : ();
+    unless(@$early)
+	{   return sub {
+            my $v = $st->(shift);
+			defined $v or return undef;
+            $v = $_->($v) for @$late;
+            $v;
         };
+    }
+
+    sub {
+        my $v = shift;
+        $v = $_->($v) for @$early;
+        $v = $st->($v);
+		defined $v or return undef;
+        $v = $_->($v) for @$late;
+        $v;
+    };
 }
 
 sub makeUnion
