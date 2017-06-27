@@ -840,7 +840,10 @@ sub makeFacets
 
     sub {
         my $v = shift;
-        $v = $_->($v) for @$early;
+        if(@$early)
+		{   return if !defined $v;
+            $v = $_->($v) for @$early;
+        }
         $v = $st->($v);
 		defined $v or return undef;
         $v = $_->($v) for @$late;

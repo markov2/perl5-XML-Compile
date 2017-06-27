@@ -341,6 +341,8 @@ sub _pattern($$$)
     my $compiled = XML::LibXML::RegExp->new($regex);
 
     sub {
+use Carp 'cluck';
+defined $_[0] or cluck "PATTERN";
 		my $v = ref $_[0] ? $_[0]->textContent : $_[0];
         return $_[0] if $compiled->matches($v);
         error __x"string `{string}' does not match pattern `{pat}' at {where}"
