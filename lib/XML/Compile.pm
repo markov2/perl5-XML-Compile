@@ -84,7 +84,7 @@ If you have compiled all readers and writers you need, you may simply
 terminate the compiler object: that will clean-up (most of) the
 XML::LibXML objects.
 
-=option  schema_dirs DIRECTORY|ARRAY-OF-DIRECTORIES
+=option  schema_dirs $directory|ARRAY-OF-directories
 =default schema_dirs C<undef>
 Where to find schema's.  This can be specified with the
 environment variable C<SCHEMA_DIRECTORIES> or with this option.
@@ -257,7 +257,7 @@ sub dataToXML($)
     elsif(-f $raw)
     {   ($xml, %details) = $thing->_parseFile($raw);
     }
-    elsif($raw !~ /[\n\r<]/ && $raw =~ m![/\\]|\.xsd$|\.wsdl!i)
+    elsif($raw !~ /[\n\r<]/ && $raw =~ m![/\\]|\.xsd$|\.wsdl$!i)
     {   error __x"file {fn} does not exist", fn => $raw;
     }
     else

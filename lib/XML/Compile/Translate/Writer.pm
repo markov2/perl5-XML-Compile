@@ -221,10 +221,10 @@ sub makeChoice($@)
         my $starter = keys %$values;
         foreach (@specials)
         {   my @d = try { $_->($doc, $values) };
-            if($@->wasFatal(class => 'misfit'))
+            if(my $f = $@->wasFatal(class => 'misfit'))
             {   # misfit error is ok, if nothing consumed
                 my $err = $@;
-                trace "misfit $path ".$err->wasFatal->message;
+                trace "misfit $path ".$@->wasFatal->message;
                 $err->reportAll if $starter != keys %$values;
                 next;
             }

@@ -208,9 +208,9 @@ You can specify the hooks before you define the schemas the hooks
 work on: all schema information and all hooks are only used when
 the readers and writers get compiled.
 
-=option  hook HOOK|ARRAY
+=option  hook $hook|ARRAY
 =default hook C<undef>
-See M<addHook()>.  Adds one HOOK (HASH) or more at once.
+See M<addHook()>.  Adds one $hook (HASH) or more at once.
 
 =option  hooks ARRAY
 =default hooks []
@@ -671,15 +671,15 @@ manual-page for the specific back-end.
 [1.07] how to handle "anyType" type elements.  Supported values depends
 on the backend, specializations of M<XML::Compile::Translate>.
 
-=option  hook HOOK|ARRAY-OF-HOOKS
+=option  hook $hook|ARRAY-OF-hooks
 =default hook C<undef>
-Define one or more processing hooks.  See L</Schema hooks> below.
+Define one or more processing $hooks.  See L</Schema hooks> below.
 These hooks are only active for this compiled entity, where M<addHook()>
 and M<addHooks()> can be used to define hooks which are used for all
 results of M<compile()>.  The hooks specified with the C<hook> or C<hooks>
 option are run before the global definitions.
 
-=option  hooks HOOK|ARRAY-OF-HOOKS
+=option  hooks $hook|ARRAY-OF-hooks
 =default hooks C<undef>
 Alternative for option C<hook>.
 
