@@ -1,9 +1,10 @@
-use warnings;
-use strict;
-no warnings 'recursion';
-
 package XML::Compile::Schema::BuiltInTypes;
 use base 'Exporter';
+
+use warnings;
+use strict;
+use utf8;
+no warnings 'recursion';
 
 our @EXPORT = qw/%builtin_types builtin_type_info/;
 
@@ -697,6 +698,8 @@ $builtin_types{yearMonthDuration} =
  , extends => 'duration'
  };
 
+#-------------
+
 =subsection Strings
 
 =function string
@@ -741,7 +744,7 @@ PARTIAL IMPLEMENTATION: the validity of used characters is not checked.
 #  NCName matches pattern [\i-[:]][\c-[:]]*
 sub _ncname($)
 {  (my $name = $_[0]) =~ s/\s//;
-   $name =~ m/^[a-zA-Z_](?:[\w.-]*)$/;
+   $name =~ m/^[[:alpha:]_](?:[\w.-]*)$/;
 }
 
 my $ids = 0;
@@ -886,6 +889,8 @@ $builtin_types{NOTATION} =
  {
    extends => 'anyAtomicType'
  };
+
+#-------------
 
 =subsection only in 1999 and 2000/10 schemas
 

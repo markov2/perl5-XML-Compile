@@ -504,6 +504,10 @@ sub simpleRestriction($$)
                    , where => $where, _class => 'schema';
 
         $base = $self->simpleType($tree->descend($simple, 'st'));
+        if((my $r) = $simple->getChildrenByLocalName('restriction')) {
+            my $basename = $r->getAttribute('base');
+            $typename = $self->rel2abs($where, $r, $basename) if $r;
+        }
         $tree->nextChild;
     }
 

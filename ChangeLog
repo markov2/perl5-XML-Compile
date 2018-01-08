@@ -6,6 +6,12 @@ Mark Overmeer.
 
 Plans and unwanted limitations? see README.todo
 
+version 1.60:
+
+	Fixes:
+	- accept non-ascii word characters in NCName type [Aleksei Y Ananev]
+	- use of facets with nested simpletypes [Aleksei Y Ananev]
+
 version 1.59: Thu 28 Dec 11:29:27 CET 2017
 
 	Improvements:
