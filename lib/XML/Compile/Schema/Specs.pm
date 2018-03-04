@@ -1,10 +1,13 @@
+# This code is part of distribution XML-Compile.  Meta-POD processed with
+# OODoc into POD and HTML manual-pages.  See README.md
+# Copyright Mark Overmeer.  Licensed under the same terms as Perl itself.
+
+package XML::Compile::Schema::Specs;
 
 use warnings;
 use strict;
 
-package XML::Compile::Schema::Specs;
-
-use Log::Report 'xml-compile', syntax => 'SHORT';
+use Log::Report       'xml-compile';
 
 use XML::Compile::Schema::BuiltInTypes   qw/%builtin_types/;
 use XML::Compile::Util qw/SCHEMA1999 SCHEMA2000 SCHEMA2001 unpack_type/;

@@ -1,3 +1,6 @@
+# This code is part of distribution XML-Compile.  Meta-POD processed with
+# OODoc into POD and HTML manual-pages.  See README.md
+# Copyright Mark Overmeer.  Licensed under the same terms as Perl itself.
 
 package XML::Compile::Translate::Template;
 use base 'XML::Compile::Translate';
@@ -6,10 +9,11 @@ use strict;
 use warnings;
 no warnings 'once', 'recursion';
 
+use Log::Report    'xml-compile';
+
 use XML::Compile::Util
-  qw/odd_elements even_elements SCHEMA2001i pack_type unpack_type/;
-use Log::Report 'xml-compile', syntax => 'SHORT';
-use List::Util  qw/max first/;
+    qw/odd_elements even_elements SCHEMA2001i pack_type unpack_type/;
+use List::Util     qw/max first/;
 
 use vars '$VERSION';         # OODoc adds $VERSION to the script
 $VERSION ||= 'undef';

@@ -1,8 +1,12 @@
+# This code is part of distribution XML-Compile.  Meta-POD processed with
+# OODoc into POD and HTML manual-pages.  See README.md
+# Copyright Mark Overmeer.  Licensed under the same terms as Perl itself.
+
+package XML::Compile::Translate;
+
 use warnings;
 use strict;
 no warnings 'recursion';  # trees can be quite deep
-
-package XML::Compile::Translate;
 
 # Errors are either in _class 'usage': called with request
 #                         or 'schema': syntax error in schema
@@ -504,10 +508,13 @@ sub simpleRestriction($$)
                    , where => $where, _class => 'schema';
 
         $base = $self->simpleType($tree->descend($simple, 'st'));
+
         if((my $r) = $simple->getChildrenByLocalName('restriction')) {
+            # <simpleType><restriction><simpleType><restriction base=xxx></simpleType>@facets</simpleType>
             my $basename = $r->getAttribute('base');
             $typename = $self->rel2abs($where, $r, $basename) if $r;
         }
+
         $tree->nextChild;
     }
 

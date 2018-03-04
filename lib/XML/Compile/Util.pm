@@ -1,8 +1,12 @@
-use warnings;
-use strict;
+# This code is part of distribution XML-Compile.  Meta-POD processed with
+# OODoc into POD and HTML manual-pages.  See README.md
+# Copyright Mark Overmeer.  Licensed under the same terms as Perl itself.
 
 package XML::Compile::Util;
 use base 'Exporter';
+
+use warnings;
+use strict;
 
 my @constants  = qw/XMLNS SCHEMA1999 SCHEMA2000 SCHEMA2001 SCHEMA2001i/;
 our @EXPORT    = qw/pack_type unpack_type/;

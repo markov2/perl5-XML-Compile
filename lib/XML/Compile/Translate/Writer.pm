@@ -1,3 +1,6 @@
+# This code is part of distribution XML-Compile.  Meta-POD processed with
+# OODoc into POD and HTML manual-pages.  See README.md
+# Copyright Mark Overmeer.  Licensed under the same terms as Perl itself.
  
 package XML::Compile::Translate::Writer;
 use base 'XML::Compile::Translate';
@@ -6,14 +9,15 @@ use strict;
 use warnings;
 no warnings 'once', 'recursion';
 
-use Log::Report   qw/xml-compile/;
+use Log::Report   'xml-compile';
+
 use List::Util    qw/first/;
 use Scalar::Util  qw/blessed weaken/;
-use XML::Compile::Util qw/pack_type unpack_type type_of_node SCHEMA2001i
-  SCHEMA2001 odd_elements even_elements/;
+use Encode        qw/encode/;
 
 use XML::LibXML;
-use Encode        qw/encode/;
+use XML::Compile::Util qw/pack_type unpack_type type_of_node SCHEMA2001i
+    SCHEMA2001 odd_elements even_elements/;
 
 =chapter NAME
 

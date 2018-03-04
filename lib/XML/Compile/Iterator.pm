@@ -1,7 +1,11 @@
-use warnings;
-use strict;
+# This code is part of distribution XML-Compile.  Meta-POD processed with
+# OODoc into POD and HTML manual-pages.  See README.md
+# Copyright Mark Overmeer.  Licensed under the same terms as Perl itself.
 
 package XML::Compile::Iterator;
+
+use warnings;
+use strict;
 
 use XML::Compile::Util  qw/pack_type type_of_node SCHEMA2001i/;
 use Log::Report 'xml-compile', syntax => 'SHORT';

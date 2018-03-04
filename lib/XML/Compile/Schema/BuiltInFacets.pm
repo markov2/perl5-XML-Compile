@@ -1,13 +1,18 @@
-use warnings;
-use strict;
-no warnings 'recursion';
+# This code is part of distribution XML-Compile.  Meta-POD processed with
+# OODoc into POD and HTML manual-pages.  See README.md
+# Copyright Mark Overmeer.  Licensed under the same terms as Perl itself.
 
 package XML::Compile::Schema::BuiltInFacets;
 use base 'Exporter';
 
+use warnings;
+use strict;
+no warnings 'recursion';
+
 our @EXPORT = qw/builtin_facet/;
 
-use Log::Report        'xml-compile', syntax => 'SHORT';
+use Log::Report        'xml-compile';
+
 use Math::BigInt;
 use Math::BigFloat;
 use XML::LibXML;  # for ::RegExp

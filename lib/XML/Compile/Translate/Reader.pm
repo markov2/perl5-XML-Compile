@@ -1,3 +1,7 @@
+# This code is part of distribution XML-Compile.  Meta-POD processed with
+# OODoc into POD and HTML manual-pages.  See README.md
+# Copyright Mark Overmeer.  Licensed under the same terms as Perl itself.
+
 package XML::Compile::Translate::Reader;
 use base 'XML::Compile::Translate';
 
@@ -5,9 +9,10 @@ use strict;
 use warnings;
 no warnings 'once', 'recursion';
 
-use Log::Report 'xml-compile', syntax => 'SHORT';
-use List::Util   qw/first/;
-use Scalar::Util qw/weaken blessed/;
+use Log::Report       'xml-compile';
+
+use List::Util         qw/first/;
+use Scalar::Util       qw/weaken blessed/;
 
 use XML::Compile::Util qw/pack_type odd_elements type_of_node SCHEMA2001i/;
 use XML::Compile::Iterator ();
