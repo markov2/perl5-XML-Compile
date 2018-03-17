@@ -1,5 +1,5 @@
 
-=== version history of XML::Compile
+=== version history of distribution XML-Compile
 
 Unless noted otherwise, these changes where initiated and applied by
 Mark Overmeer.
@@ -7,6 +7,12 @@ Mark Overmeer.
 Plans and unwanted limitations? see README.todo
 
 version 1.61:
+
+	Fixes:
+	- forgot to add README.md to GIT.
+
+	Improvements:
+	- alternative output style for [Patrick Powell]
 
 version 1.60: Sun Mar  4 22:53:03 CET 2018
 

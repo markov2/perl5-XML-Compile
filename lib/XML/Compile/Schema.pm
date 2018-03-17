@@ -962,6 +962,10 @@ Skip the comment header from the output.
 
 =option  key_rewrite HASH|CODE|ARRAY
 =default key_rewrite []
+
+=option  output_style 1|2
+=default output_style 1
+[1.61] Style 2 is a little different.
 =cut
 
 sub template($@)
