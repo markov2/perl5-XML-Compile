@@ -192,6 +192,10 @@ which do work well with this module, but are not valid according to W3C.
 In many cases, however, the translater will refuse to accept mistakes:
 mainly because it cannot produce valid code.
 
+The values (both for reading as for writing) are strictly validated.
+However, the reader is sloppy with unexpected attributes, and many
+other things: that's too expensive to check.
+
 =chapter METHODS
 
 =section Constructors
