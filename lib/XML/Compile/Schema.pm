@@ -1820,12 +1820,12 @@ to promote it into a BLOB (string) like this
    { color => pack('N', $i) }          # writer
    my $i = unpack('N', $d->{color});   # reader
 
-Module M<Geo::KML> implements a nice hook to avoid the explicit need
+Module Geo::KML implemented a nice hook to avoid the explicit need
 for this C<pack> and C<unpack>. The KML schema designers liked colors
 to be written as C<ffc0c0c0> and abused C<hexBinary> for that purpose.
 The C<colorType> fields in KML are treated as binary, but just represent
-an int. Have a look in that M<Geo::KML> code if your schema has some of
-those tricks.
+an int. Have a look in that Geo::KML code if your schema has some of
+those tricks.  Only available in Backpan, withdrawn from CPAN.
 
 =section Schema hooks
 
