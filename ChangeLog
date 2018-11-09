@@ -10,6 +10,7 @@ version 1.61:
 
 	Fixes:
 	- forgot to add README.md to GIT.
+	- simple value '0' occasionally totally ignored [Rob De Langhe]
 
 	Improvements:
 	- alternative output style for [Patrick Powell]
