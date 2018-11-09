@@ -768,7 +768,7 @@ content may get replaced by any extended type with this dynamic flag.
 
 =option  json_friendly BOOLEAN
 =default json_friendly <false>
-[1.55] When enabled, booleans will be blessed in M<Types::Serializer>
+[1.55] When enabled, booleans will be blessed in M<Types::Serialiser>
 booleans.  Floats get nummified.  Together, this will make the output
 of the reader usable as JSON without any further conversion.
 
