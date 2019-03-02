@@ -803,8 +803,7 @@ sub makeList
              = UNIVERSAL::isa($tree, 'XML::LibXML::Node') ? $tree
              : ref $tree ? $tree->node : undef;
           my $v = ref $tree ? $tree->textContent : $tree;
-          my @v = grep defined, map $st->($_, $node), split " ", $v;
-          @v ? \@v : undef;
+          [ grep defined, map $st->($_, $node), split " ", $v ];
         };
 }
 
