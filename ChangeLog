@@ -6,7 +6,7 @@ Mark Overmeer.
 
 Plans and unwanted limitations? see README.todo
 
-version 1.62:
+version 1.62: Wed 15 May 15:14:28 CEST 2019
 
 	Fixes:
 	- empty list elements are not an error [Rob De Langhe]
