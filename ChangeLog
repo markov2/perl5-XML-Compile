@@ -8,6 +8,9 @@ Plans and unwanted limitations? see README.todo
 
 version 1.63:
 
+	Improvements:
+	- dataToXML auto-detects XML string when it starts with a BOM.
+
 version 1.62: Wed 15 May 15:14:28 CEST 2019
 
 	Fixes:

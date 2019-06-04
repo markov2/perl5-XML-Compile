@@ -242,8 +242,9 @@ sub dataToXML($)
     elsif(ref $raw eq 'GLOB')     # from file-handle
     {   ($xml, %details) = $thing->_parseFileHandle($raw);
     }
-    elsif($raw =~ m/^\s*\</)      # XML starts with '<', rare for files
-    {   ($xml, %details) = $thing->_parseScalar(\$raw);
+    elsif($raw =~ m/^[\s\x{FFFE}\x{FEFF}]*\</)
+    {   # XML starts with '<', rare for files
+        ($xml, %details) = $thing->_parseScalar(\$raw);
     }
     elsif(my $known = $thing->knownNamespace($raw))
     {   my $fn  = $thing->findSchemaFile($known)
