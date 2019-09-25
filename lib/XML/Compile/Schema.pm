@@ -1076,7 +1076,7 @@ for each processed schema component.
 
 If your program imports the same string or file definitions multiple
 times, it will re-use the schema information from the first import.
-This removal of dupplications will not work for open files or pre-parsed
+This removal of duplications will not work for open files or pre-parsed
 XML structures.
 
 As an extension to the handling M<dataToXML()> provides, you can specify an
@@ -1667,7 +1667,7 @@ In Perl representation:
 =subsubsection repetative groups
 
 [behavioral change in 0.93]
-In contrast to the normal partical blocks, as described above, do the
+In contrast to the normal particle blocks, as described above, do the
 groups have names.  In this case, we do not need to take the name of
 the first element, but can use the group name.  It will still have C<gr_>
 appended, because groups can have the same name as an element or a type(!)

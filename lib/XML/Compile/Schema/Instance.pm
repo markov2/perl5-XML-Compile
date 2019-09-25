@@ -35,7 +35,7 @@ process it.
 =section Constructors
 
 =method new $top, %options
-Get's the top of an XML::LibXML tree, which must be a schema element.
+Gets the top of an XML::LibXML tree, which must be a schema element.
 The tree is parsed: the information collected.
 
 =option  source STRING
