@@ -978,7 +978,7 @@ sub particleGroup($)
              , name => $local, where => $where, _class => 'schema';
 
     my ($blocklabel, $code) = $self->particleBlock($group->descend);
-    ($typename, $code);
+    $code ? ($typename, $code) : ();
 }
 
 sub particleBlock($)
