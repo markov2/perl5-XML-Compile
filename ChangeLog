@@ -10,6 +10,7 @@ version 1.64:
 
 	Fixes:
 	- accept empty groups.
+	- #! of bin/schema2example [Andrius Merkys]
 
 	Improvements:
 	- #4 spell fixes from Debian [Utkarsh Gupta]
