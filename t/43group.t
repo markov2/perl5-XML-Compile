@@ -9,7 +9,7 @@ use TestTools;
 use XML::Compile::Schema;
 use XML::Compile::Tester;
 
-use Test::More tests => 17;
+use Test::More tests => 25;
 
 set_compile_defaults
     elements_qualified => 'NONE';
@@ -44,6 +44,18 @@ my $schema   = XML::Compile::Schema->new( <<__SCHEMA__ );
   </complexType>
 </element>
 
+<group name="g3">
+  <sequence />
+</group>
+
+<element name="test3">
+  <complexType>
+    <sequence>
+      <group ref="me:g3" />
+    </sequence>
+  </complexType>
+</element>
+
 </schema>
 __SCHEMA__
 
@@ -66,4 +78,8 @@ test_rw($schema, test2 => <<__XML, \%g2a);
   <g1_a>12</g1_a><g1_b>13</g1_b>
   <g1_a>14</g1_a><g1_b>15</g1_b>
 </test2>
+__XML
+
+test_rw($schema, test3 => <<__XML, {});
+<test3/>
 __XML

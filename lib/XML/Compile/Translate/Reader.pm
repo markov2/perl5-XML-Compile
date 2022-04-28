@@ -595,6 +595,7 @@ sub makeElementAbstract
 # Be warned that the location reported in 'path' may not be the actual
 # location, caused by the cashing of compiled schema components.  The
 # path you see is the first path where that element was encountered.
+
 sub _not_processed($$)
 {   my ($child, $path) = @_;
     error __x"element `{name}' not processed for {path} at {where}"
@@ -604,7 +605,7 @@ sub _not_processed($$)
 
 sub makeComplexElement
 {   my ($self, $path, $tag, $elems, $attrs, $attrs_any,undef,$is_nillable) = @_;
-#my @e = @$elems; my @a = @$attrs;
+my @e = @$elems; my @a = @$attrs;
 
     my @elems = odd_elements @$elems;
     my @attrs = (odd_elements(@$attrs), @$attrs_any);
@@ -628,6 +629,9 @@ sub makeComplexElement
           my $node    = $tree->node;
           my %complex = ((map $_->($tree), @elems), (map $_->($node), @attrs));
 
+#if($tree->currentChild)
+#{   warn "COMPLEX ELEMS($tag) @e;@a";
+#}
           _not_processed $tree->currentChild, $path
               if $tree->currentChild;
 
@@ -678,8 +682,10 @@ sub makeMixedElement
 {   my ($self, $path, $tag, $elems, $attrs, $attrs_any,undef,$is_nillable) = @_;
     my @attrs = (odd_elements(@$attrs), @$attrs_any);
     my $mixed = $self->{mixed_elements}
-         or panic "how to handle mixed?";
-$is_nillable and panic "nillable mixed not yet supported";
+        or panic "how to handle mixed?";
+
+    $is_nillable
+        and panic "nillable mixed not yet supported";
 
       ref $mixed eq 'CODE'
     ? sub { my $tree = shift or return;
