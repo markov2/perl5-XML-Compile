@@ -99,6 +99,9 @@ See M<XML::LibXML::Parser> for a list of available options which can be
 used to create an XML parser (the new method). The default will set you
 in a secure mode.  See M<initParser()>.
 
+=example
+  my $xml = XML::Compile->new(parser_options => { huge => 1 });
+
 =cut
 
 sub new(@)

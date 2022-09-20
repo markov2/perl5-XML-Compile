@@ -7,7 +7,7 @@ WriteMakefile
  , VERSION	=> '1.64'
 
  , PREREQ_PM    =>
-   { XML::LibXML               => 2.0106
+   { XML::LibXML               => 2.0107
    , XML::Compile::Tester      => 0.90
    , IO                        => 1.22
    , Log::Report               => 1.20
