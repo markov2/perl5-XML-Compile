@@ -15,6 +15,7 @@ version 1.64:
 	Improvements:
 	- #4 spell fixes from Debian [Utkarsh Gupta]
 	- explain use of CDATA in WSDLs in the FAQ.
+	- template compact output sometimes removes a useless empty line.
 
 version 1.63: Tue 02 Jul 16:35:01 CEST 2019
 

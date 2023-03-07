@@ -691,7 +691,7 @@ sub toPerl($%)
     # remove leading  'type =>'
     for(my $linenr = 0; $linenr < @lines; $linenr++)
     {   next if $lines[$linenr] =~ m/^\s*\#/;
-        next unless $lines[$linenr] =~ s/.*? \=\>\s*//;
+        next if $lines[$linenr] !~ s/.*? \=\>\s*//;
         $lines[$linenr] =~ m/\S/ or splice @lines, $linenr, 1;
         last;
     }
@@ -753,7 +753,7 @@ sub _perlAny($$)
         # seperator blank, sometimes
         unshift @sub, ''
             if $sub[0] =~ m/^\s*[#{]/   # } 
-            || (@subs && $subs[-1] =~ m/[}\]]\,\s*$/);
+            || (@subs && $subs[-1] =~ m/[}\]].*[}\]]\,\s*$/);
 
         push @subs, @sub;
     }
@@ -789,7 +789,7 @@ sub _perlAny($$)
         {   s/^(.)/  $1/ for @subs;
             $subs[0]  =~ s/^[ ]{0,3}/[ {/;
             if($subs[-1] =~ m/\#\s/ || $self->{_style}==2)
-                 { push @subs, "}, ], " }
+                 { push @subs,   '}, ], ' }
             else { $subs[-1] .= ' }, ], ' }
             push @lines, "$tag =>", @subs;
         }
