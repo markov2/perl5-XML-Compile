@@ -951,10 +951,11 @@ sub particleGroup($)
     # apparently, a group can not refer to a group... well..
 
     my $node  = $tree->node;
-    my $where = $tree->path . '#group';
     my $ref   = $node->getAttribute('ref')
         or error __x"group without ref at {where}"
-             , where => $where, _class => 'schema';
+             , where => $tree->path, _class => 'schema';
+
+    my $where = $tree->path . '#' . $ref;
 
     my $typename = $self->rel2abs($where, $node, $ref);
     if(my $blocked = $self->blocked($where, ref => $typename))
@@ -1094,12 +1095,14 @@ sub keyRewrite($;$)
 }
 
 sub prefixed($;$)
-{   my ($self, $qname, $hide) = @_;
+{   my ($self, $qname, $hide_use) = @_;
+    # hide_use = do not cause inclusion in output prefix table
+
     my ($ns, $local) = unpack_type $qname;
     defined $ns or return $qname;
 
     my $pn = $self->{prefixes}{$ns} or return;
-    $pn->{used}++ unless $hide ;
+    $pn->{used}++ unless $hide_use;
     length $pn->{prefix} ? "$pn->{prefix}:$local" : $local;
 }
 

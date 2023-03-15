@@ -926,8 +926,8 @@ method can be called to create an example which demonstrates how data
 of the specified $element shown as XML or Perl is organized in practice.
 
 The 'TREE' template returns the intermediate parse tree, which gets
-formatted into the XML or Perl example.  This is not a very stable
-interface: it may change without much notice.
+formatted into the XML or Perl example.  This is not a stable interface:
+it may change without much notice.
 
 Some %options are explained in M<XML::Compile::Translate>.  There are
 some extra %options defined for the final output process.
