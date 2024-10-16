@@ -865,21 +865,21 @@ sub compile($$@)
 # also used in ::Cache init()
 sub _namespaceTable($;$$)
 {   my ($self, $table, $reset_count, $block_default) = @_;
-    $table = { reverse @$table }
+    $table       = +{ reverse @$table }
         if ref $table eq 'ARRAY';
 
-    $table->{$_}    = { uri => $_, prefix => $table->{$_} }
+    $table->{$_} = +{ uri => $_, prefix => $table->{$_} }
         for grep ref $table->{$_} ne 'HASH', keys %$table;
 
     if($reset_count)
     {   $_->{used} = 0 for values %$table;
     }
 
-    $table->{''}    = {uri => '', prefix => '', used => 0}
+    $table->{''}   = +{ uri => '', prefix => '', used => 0 }
         if $block_default && !grep $_->{prefix} eq '', values %$table;
 
     # very strong preference for 'xsi'
-    $table->{&SCHEMA2001i} = {uri => SCHEMA2001i, prefix => 'xsi', used => 0};
+    $table->{&SCHEMA2001i} = +{ uri => SCHEMA2001i, prefix => 'xsi', used => 0 };
 
     $table;
 }

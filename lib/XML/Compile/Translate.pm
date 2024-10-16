@@ -725,12 +725,10 @@ sub element($;$)
     if(my $isa    = $node->getAttribute('type'))
     {   # explicitly names type
         $nr_childs==0
-            or error __x"no childs expected with attribute `type' at {where}"
-                 , where => $where, _class => 'schema';
+            or error __x"no childs expected with attribute `type' at {where}", where => $where, _class => 'schema';
 
         $comptype = $self->rel2abs($where, $node, $isa);
-        $comps    = $self->blocked($where, anyType => $comptype)
-                 || $self->typeByName($where, $tree, $comptype);
+        $comps    = $self->blocked($where, anyType => $comptype) || $self->typeByName($where, $tree, $comptype);
     }
     elsif($nr_childs==0)
     {   # default type for substGroups is type of base-class
@@ -745,8 +743,7 @@ sub element($;$)
                 or next;
 
             $comptype  = $self->rel2abs($where, $base_node, $isa);
-            $comps     = $self->blocked($where, complexType => $comptype)
-                      || $self->typeByName($where, $tree, $comptype);
+            $comps     = $self->blocked($where, complexType => $comptype) || $self->typeByName($where, $tree, $comptype);
             last;
         }
         unless($comptype)
@@ -764,11 +761,16 @@ sub element($;$)
         my $local = $child->localname;
         my $nest  = $tree->descend($child);
 
+        # Sometimes extension or restriction with base attribute required for hooks
+        my $ext   = $nest->firstChild;
+        my $base  = $ext  ? $ext->getAttribute('base') : undef;
+        my $basex = $base ? $self->rel2abs($where, $ext, $base) : undef;
+
         ($comps, $comptype)
           = $local eq 'simpleType'
-          ? ($self->simpleType($nest, 0), 'unnamed simple')
+          ? ($self->simpleType($nest, 0), $basex // 'unnamed simple')
           : $local eq 'complexType'
-          ? ($self->complexType($nest), 'unnamed complex')
+          ? ($self->complexType($nest), $basex // 'unnamed complex')
           : error __x"illegal element child `{name}' at {where}"
                 , name => $local, where => $where, _class => 'schema';
     }
@@ -817,10 +819,9 @@ sub element($;$)
         if $self->{permit_href} && $self->actsAs('READER');
 
     # Implement hooks
-    my ($before, $replace, $after)
-      = $self->findHooks($where, $comptype, $node);
+    my ($before, $replace, $after) = $self->findHooks($where, $comptype, $node);
 
-    $do = $self->makeHook($where,$do,$tag,$before,$replace,$after,$comptype)
+    $do = $self->makeHook($where, $do, $tag, $before, $replace, $after, $comptype)
         if $before || $replace || $after;
 
     $do = $self->xsiType($tree, $node, $name, $comptype, $do)
@@ -1169,10 +1170,11 @@ sub attribute($)
     }
 
     # no default prefixes for attributes
-    error __x"attribute namespace {ns} cannot be the default namespace"
-      , ns => $ns
-        if $qual && $ns && $self->prefixForNamespace($ns) eq '';
-        
+#warn "#", $self->prefixForNamespace($ns), "#";
+#    error __x"attribute namespace {ns} cannot be the default namespace"
+#      , ns => $ns
+#        if $qual && $ns && $self->prefixForNamespace($ns) eq '';
+
     my ($type, $typeattr);
     if($tree->nrChildren==1)
     {   $tree->currentLocal eq 'simpleType'
@@ -1442,8 +1444,7 @@ sub simpleContent($)
     # content: annotation?, (restriction | extension)
 
     $tree->nrChildren==1
-        or error __x"need one simpleContent child at {where}"
-             , where => $tree->path, _class => 'schema';
+        or error __x"need one simpleContent child at {where}", where => $tree->path, _class => 'schema';
 
     my $name  = $tree->currentLocal;
     return $self->simpleContentExtension($tree->descend)
@@ -1469,20 +1470,17 @@ sub simpleContentExtension($)
     my $where    = $tree->path . '#sext';
 
     my $base     = $node->getAttribute('base');
-    my $typename = defined $base ? $self->rel2abs($where, $node, $base)
-     : $self->anyType($node);
+    my $typename = defined $base ? $self->rel2abs($where, $node, $base) : $self->anyType($node);
 
     my $basetype = $self->blocked($where, simpleType => $typename)
                 || $self->typeByName($where, $tree, $typename);
     defined $basetype->{st}
-        or error __x"base of simpleContent not simple at {where}"
-             , where => $where, _class => 'schema';
+        or error __x"base of simpleContent not simple at {where}", where => $where, _class => 'schema';
  
     $self->extendAttrs($basetype, {$self->attributeList($tree)});
 
     $tree->currentChild
-        and error __x"elements left at tail at {where}"
-              , where => $tree->path, _class => 'schema';
+        and error __x"elements left at tail at {where}", where => $tree->path, _class => 'schema';
 
     $basetype;
 }

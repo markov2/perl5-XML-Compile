@@ -947,7 +947,7 @@ sub _xmlAny($$$$)
 
     if($ast->{_TYPE} && $args->{show_type})
     {   my $pref = $self->prefixed($ast->{_TYPE});
-        push @res, $doc->createAttribute("$xsi:type" => $pref);
+        push @res, $doc->createAttribute("$xsi:type" => $pref // '');
     }
 
     return @res

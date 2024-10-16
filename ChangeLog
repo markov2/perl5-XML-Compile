@@ -11,6 +11,8 @@ version 1.64:
 	Fixes:
 	- accept empty groups.
 	- #! of bin/schema2example [Andrius Merkys]
+	- hooks did not run on restriction/extension types
+	  GitHUB issue #6 [Frank Seitz]
 
 	Improvements:
 	- #4 spell fixes from Debian [Utkarsh Gupta]
