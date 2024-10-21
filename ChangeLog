@@ -11,11 +11,10 @@ version 1.64:
 	Fixes:
 	- accept empty groups.
 	- #! of bin/schema2example [Andrius Merkys]
-	- hooks did not run on restriction/extension types
-	  GitHUB issue #6 [Frank Seitz]
+	- hooks did not run on restriction/extension types. GitHUB issue #6 [Frank Seitz]
 
 	Improvements:
-	- #4 spell fixes from Debian [Utkarsh Gupta]
+	- spell fixes from Debian. GitHUB issue #4 [Utkarsh Gupta]
 	- explain use of CDATA in WSDLs in the FAQ.
 	- template compact output sometimes removes a useless empty line.
 	- additional element group tests

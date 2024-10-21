@@ -771,8 +771,7 @@ sub element($;$)
           ? ($self->simpleType($nest, 0), $basex // 'unnamed simple')
           : $local eq 'complexType'
           ? ($self->complexType($nest), $basex // 'unnamed complex')
-          : error __x"illegal element child `{name}' at {where}"
-                , name => $local, where => $where, _class => 'schema';
+          : error __x"illegal element child `{name}' at {where}", name => $local, where => $where, _class => 'schema';
     }
 
     my ($st, $elems, $attrs, $attrs_any)
@@ -798,8 +797,7 @@ sub element($;$)
     my $fixed    = $node->getAttributeNode('fixed');
 
     $default && $fixed
-        and error __x"element can not have default and fixed at {where}"
-              , where => $tree->path, _class => 'schema';
+        and error __x"element can not have default and fixed at {where}", where => $tree->path, _class => 'schema';
 
     my $value
       = $default  ? $default->textContent
@@ -964,20 +962,17 @@ sub particleGroup($)
     }
 
     my $dest  = $self->namespaces->find(group => $typename)
-        or error __x"cannot find group `{name}' at {where}"
-             , name => $typename, where => $where, _class => 'schema';
+        or error __x"cannot find group `{name}' at {where}", name => $typename, where => $where, _class => 'schema';
 
     my $group = $tree->descend($dest->{node}, $self->prefixed($typename, 1));
     return () if $group->nrChildren==0;
 
     $group->nrChildren==1
-        or error __x"only one particle block expected in group `{name}' at {where}"
-               , name => $typename, where => $where, _class => 'schema';
+        or error __x"only one particle block expected in group `{name}' at {where}", name => $typename, where => $where, _class => 'schema';
 
     my $local = $group->currentLocal;
     $local    =~ m/^(?:all|choice|sequence)$/
-        or error __x"illegal group member `{name}' at {where}"
-             , name => $local, where => $where, _class => 'schema';
+        or error __x"illegal group member `{name}' at {where}", name => $local, where => $where, _class => 'schema';
 
     my ($blocklabel, $code) = $self->particleBlock($group->descend);
     $code ? ($typename, $code) : ();
